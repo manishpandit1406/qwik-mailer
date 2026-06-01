@@ -1,0 +1,1 @@
+CREATE TYPE "public"."support_ticket_status" AS ENUM('open', 'in_progress', 'resolved');

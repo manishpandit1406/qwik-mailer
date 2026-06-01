@@ -1,0 +1,1 @@
+ALTER TABLE "domains" ADD COLUMN "cname_verified" boolean DEFAULT false NOT NULL;

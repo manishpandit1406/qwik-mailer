@@ -1,0 +1,57 @@
+# Dependency directories
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+.next/
+dist/
+out/
+build/
+.turbo/
+
+# Environment variables (SECURITY RISK)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Database & Caches (SECURITY RISK)
+*.rdb
+*.sqlite
+*.db
+
+# OS / Editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Security risks / Large Test Data / Binaries
+*.csv
+*.json.gz
+50k.json
+redis-server
+
+# Temporary Test/Scratch Scripts (Contains hardcoded API Keys/Tests)
+test-*.ts
+test-*.js
+test_*.js
+send-*-test.ts
+send-test-*.ts
+check_dns*.js
+scratch_*.ts
+generate_*.js
+fix-date.js
+revert-date.js
+unsuspend.ts
+clear-suppression.ts
+verify.ts
