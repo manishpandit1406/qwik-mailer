@@ -70,7 +70,7 @@ export default function CertificatesPage() {
       ? certs
       : certs.filter((c) => (c.type ?? "certificate") === filterType);
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-5 ">
       {" "}
       {/* Header */}{" "}
       <div className="flex items-center justify-between">

@@ -30,32 +30,57 @@ export async function checkDnsRecord(
   type: "TXT" | "MX" | "CNAME",
   expectedValue: string
 ): Promise<boolean> {
-  try {
+  const checkValues = (records: any) => {
     if (type === "TXT") {
-      const records = await resolver.resolveTxt(hostname);
+      const txtRecords = records as string[][];
       const cleanExpected = expectedValue.replace(/\s+/g, "");
-      
-      for (const recordChunks of records) {
+      for (const recordChunks of txtRecords) {
         const fullRecord = recordChunks.join("");
         const cleanRecord = fullRecord.replace(/\s+/g, "");
-        
-        // If it's a short check like v=DMARC1
-        if (cleanExpected.length < 20 && cleanRecord.startsWith(cleanExpected)) {
-          return true;
-        }
-        
-        // If it's a long check like a DKIM key or SPF
-        if (cleanRecord.includes(cleanExpected)) {
-          return true;
-        }
+        if (cleanExpected.length < 20 && cleanRecord.startsWith(cleanExpected)) return true;
+        if (cleanRecord.includes(cleanExpected)) return true;
       }
-      return false;
     } else if (type === "CNAME") {
-      const records = await resolver.resolveCname(hostname);
-      return records.some((r: string) => r.toLowerCase() === expectedValue.toLowerCase());
+      const cnameRecords = records as string[];
+      return cnameRecords.some((r) => r.toLowerCase() === expectedValue.toLowerCase());
     }
     return false;
-  } catch (err) {
-    return false;
-  }
+  };
+
+  try {
+    const records = type === "TXT" ? await resolver.resolveTxt(hostname) : await resolver.resolveCname(hostname);
+    if (checkValues(records)) return true;
+  } catch (err) {}
+
+  // Fallback: Authoritative DNS to bypass cache (e.g. Cloudflare/GoDaddy propagation delays)
+  try {
+    const parts = hostname.split(".");
+    let nsRecords: string[] = [];
+    for (let i = 0; i < parts.length - 1; i++) {
+      const domainToTest = parts.slice(i).join(".");
+      try {
+        nsRecords = await resolver.resolveNs(domainToTest);
+        if (nsRecords.length > 0) break;
+      } catch (e) {}
+    }
+
+    if (nsRecords.length > 0) {
+      const nsIps: string[] = [];
+      for (const ns of nsRecords) {
+        try {
+          const ips = await resolver.resolve4(ns);
+          nsIps.push(...ips);
+        } catch (e) {}
+      }
+      
+      if (nsIps.length > 0) {
+        const authResolver = new Resolver();
+        authResolver.setServers(nsIps);
+        const authRecords = type === "TXT" ? await authResolver.resolveTxt(hostname) : await authResolver.resolveCname(hostname);
+        if (checkValues(authRecords)) return true;
+      }
+    }
+  } catch (err) {}
+
+  return false;
 }

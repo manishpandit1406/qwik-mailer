@@ -18,6 +18,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [loadingResend, setLoadingResend] = useState(false);
   const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,6 +39,29 @@ export default function RegisterPage() {
       setLoading(false);
     }
   }
+
+  async function handleResend() {
+    setLoadingResend(true);
+    setError("");
+    try {
+      const res = await fetch(`${API}/v1/auth/resend-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setError("Verification email resent successfully!"); // using error state to show message, maybe should rename or just use error but green? We'll use error for simplicity
+      } else {
+        setError(data.error ?? "Failed to resend");
+      }
+    } catch {
+      setError("Network error");
+    } finally {
+      setLoadingResend(false);
+    }
+  }
+
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 font-sans selection:bg-black selection:text-white">
@@ -49,6 +73,18 @@ export default function RegisterPage() {
           <p className="text-sm text-gray-600 mb-6">
             We sent a verification link to <strong className="text-black font-semibold">{form.email}</strong>. Click it to activate your account.
           </p>
+          {error && (
+            <div className={`mb-6 px-4 py-3 rounded-lg text-sm ${error.includes('resent') ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
+              {error}
+            </div>
+          )}
+          <button
+            onClick={handleResend}
+            disabled={loadingResend}
+            className="w-full mb-3 flex justify-center py-2.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-black bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+          >
+            {loadingResend ? "Sending..." : "Resend Verification Email"}
+          </button>
           <Link href="/login" className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black">
             Go to Login
           </Link>

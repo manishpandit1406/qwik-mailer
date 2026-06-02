@@ -218,7 +218,7 @@ function CertificateBuilderInner() {
     );
   }
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] -m-6 animate-fade-in bg-white">
+    <div className="flex flex-col h-[calc(100vh-80px)] -m-6  bg-white">
       {" "}
       {/* Header */}{" "}
       <div

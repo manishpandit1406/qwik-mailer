@@ -191,7 +191,7 @@ export default function DashboardPage() {
   }, []);
   if (loading || !stats) {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 ">
         {" "}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {" "}
@@ -217,7 +217,7 @@ export default function DashboardPage() {
     : 0;
   const yMax = Math.max(5, Math.ceil(maxVolume * 1.2));
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 ">
       {" "}
       {/* Welcome banner */}{" "}
       <div className="glass-card p-6 flex items-center justify-between overflow-hidden relative">

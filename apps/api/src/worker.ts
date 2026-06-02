@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import nodemailer from "nodemailer";
 import { eq, sql } from "drizzle-orm";
-import { db, emails, emailEvents, suppressionList, users, webhooks, webhookLogs, reputationLogs, certificates, workflows, workflowRuns } from "@qwikmailer/db";
+import { db, domains, emails, emailEvents, suppressionList, users, webhooks, webhookLogs, reputationLogs, certificates, workflows, workflowRuns } from "@qwikmailer/db";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import QRCode from "qrcode";
 import fs from "fs";
@@ -335,7 +335,25 @@ const worker = new Worker<SendEmailJobData>(
         try { metadataObj = JSON.parse(metadataObj); } catch (e) { }
       }
 
+      if (metadataObj?._attachments) {
+        try {
+          const parsedAttachments = JSON.parse(metadataObj._attachments);
+          for (const att of parsedAttachments) {
+            if (fs.existsSync(att.path)) {
+              attachments.push({
+                filename: att.filename,
+                path: att.path,
+                contentType: att.contentType
+              });
+            }
+          }
+        } catch (e) {
+          console.error("[Worker] Failed to parse _attachments", e);
+        }
+      }
+
       if (metadataObj?.certificateId) {
+        // ... certificate code remains exactly the same
         console.log(`[Worker] Fetching cert for ID: ${metadataObj.certificateId}`);
         const cert = await db.query.certificates.findFirst({
           where: eq(certificates.id, metadataObj.certificateId)
@@ -343,9 +361,6 @@ const worker = new Worker<SendEmailJobData>(
 
         console.log(`[Worker] Found cert:`, !!cert);
         if (cert) {
-          // fileUrl is like "/uploads/certificates/abc.pdf"
-          // API_ROOT is "apps/api"
-          // We need to resolve it correctly. The static route serves from "uploads"
           const certPath = path.join(API_ROOT, cert.fileUrl.replace(/^\//, ""));
           console.log(`[Worker] Attempting to attach certificate at: ${certPath}`);
 
@@ -366,14 +381,12 @@ const worker = new Worker<SendEmailJobData>(
             for (const field of config) {
               const val = metadataObj[field.name] || "";
 
-              // Handle QR code type fields
               if (field.type === "qr") {
                 try {
                   const qrDataUrl = await QRCode.toDataURL(String(val) || "https://qwikmailer.in", {
                     width: Number(field.size || 100),
                     margin: 1,
                   });
-                  // Convert data URL to bytes
                   const base64Data = qrDataUrl.split(",")[1];
                   const qrBytes = Buffer.from(base64Data, "base64");
                   const qrImage = await pdfDoc.embedPng(qrBytes);
@@ -390,7 +403,6 @@ const worker = new Worker<SendEmailJobData>(
                 continue;
               }
 
-              // Parse hex color for text fields
               let r = 0, g = 0, b = 0;
               if (field.color && field.color.startsWith('#')) {
                 const hex = field.color.substring(1);
@@ -430,9 +442,29 @@ const worker = new Worker<SendEmailJobData>(
         }
       }
 
+      // Look up domain to get private key for DKIM signing
+      let dkimConfig = undefined;
+      if (email.fromEmail.includes("@")) {
+        const domainPart = email.fromEmail.split("@")[1];
+        const domainData = await db.query.domains.findFirst({
+          where: eq(domains.domain, domainPart)
+        });
+        
+        if (domainData && domainData.dkimPrivateKey && domainData.dkimSelector && domainData.status === "verified") {
+          dkimConfig = {
+            domainName: domainData.domain,
+            keySelector: domainData.dkimSelector,
+            privateKey: domainData.dkimPrivateKey
+          };
+        }
+      }
+
       const info = await transporter.sendMail({
-        from: `"${email.fromName ?? "Qwik Mailer"}" <${email.fromEmail}>`,
-        to: email.toName ? `"${email.toName}" <${email.toEmail}>` : email.toEmail,
+        from: {
+          name: email.fromName ?? "Qwik Mailer",
+          address: email.fromEmail,
+        },
+        to: email.toName ? { name: email.toName, address: email.toEmail } : email.toEmail,
         replyTo: email.replyTo ?? undefined,
         subject: renderedSubject,
         html: htmlBody,
@@ -442,6 +474,7 @@ const worker = new Worker<SendEmailJobData>(
         headers: {
           "List-Unsubscribe": `<${unsubscribeUrl}>`,
         },
+        dkim: dkimConfig,
       });
 
 

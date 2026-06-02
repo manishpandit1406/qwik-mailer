@@ -184,7 +184,7 @@ function TemplateBuilderInner() {
     );
   }
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] -m-6 animate-fade-in bg-white relative overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-80px)] -m-6  bg-white relative overflow-hidden">
       {" "}
       <div
         className="p-4 bg-white border-b flex items-center justify-between z-20 shadow-sm"

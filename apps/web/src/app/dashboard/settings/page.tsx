@@ -12,8 +12,10 @@ import {
   X,
   RefreshCw,
   ChevronLeft,
+  Trash2,
 } from "lucide-react";
 import { LogoLoader } from "@/components/LogoLoader";
+import { startRegistration } from "@simplewebauthn/browser";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 function getToken() {
   return typeof window !== "undefined"
@@ -39,6 +41,12 @@ export default function SettingsPage() {
     dailyEmailCount: 0,
     dailyLimit: null as number | null,
     billingPeriodStart: null as string | null,
+    companyAddress: "",
+    companyAddress2: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "",
   });
   const [profileLoading, setProfileLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -71,7 +79,148 @@ export default function SettingsPage() {
   const [totpMsg, setTotpMsg] = useState("");
   const [totpLoading, setTotpLoading] = useState(false);
 
-  const [notifSaved, setNotifSaved] = useState(false);
+  
+  const [passkeys, setPasskeys] = useState<any[]>([]);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [deletingPasskey, setDeletingPasskey] = useState<string | null>(null);
+  const [passkeyToDelete, setPasskeyToDelete] = useState<string | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteTotp, setDeleteTotp] = useState("");
+  const [passkeyMsg, setPasskeyMsg] = useState("");
+
+  async function loadPasskeys() {
+    try {
+      const res = await fetch(`${API}/v1/auth/passkey`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setPasskeys(data);
+    } catch { }
+  }
+
+  useEffect(() => {
+    if (tab === "security") {
+      loadPasskeys();
+    }
+  }, [tab]);
+
+  async function registerPasskey() {
+    setPasskeyLoading(true);
+    setPasskeyMsg("");
+    try {
+      // 1. Get options from server
+      const optRes = await fetch(`${API}/v1/auth/passkey/register-options`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const options = await optRes.json();
+      
+      if (options.error) {
+        throw new Error(options.error);
+      }
+
+      // 2. Pass to browser
+      const attResp = await startRegistration(options);
+
+      // 3. Verify with server
+      const verRes = await fetch(`${API}/v1/auth/passkey/register-verify`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(attResp),
+      });
+
+      const verification = await verRes.json();
+      if (verification.verified) {
+        setPasskeyMsg("Passkey registered successfully!");
+        loadPasskeys();
+      } else {
+        setPasskeyMsg(verification.error || "Registration failed");
+      }
+    } catch (err: any) {
+      setPasskeyMsg(err.message || "Something went wrong.");
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }
+
+  async function executeDeletePasskey() {
+    if (!passkeyToDelete) return;
+    setDeletingPasskey(passkeyToDelete);
+    setPasskeyMsg("");
+    try {
+      const res = await fetch(`${API}/v1/auth/passkey/${passkeyToDelete}`, {
+        method: "DELETE",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`
+        },
+        body: JSON.stringify({
+          password: deletePassword || undefined,
+          totpCode: deleteTotp || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPasskeyMsg("Passkey removed.");
+        setPasskeyToDelete(null);
+        setDeletePassword("");
+        setDeleteTotp("");
+        loadPasskeys();
+      } else {
+        setPasskeyMsg(data.error || "Failed to remove passkey");
+      }
+    } catch (err: any) {
+      setPasskeyMsg(err.message || "Failed to remove passkey");
+    } finally {
+      setDeletingPasskey(null);
+    }
+  }
+
+  async function deleteWithPasskey() {
+    if (!passkeyToDelete) return;
+    setDeletingPasskey(passkeyToDelete);
+    setPasskeyMsg("");
+    try {
+      // Step 1: Get challenge
+      const optionsRes = await fetch(`${API}/v1/auth/passkey/delete-options`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const options = await optionsRes.json();
+      if (options.error) throw new Error(options.error);
+
+      // Step 2: Trigger native browser biometric prompt
+      const { startAuthentication } = await import("@simplewebauthn/browser");
+      const webauthnResponse = await startAuthentication({ optionsJSON: options });
+
+      // Step 3: Send signed response to delete endpoint
+      const res = await fetch(`${API}/v1/auth/passkey/${passkeyToDelete}`, {
+        method: "DELETE",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`
+        },
+        body: JSON.stringify({ webauthnResponse }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPasskeyMsg("Passkey removed.");
+        setPasskeyToDelete(null);
+        setDeletePassword("");
+        setDeleteTotp("");
+        loadPasskeys();
+      } else {
+        setPasskeyMsg(data.error || "Failed to remove passkey");
+      }
+    } catch (err: any) {
+      setPasskeyMsg(err.message || "Failed to remove passkey");
+    } finally {
+      setDeletingPasskey(null);
+    }
+  }
+
+const [notifSaved, setNotifSaved] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState([
     true,
     true,
@@ -133,6 +282,12 @@ export default function SettingsPage() {
             dailyEmailCount: json.data.dailyEmailCount ?? 0,
             dailyLimit: json.data.dailyLimit ?? null,
             billingPeriodStart: json.data.billingPeriodStart ?? null,
+            companyAddress: json.data.companyAddress ?? "",
+            companyAddress2: json.data.companyAddress2 ?? "",
+            city: json.data.city ?? "",
+            state: json.data.state ?? "",
+            zipCode: json.data.zipCode ?? "",
+            country: json.data.country ?? "",
           });
           // Update localStorage too
           localStorage.setItem(
@@ -158,7 +313,15 @@ export default function SettingsPage() {
           Authorization: `Bearer ${getToken()}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: profile.name }),
+        body: JSON.stringify({ 
+          name: profile.name,
+          companyAddress: profile.companyAddress,
+          companyAddress2: profile.companyAddress2,
+          city: profile.city,
+          state: profile.state,
+          zipCode: profile.zipCode,
+          country: profile.country,
+        }),
       });
       const json = await res.json();
       if (!json.success) {
@@ -294,7 +457,7 @@ export default function SettingsPage() {
     }
   }
   return (
-    <div className="space-y-5 animate-fade-in max-w-5xl">
+    <div className="space-y-5  max-w-5xl">
       <div>
         <h2
           className="text-xl font-bold mb-1"
@@ -409,6 +572,40 @@ export default function SettingsPage() {
                         <div>
                           <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>Phone Number</label>
                           <input className="input" type="text" value={profile.phoneNumber} disabled style={{ opacity: 0.7, cursor: "not-allowed" }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 mt-2 border-t" style={{ borderColor: "var(--border)" }}>
+                      <h4 className="font-semibold text-sm mb-4" style={{ color: "var(--text-primary)" }}>Address & Billing Details</h4>
+                      <div className="grid gap-4">
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>Address Line 1</label>
+                          <input className="input" type="text" value={profile.companyAddress} onChange={(e) => setProfile({ ...profile, companyAddress: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>Address Line 2 (Optional)</label>
+                          <input className="input" type="text" value={profile.companyAddress2} onChange={(e) => setProfile({ ...profile, companyAddress2: e.target.value })} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>City</label>
+                            <input className="input" type="text" value={profile.city} onChange={(e) => setProfile({ ...profile, city: e.target.value })} />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>State/Province</label>
+                            <input className="input" type="text" value={profile.state} onChange={(e) => setProfile({ ...profile, state: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>ZIP Code</label>
+                            <input className="input" type="text" value={profile.zipCode} onChange={(e) => setProfile({ ...profile, zipCode: e.target.value })} />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>Country</label>
+                            <input className="input" type="text" value={profile.country} onChange={(e) => setProfile({ ...profile, country: e.target.value })} />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -674,6 +871,133 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* PASSKEYS SECTION */}
+              <hr className="divider" />
+              <div>
+                <p className="font-medium text-sm mb-1" style={{ color: "var(--text-primary)" }}>
+                  Passkeys (Passwordless Login)
+                </p>
+                <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+                  Use Touch ID, Face ID, or a security key to sign in securely without a password.
+                </p>
+                {passkeyMsg && (
+                  <p className="text-sm mb-3 font-medium text-blue-600 bg-blue-50 p-2 rounded-lg">
+                    {passkeyMsg}
+                  </p>
+                )}
+                
+                {passkeys.length > 0 && (
+                  <div className="mb-4 space-y-2">
+                    {passkeys.map((pk: any) => (
+                      <div key={pk.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-between group transition-colors hover:border-gray-300">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 mb-1">
+                            {pk.deviceName || pk.deviceType || "Passkey"}
+                            {pk.browser && <span className="ml-2 font-normal text-gray-500">· {pk.browser}</span>}
+                            {pk.deviceOs && <span className="ml-2 font-normal text-gray-500">· {pk.deviceOs}</span>}
+                          </p>
+                          <p className="text-xs text-gray-500 flex gap-3">
+                            <span>Added: {new Date(pk.createdAt).toLocaleDateString()}</span>
+                            {pk.ipAddress && <span>IP: {pk.ipAddress}</span>}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <CheckCircle2 size={18} className="text-emerald-500" />
+                          <button
+                            onClick={() => setPasskeyToDelete(pk.id)}
+                            disabled={deletingPasskey === pk.id}
+                            className="text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                            title="Remove Passkey"
+                          >
+                            {deletingPasskey === pk.id ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {passkeyToDelete && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+                      <button onClick={() => setPasskeyToDelete(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                        <X size={20} />
+                      </button>
+                      <h3 className="text-xl font-bold mb-2">Verify Deletion</h3>
+                      <p className="text-sm text-gray-600 mb-5">
+                        Confirm your identity to remove this passkey. Use any one of the methods below.
+                      </p>
+
+                      {/* Passkey Button */}
+                      <button
+                        onClick={deleteWithPasskey}
+                        disabled={deletingPasskey !== null}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 mb-4 text-sm font-semibold text-white rounded-xl disabled:opacity-50 transition-all"
+                        style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+                      >
+                        {deletingPasskey ? <RefreshCw size={16} className="animate-spin" /> : <Shield size={16} />}
+                        {deletingPasskey ? "Verifying..." : "Use Passkey (Touch ID / Face ID)"}
+                      </button>
+
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex-1 h-px bg-gray-200" />
+                        <span className="text-xs text-gray-400 uppercase font-semibold">Or</span>
+                        <div className="flex-1 h-px bg-gray-200" />
+                      </div>
+                      
+                      <div className="space-y-4 mb-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                          <input
+                            type="password"
+                            value={deletePassword}
+                            onChange={(e) => setDeletePassword(e.target.value)}
+                            placeholder="Your account password"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          />
+                        </div>
+                        <div className="text-center text-xs text-gray-400 uppercase font-semibold">Or</div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">2FA Code</label>
+                          <input
+                            type="text"
+                            value={deleteTotp}
+                            onChange={(e) => setDeleteTotp(e.target.value)}
+                            placeholder="6-digit authenticator code"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 justify-end">
+                        <button
+                          onClick={() => setPasskeyToDelete(null)}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={executeDeletePasskey}
+                          disabled={deletingPasskey !== null || (!deletePassword && !deleteTotp)}
+                          className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {deletingPasskey ? "Removing..." : "Remove Passkey"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  className="btn-secondary text-sm flex items-center gap-2"
+                  onClick={registerPasskey}
+                  disabled={passkeyLoading}
+                >
+                  {passkeyLoading ? <RefreshCw size={14} className="animate-spin" /> : <Shield size={14} />}
+                  {passkeyLoading ? "Setting up..." : "Register New Passkey"}
+                </button>
               </div>
             </div>
           )}
@@ -1005,7 +1329,7 @@ export default function SettingsPage() {
       </div>
       {/* Reputation Logs Modal */}
       {showRepLogs && (
-        <div className="fixed inset-0 lg:left-60 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-lg w-full max-w-md shadow-xl overflow-hidden border border-black/10">
             <div className="flex items-center justify-between p-4 border-b border-black/10">
               <h3

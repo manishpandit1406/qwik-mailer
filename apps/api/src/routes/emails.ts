@@ -9,6 +9,7 @@ import {
   createRedisConnection,
 } from "@qwikmailer/queue";
 import { checkAndConsumeQuota } from "../utils/quota.js";
+import { isRelatedToCompany } from "../utils/validation.js";
 
 import * as XLSX from "xlsx";
 import crypto from "crypto";
@@ -42,6 +43,11 @@ const sendEmailSchema = z.object({
   metadata: z.record(z.string()).optional(),
   scheduledAt: z.string().datetime().optional(),
   replyTo: z.string().email().optional(),
+  attachments: z.array(z.object({
+    filename: z.string(),
+    content: z.string(), // base64 string
+    contentType: z.string().optional()
+  })).optional(),
 }).refine(data => data.subject || data.templateId, {
   message: "Either 'subject' or 'templateId' must be provided",
   path: ["subject"]
@@ -53,43 +59,48 @@ const sendEmailSchema = z.object({
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 async function resolveSenderDomain(userId: string, requestedFrom?: string, requestedFromName?: string) {
-  const defaultFrom = process.env.SMTP_FROM_EMAIL!;
-  let fromEmail = defaultFrom;
-  let fromName = requestedFromName ?? process.env.SMTP_FROM_NAME!;
+  let fromEmail = "";
+  let fromName = requestedFromName;
   let replyTo: string | undefined = undefined;
 
-  if (requestedFrom && requestedFrom !== defaultFrom) {
-    const domainPart = requestedFrom.split("@")[1];
-    if (domainPart) {
-      const verifiedDomain = await db.query.domains.findFirst({
-        where: and(eq(domains.userId, userId), eq(domains.domain, domainPart), eq(domains.status, "verified")),
-      });
-      
-      if (verifiedDomain) {
-        const sender = await db.query.domainSenders.findFirst({
-          where: eq(domainSenders.email, requestedFrom),
-        });
+  const userRec = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (requestedFromName && !isRelatedToCompany(userRec?.companyName, requestedFromName)) {
+    throw new Error("From name must be related to your company name.");
+  }
 
-        if (sender) {
-          fromEmail = requestedFrom;
-          
-          // Use sender identity fromName if the API didn't explicitly request one
-          if (!requestedFromName && sender.fromName) {
-            fromName = sender.fromName;
-          }
-          
-          // Use sender identity replyTo if available
-          if (sender.replyTo) {
-            replyTo = sender.replyTo;
-          }
-          
-        } else {
-          replyTo = requestedFrom;
-        }
-      } else {
-        replyTo = requestedFrom;
-      }
+  let sender: any = null;
+
+  if (requestedFrom) {
+    sender = await db.query.domainSenders.findFirst({
+      where: and(eq(domainSenders.userId, userId), eq(domainSenders.email, requestedFrom)),
+    });
+    if (!sender) {
+      throw new Error("Sender identity not found. Please create it first in the dashboard.");
     }
+  } else {
+    // If not provided, fetch the most recent sender identity
+    sender = await db.query.domainSenders.findFirst({
+      where: eq(domainSenders.userId, userId),
+      orderBy: (senders, { desc }) => [desc(senders.createdAt)],
+    });
+    if (!sender) {
+      throw new Error("You must create a sender identity before sending emails.");
+    }
+  }
+
+  // Set the resolved sender details
+  fromEmail = sender.email;
+  
+  // Use sender identity fromName if the API didn't explicitly request one
+  if (!requestedFromName && sender.fromName) {
+    fromName = sender.fromName;
+  }
+  if (!fromName) {
+    fromName = process.env.SMTP_FROM_NAME!;
+  }
+
+  if (sender.replyTo) {
+    replyTo = sender.replyTo;
   }
 
   return { fromEmail, fromName, replyTo };
@@ -137,6 +148,32 @@ export async function emailRoutes(app: FastifyInstance) {
     }
 
     const mergedMetadata = { ...body.metadata, ...body.variables, _source: user.source || "api" };
+
+    if (body.attachments && body.attachments.length > 0) {
+      const attachmentsDir = path.join(__dirname, "..", "..", "uploads", "attachments", batchId);
+      if (!fs.existsSync(attachmentsDir)) {
+        fs.mkdirSync(attachmentsDir, { recursive: true });
+      }
+      const savedAttachments = [];
+      for (let i = 0; i < body.attachments.length; i++) {
+        const att = body.attachments[i];
+        const safeName = att.filename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+        const savePath = path.join(attachmentsDir, `att_${i}_${safeName}`);
+        try {
+          fs.writeFileSync(savePath, Buffer.from(att.content, 'base64'));
+          savedAttachments.push({
+            filename: att.filename,
+            path: savePath,
+            contentType: att.contentType
+          });
+        } catch (e) {
+          console.error("Failed to save attachment", e);
+        }
+      }
+      if (savedAttachments.length > 0) {
+        mergedMetadata._attachments = JSON.stringify(savedAttachments);
+      }
+    }
 
     for (const recipient of toList) {
       // Check suppression list
@@ -629,6 +666,9 @@ export async function emailRoutes(app: FastifyInstance) {
     let from = "";
     let fromName = "";
     let replyTo = "";
+    let scheduledAt = "";
+
+    let attachmentsStr = "";
 
     for await (const part of parts) {
       if (part.type !== "file") {
@@ -641,6 +681,8 @@ export async function emailRoutes(app: FastifyInstance) {
         if (part.fieldname === "from") from = val;
         if (part.fieldname === "fromName") fromName = val;
         if (part.fieldname === "replyTo") replyTo = val;
+        if (part.fieldname === "attachments") attachmentsStr = val;
+        if (part.fieldname === "scheduledAt") scheduledAt = val;
       }
     }
 
@@ -693,6 +735,41 @@ export async function emailRoutes(app: FastifyInstance) {
     // Process in chunks of 1000 to avoid DB connection limits and memory spikes
     const CHUNK_SIZE = 1000;
     
+    // Process attachments
+    let attachmentsMetadata: string | undefined = undefined;
+    if (attachmentsStr) {
+      try {
+        const atts = JSON.parse(attachmentsStr);
+        if (Array.isArray(atts) && atts.length > 0) {
+          const attachmentsDir = path.join(__dirname, "..", "..", "uploads", "attachments", batchId);
+          if (!fs.existsSync(attachmentsDir)) {
+            fs.mkdirSync(attachmentsDir, { recursive: true });
+          }
+          const savedAttachments = [];
+          for (let i = 0; i < atts.length; i++) {
+            const att = atts[i];
+            const safeName = att.filename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+            const savePath = path.join(attachmentsDir, `att_${i}_${safeName}`);
+            try {
+              fs.writeFileSync(savePath, Buffer.from(att.content, 'base64'));
+              savedAttachments.push({
+                filename: att.filename,
+                path: savePath,
+                contentType: att.contentType
+              });
+            } catch (e) {
+              console.error("Failed to save bulk attachment", e);
+            }
+          }
+          if (savedAttachments.length > 0) {
+            attachmentsMetadata = JSON.stringify(savedAttachments);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse attachments JSON", e);
+      }
+    }
+
     // Respond immediately to prevent the frontend request from hanging
     reply.code(202).send({
       success: true,
@@ -756,18 +833,22 @@ export async function emailRoutes(app: FastifyInstance) {
           subject,
           htmlBody: personalisedHtml,
           textBody: personalisedText || null,
+          scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
           status: "queued" as any,
           tags: ["bulk-upload"],
-          metadata: { source: "excel-upload", listId, certificateId: certificateId || undefined, ...vars } as any,
+          metadata: { ...baseMetadata, ...vars } as any,
         });
       }
 
       if (insertPayloads.length > 0) {
         const insertedRows = await db.insert(emails).values(insertPayloads).returning({ id: emails.id });
         
+        const delay = scheduledAt ? new Date(scheduledAt).getTime() - Date.now() : 0;
+        
         const jobs = insertedRows.map(row => ({
           name: "send",
-          data: { emailId: row.id, userId: user.sub }
+          data: { emailId: row.id, userId: user.sub },
+          opts: { delay: delay > 0 ? delay : 0 }
         }));
         
         await emailQueue.addBulk(jobs);

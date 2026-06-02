@@ -20,6 +20,7 @@ interface Domain {
   domain: string;
   status: "verified" | "pending" | "failed";
   spfVerified: boolean;
+  mailFromVerified: boolean;
   dkimVerified: boolean;
   dmarcVerified: boolean;
   isTrackingDomain: boolean;
@@ -32,6 +33,7 @@ interface DnsRecord {
   type: string;
   host: string;
   value: string;
+  priority?: number;
   purpose: string;
   verified: boolean;
 }
@@ -277,7 +279,7 @@ export default function DomainsPage() {
               <tr>
                 <th>Domain</th>
                 <th>Status</th>
-                <th>SPF</th>
+                <th>Return Path</th>
                 <th>DKIM</th>
                 <th>DMARC</th>
                 <th>CNAME</th>
@@ -294,6 +296,9 @@ export default function DomainsPage() {
                   >
                     <div className="flex items-center gap-2">
                       <Globe size={14} className="text-indigo-600" /> {d.domain}
+                      {d.domain === "mail.qwikmailer.in" && (
+                        <span className="text-[10px] uppercase tracking-wider font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-1">Shared</span>
+                      )}
                     </div>
                   </td>
                   <td>
@@ -302,7 +307,7 @@ export default function DomainsPage() {
                     </span>
                   </td>
                   <td>
-                    {d.spfVerified ? (
+                    {d.mailFromVerified ? (
                       <CheckCircle2 size={15} className="text-emerald-500" />
                     ) : (
                       <AlertCircle size={15} className="text-amber-500" />
@@ -330,7 +335,13 @@ export default function DomainsPage() {
                         <span title="Pending CNAME Verification"><AlertCircle size={15} className="text-amber-500" /></span>
                       )
                     ) : (
-                      <span className="text-gray-400 text-xs" title="Not Configured">-</span>
+                      <button
+                        onClick={() => setupLinkBranding(d.id)}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium underline"
+                        title="Enable Link Branding (CNAME)"
+                      >
+                        Enable
+                      </button>
                     )}
                   </td>
                   <td className="w-32">
@@ -338,22 +349,26 @@ export default function DomainsPage() {
                   </td>
                   <td>
                     <div className="flex gap-1">
-                      <button
-                        className="btn-ghost p-1.5"
-                        title="View DNS Records"
-                        onClick={() => loadDnsRecords(d.id)}
-                        disabled={dnsLoading}
-                      >
-                        <ExternalLink size={13} />
-                      </button>
-                      <button
-                        className="btn-ghost p-1.5 text-indigo-500 hover:text-indigo-700"
-                        title={d.isTrackingDomain ? "Link Branding (CNAME) Configured" : "Enable Link Branding (CNAME)"}
-                        onClick={() => !d.isTrackingDomain && setupLinkBranding(d.id)}
-                        disabled={d.isTrackingDomain}
-                      >
-                        <Link2 size={13} className={d.isTrackingDomain ? "text-emerald-500" : ""} />
-                      </button>
+                      {d.domain !== "mail.qwikmailer.in" && (
+                        <button
+                          className="btn-ghost p-1.5"
+                          title="View DNS Records"
+                          onClick={() => loadDnsRecords(d.id)}
+                          disabled={dnsLoading}
+                        >
+                          <ExternalLink size={13} />
+                        </button>
+                      )}
+                      {d.domain !== "mail.qwikmailer.in" && (
+                        <button
+                          className="btn-ghost p-1.5 text-indigo-500 hover:text-indigo-700"
+                          title={d.isTrackingDomain ? "Link Branding (CNAME) Configured" : "Enable Link Branding (CNAME)"}
+                          onClick={() => !d.isTrackingDomain && setupLinkBranding(d.id)}
+                          disabled={d.isTrackingDomain}
+                        >
+                          <Link2 size={13} className={d.isTrackingDomain ? "text-emerald-500" : ""} />
+                        </button>
+                      )}
                       <button
                         className="btn-ghost p-1.5"
                         title="Manage Senders"
@@ -361,24 +376,28 @@ export default function DomainsPage() {
                       >
                         <Mail size={13} />
                       </button>
-                      <button
-                        className="btn-ghost p-1.5"
-                        title="Verify DNS"
-                        onClick={() => verifyDomain(d.id)}
-                        disabled={verifying === d.id}
-                      >
-                        <RefreshCw
-                          size={13}
-                          className={verifying === d.id ? "animate-spin" : ""}
-                        />
-                      </button>
-                      <button
-                        className="btn-ghost p-1.5 text-red-400 hover:text-red-600"
-                        title="Delete"
-                        onClick={() => deleteDomain(d.id)}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {d.domain !== "mail.qwikmailer.in" && (
+                        <button
+                          className="btn-ghost p-1.5"
+                          title="Verify DNS"
+                          onClick={() => verifyDomain(d.id)}
+                          disabled={verifying === d.id}
+                        >
+                          <RefreshCw
+                            size={13}
+                            className={verifying === d.id ? "animate-spin" : ""}
+                          />
+                        </button>
+                      )}
+                      {d.domain !== "mail.qwikmailer.in" && (
+                        <button
+                          className="btn-ghost p-1.5 text-red-400 hover:text-red-600"
+                          title="Delete"
+                          onClick={() => deleteDomain(d.id)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -462,7 +481,7 @@ export default function DomainsPage() {
             <div className="space-y-4">
               {dnsModal.records.map((rec) => (
                 <div
-                  key={rec.purpose}
+                  key={`${rec.host}-${rec.purpose}`}
                   className="p-4 rounded-xl bg-indigo-50 border border-indigo-100"
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -491,22 +510,18 @@ export default function DomainsPage() {
                       </p>
                       <div className="flex items-center gap-2">
                         <code className="code-block block flex-1">
-                          {rec.host === "@"
-                            ? dnsModal.domain
-                            : `${rec.host}.${dnsModal.domain}`}
+                          {rec.host}
                         </code>
                         <button
                           className="btn-ghost p-1.5"
                           onClick={() =>
                             copyValue(
-                              rec.host === "@"
-                                ? dnsModal.domain
-                                : `${rec.host}.${dnsModal.domain}`,
-                              `host-${rec.purpose}`,
+                              rec.host,
+                              `host-${rec.host}`,
                             )
                           }
                         >
-                          {copied === `host-${rec.purpose}` ? (
+                          {copied === `host-${rec.host}` ? (
                             <CheckCircle2
                               size={12}
                               className="text-emerald-500"
@@ -517,6 +532,36 @@ export default function DomainsPage() {
                         </button>
                       </div>
                     </div>
+                    {rec.priority !== undefined && (
+                      <div>
+                        <p
+                          className="font-medium mb-1"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          PRIORITY
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <code className="code-block block flex-1">
+                            {rec.priority}
+                          </code>
+                          <button
+                            className="btn-ghost p-1.5 shrink-0"
+                            onClick={() =>
+                              copyValue(rec.priority!.toString(), `prio-${rec.host}`)
+                            }
+                          >
+                            {copied === `prio-${rec.host}` ? (
+                              <CheckCircle2
+                                size={12}
+                                className="text-emerald-500"
+                              />
+                            ) : (
+                              <Copy size={12} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <p
                         className="font-medium mb-1"
@@ -537,10 +582,10 @@ export default function DomainsPage() {
                         <button
                           className="btn-ghost p-1.5 shrink-0"
                           onClick={() =>
-                            copyValue(rec.value, `val-${rec.purpose}`)
+                            copyValue(rec.value, `val-${rec.host}`)
                           }
                         >
-                          {copied === `val-${rec.purpose}` ? (
+                          {copied === `val-${rec.host}` ? (
                             <CheckCircle2
                               size={12}
                               className="text-emerald-500"

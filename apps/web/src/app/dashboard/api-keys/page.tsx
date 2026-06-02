@@ -286,7 +286,7 @@ export default function ApiKeysPage() {
     setNewKeyName("");
   }
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-5 ">
       {" "}
       <div className="flex items-center justify-between">
         {" "}
@@ -424,7 +424,7 @@ export default function ApiKeysPage() {
       {/* Create key modal */}{" "}
       {showCreate && (
         <div
-          className="fixed inset-0 lg:left-60 z-50 flex items-center justify-center p-6 bg-gray-900/40"
+          className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm"
           onClick={closeCreate}
         >
           {" "}

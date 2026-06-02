@@ -26,6 +26,7 @@ interface EmailLog {
   htmlBody?: string;
   textBody?: string;
   scheduledAt?: string;
+  metadata?: any;
 }
 const statusStyles: Record<string, string> = {
   queued: "badge-info",
@@ -231,9 +232,7 @@ export default function ScheduledPage() {
                       <td className="text-xs">
                         {" "}
                         <div>
-                          {new Date(batch.createdAt).toLocaleString(undefined, {
-                            timeZone: "UTC",
-                          })}
+                          {new Date(batch.createdAt).toLocaleString(undefined, { timeZone: "UTC" })}
                         </div>{" "}
                       </td>
                       <td>
@@ -305,7 +304,7 @@ export default function ScheduledPage() {
       {/* Batch Emails Modal */} {/* */}
       {selectedBatchId && !selected && (
         <div
-          className="fixed inset-0 lg:left-60 z-40 flex items-center justify-center p-6"
+          className="fixed inset-0 z-40 flex items-center justify-center p-6"
           style={{ background: "rgba(0,0,0,0.7)" }}
           onClick={() => setSelectedBatchId(null)}
         >
@@ -397,7 +396,7 @@ export default function ScheduledPage() {
       {/* Email Detail Panel */} {/* */}
       {selected && (
         <div
-          className="fixed inset-0 lg:left-60 z-50 flex items-center justify-center p-6"
+          className="fixed inset-0 z-50 flex items-center justify-center p-6"
           style={{ background: "rgba(0,0,0,0.7)" }}
           onClick={() => setSelected(null)}
         >
@@ -442,10 +441,8 @@ export default function ScheduledPage() {
                   [
                     "Scheduled",
                     selected.scheduledAt
-                      ? `${new Date(selected.scheduledAt).toLocaleString(undefined, { timeZone: "UTC" })} (${formatDistanceToNow(new Date(selected.scheduledAt), { addSuffix: true })})`
-                      : new Date(selected.createdAt).toLocaleString(undefined, {
-                          timeZone: "UTC",
-                        }),
+                      ? `${new Date(selected.scheduledAt).toLocaleString()} (${formatDistanceToNow(new Date(selected.scheduledAt), { addSuffix: true })})`
+                      : new Date(selected.createdAt).toLocaleString(undefined, { timeZone: "UTC" }),
                   ],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4">
@@ -465,6 +462,68 @@ export default function ScheduledPage() {
                   </div>
                 ))}{" "}
               </div>{" "}
+              {(() => {
+                let parsedAttachments: any[] = [];
+                if (selected.metadata?._attachments) {
+                  const atts = selected.metadata._attachments;
+                  if (typeof atts === 'string') {
+                    try { parsedAttachments = JSON.parse(atts); } catch(e) {}
+                  } else if (Array.isArray(atts)) {
+                    parsedAttachments = [...atts];
+                  }
+                }
+                if (selected.metadata?.certificateId) {
+                  parsedAttachments.push({
+                    filename: 'Dynamic_Certificate.pdf',
+                    contentType: 'application/pdf',
+                    path: '/dashboard/certificates' // Link to certificates dashboard
+                  });
+                }
+                
+                if (parsedAttachments.length === 0) return null;
+                return (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-500">
+                      Attachments ({parsedAttachments.length})
+                    </h4>
+                    <div className="flex flex-col gap-2">
+                      {parsedAttachments.map((att, i) => {
+                        let url = "#";
+                        if (att.path) {
+                          const parts = att.path.split('uploads/');
+                          if (parts.length > 1) {
+                            url = `${API}/uploads/${parts[1]}`.replace(/\\/g, '/');
+                          } else {
+                            url = att.path.startsWith('/') ? `${API}${att.path}` : `${API}/${att.path}`;
+                          }
+                        }
+
+                        const content = (
+                          <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                            <div className="p-2 bg-indigo-50 rounded-lg text-indigo-500 border border-indigo-100">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm font-semibold text-gray-800 truncate group-hover:text-indigo-600 transition-colors">{att.filename || "Attachment"}</span>
+                              <span className="text-xs text-gray-400">{att.contentType || "Unknown type"}</span>
+                            </div>
+                          </div>
+                        );
+
+                        return url !== "#" ? (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="group block cursor-pointer">
+                            {content}
+                          </a>
+                        ) : (
+                          <div key={i} className="group block cursor-help opacity-90" title="This file is dynamically generated when sending and cannot be previewed beforehand.">
+                            {content}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
               <div>
                 {" "}
                 <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-500">

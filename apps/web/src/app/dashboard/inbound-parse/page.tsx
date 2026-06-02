@@ -100,7 +100,7 @@ export default function InboundParsePage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto animate-fade-in">
+    <div className="max-w-6xl mx-auto ">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Inbound Parse Webhooks</h1>
@@ -180,7 +180,7 @@ export default function InboundParsePage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-gray-900/40" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)}>
           <div className="glass-card p-6 max-w-lg w-full animate-fade-up" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-lg mb-4" style={{ color: "var(--text-primary)" }}>Add Inbound Parse Host</h3>
             

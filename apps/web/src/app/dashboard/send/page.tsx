@@ -33,6 +33,47 @@ export default function SendEmailPage() {
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
   const [senders, setSenders] = useState<{ id: string; email: string }[]>([]);
+  const [sendersLoaded, setSendersLoaded] = useState(false);
+  const [attachments, setAttachments] = useState<{ filename: string; content: string; contentType: string; size: number }[]>([]);
+  const [certificates, setCertificates] = useState<{ id: string; name: string }[]>([]);
+  const [selectedCertificateId, setSelectedCertificateId] = useState("");
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    
+    if (attachments.length + files.length > 5) {
+      alert("Maximum 5 attachments allowed.");
+      return;
+    }
+
+    files.forEach(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`File ${file.name} is too large. Maximum size is 5MB.`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          const base64 = result.split(',')[1];
+          setAttachments(prev => [...prev, {
+            filename: file.name,
+            contentType: file.type || "application/octet-stream",
+            content: base64,
+            size: file.size
+          }]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"; // Load templates and senders on mount
   useEffect(() => {
     async function loadData() {
@@ -57,10 +98,24 @@ export default function SendEmailPage() {
                 setForm(prev => ({ ...prev, from: json.data[0].email }));
               }
             }
+            setSendersLoaded(true);
+          })
+          .catch((err) => {
+            console.error(err);
+            setSendersLoaded(true);
+          });
+        // Load certificates
+        fetch(`${API}/v1/certificates`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((res) => res.json())
+          .then((json) => {
+            if (json.success) setCertificates(json.data);
           })
           .catch(console.error);
       } catch (err) {
         console.error("Failed to load data:", err);
+        setSendersLoaded(true);
       }
     }
     loadData();
@@ -103,6 +158,8 @@ export default function SendEmailPage() {
           html: form.html || undefined,
           text: form.text || undefined,
           tags: form.tags,
+          metadata: selectedCertificateId ? { certificateId: selectedCertificateId } : undefined,
+          attachments: attachments.length > 0 ? attachments : undefined,
           scheduledAt:
             isScheduled && scheduledDate
               ? new Date(scheduledDate).toISOString()
@@ -119,7 +176,7 @@ export default function SendEmailPage() {
         });
         setForm({
           to: "",
-          from: "",
+          from: senders.length > 0 ? senders[0].email : "",
           fromName: "",
           replyTo: "",
           subject: "",
@@ -127,7 +184,9 @@ export default function SendEmailPage() {
           text: "",
           tags: [],
         });
+        setAttachments([]);
         setSelectedTemplateId("");
+        setSelectedCertificateId("");
         setIsScheduled(false);
         setScheduledDate("");
       } else {
@@ -179,7 +238,41 @@ export default function SendEmailPage() {
         </div>
       )}
       <form onSubmit={handleSend} className="glass-card p-6 space-y-5">
-        {/* Template Selector */}
+        {sendersLoaded && senders.length === 0 && (
+          <div className="p-4 rounded-xl text-sm mb-4" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+            <div className="font-semibold mb-1">Sender Identity Required</div>
+            <p>You must create a sender identity before you can send emails.</p>
+            <a href="/dashboard/domains" className="inline-block mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">
+              Create Sender Identity
+            </a>
+          </div>
+        )}
+
+        {/* Certificate Selector */}
+        {certificates.length > 0 && (
+          <div>
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Attach Certificate
+            </label>
+            <select
+              className="input"
+              value={selectedCertificateId}
+              onChange={(e) => setSelectedCertificateId(e.target.value)}
+            >
+              <option value="">-- No certificate --</option>
+              {certificates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Sender details and subject */}
         {templates.length > 0 && (
           <div>
             <label
@@ -235,7 +328,7 @@ export default function SendEmailPage() {
               value={form.from}
               onChange={(e) => setForm({ ...form, from: e.target.value })}
             >
-              {senders.length === 0 && <option value="">Platform Default</option>}
+              {senders.length === 0 && <option value="">No senders found</option>}
               {senders.map((s) => (
                 <option key={s.id} value={s.email}>
                   {s.email}
@@ -243,42 +336,22 @@ export default function SendEmailPage() {
               ))}
             </select>
           </div>
-          {senders.length === 0 && (
-            <>
-              <div>
-                <label
-                  className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  From Name
-                </label>
-                <input
-                  id="compose-from-name"
-                  className="input"
-                  type="text"
-                  placeholder="Your Company"
-                  value={form.fromName}
-                  onChange={(e) => setForm({ ...form, fromName: e.target.value })}
-                />
-              </div>
-              <div className="col-span-2">
-                <label
-                  className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Reply-To Email
-                </label>
-                <input
-                  id="compose-reply-to"
-                  className="input"
-                  type="email"
-                  placeholder="reply@example.com (Optional)"
-                  value={form.replyTo}
-                  onChange={(e) => setForm({ ...form, replyTo: e.target.value })}
-                />
-              </div>
-            </>
-          )}
+          <div>
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+              style={{ color: "var(--text-muted)" }}
+            >
+              From Name <span className="normal-case font-normal">(optional)</span>
+            </label>
+            <input
+              id="compose-from-name"
+              className="input"
+              type="text"
+              placeholder="Leave empty to use sender default"
+              value={form.fromName}
+              onChange={(e) => setForm({ ...form, fromName: e.target.value })}
+            />
+          </div>
         </div>
         {/* Subject */}
         <div>
@@ -360,54 +433,42 @@ export default function SendEmailPage() {
             />
           )}
         </div>
-        {/* Tags */}
+        {/* Attachments */}
         <div>
-          <label
-            className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Tags <span className="normal-case font-normal">(optional)</span>
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
+            Attachments <span className="normal-case font-normal">(Max 5MB each)</span>
           </label>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {form.tags.map((tag) => (
-              <span key={tag} className="badge-info flex items-center gap-1">
-                {tag}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      tags: form.tags.filter((t) => t !== tag),
-                    })
-                  }
-                >
-                  <X size={11} />
-                </button>
-              </span>
-            ))}
-            <div className="flex items-center gap-1">
-              <input
-                className="input py-1 px-2 text-xs w-28"
-                placeholder="Add tag..."
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addTag();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={addTag}
-                className="btn-ghost p-1.5"
-              >
-                <Plus size={13} />
-              </button>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-medium rounded-xl border border-gray-200 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                Attach Files
+                <input type="file" multiple className="hidden" onChange={handleFileChange} />
+              </label>
             </div>
+            {attachments.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {attachments.map((att, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="p-2 bg-gray-50 rounded-lg text-gray-500 border border-gray-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-semibold text-gray-800 truncate">{att.filename}</span>
+                        <span className="text-xs text-gray-400">{(att.size / 1024).toFixed(1)} KB</span>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => removeAttachment(i)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+
         {/* Scheduling Section */}
         <div className="p-4 rounded-xl bg-gray-50 border border-gray-200/80 space-y-3">
           <label className="flex items-center gap-2 cursor-pointer">
@@ -464,7 +525,7 @@ export default function SendEmailPage() {
             <button
               id="compose-submit"
               type="submit"
-              disabled={sending}
+              disabled={sending || (sendersLoaded && senders.length === 0)}
               className="btn-primary flex items-center gap-2"
             >
               {sending ? (

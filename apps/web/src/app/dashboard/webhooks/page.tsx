@@ -151,7 +151,7 @@ export default function WebhooksPage() {
     setTimeout(() => setCopied(false), 2000);
   }
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-5 ">
       {" "}
       <div className="flex items-center justify-between">
         {" "}
@@ -337,7 +337,7 @@ export default function WebhooksPage() {
       {/* Create modal */}{" "}
       {showCreate && (
         <div
-          className="fixed inset-0 lg:left-60 z-50 flex items-center justify-center p-6 bg-gray-900/40"
+          className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm"
           onClick={closeCreate}
         >
           {" "}
@@ -503,7 +503,7 @@ export default function WebhooksPage() {
       {/* Logs Modal */}{" "}
       {selectedWebhookLogs && (
         <div
-          className="fixed inset-0 lg:left-60 z-50 flex items-center justify-center p-6 bg-gray-900/40"
+          className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm"
           onClick={() => setSelectedWebhookLogs(null)}
         >
           {" "}

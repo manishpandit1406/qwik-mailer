@@ -11,6 +11,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { authRoutes } from "./routes/auth.js";
+import passkeysRoutes from "./routes/passkeys.js";
 import { emailRoutes } from "./routes/emails.js";
 import { domainRoutes } from "./routes/domains.js";
 import { apiKeyRoutes } from "./routes/api-keys.js";
@@ -144,6 +145,7 @@ export async function buildApp() {
 
   // ─── Routes ──────────────────────────────────────────────────────────────
   await app.register(authRoutes, { prefix: "/v1/auth" });
+  await app.register(passkeysRoutes, { prefix: "/v1/auth/passkey" });
   await app.register(emailRoutes, { prefix: "/v1" });
   await app.register(domainRoutes, { prefix: "/v1/domains" });
   await app.register(apiKeyRoutes, { prefix: "/v1/api-keys" });

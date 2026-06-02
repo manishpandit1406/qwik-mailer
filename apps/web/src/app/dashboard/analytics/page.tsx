@@ -160,7 +160,7 @@ export default function AnalyticsPage() {
     : 0;
   const yMax = Math.max(5, Math.ceil(maxVolume * 1.2));
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 ">
       {" "}
       <div className="flex items-center justify-between">
         {" "}

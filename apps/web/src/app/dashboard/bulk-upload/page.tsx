@@ -54,7 +54,6 @@ export default function BulkUploadPage() {
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [fromEmail, setFromEmail] = useState("");
   const [fromName, setFromName] = useState("");
-  const [replyTo, setReplyTo] = useState("");
   const [subject, setSubject] = useState("");
   const [htmlBody, setHtmlBody] = useState("");
   const [textBody, setTextBody] = useState("");
@@ -71,9 +70,50 @@ export default function BulkUploadPage() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [senders, setSenders] = useState<{ id: string; email: string }[]>([]);
+  const [sendersLoaded, setSendersLoaded] = useState(false);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [selectedCertificateId, setSelectedCertificateId] = useState("");
+  const [attachments, setAttachments] = useState<{ filename: string; content: string; contentType: string; size: number }[]>([]);
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState("");
   const [isRestoring, setIsRestoring] = useState(true);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    
+    if (attachments.length + files.length > 5) {
+      alert("Maximum 5 attachments allowed.");
+      return;
+    }
+
+    files.forEach(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`File ${file.name} is too large. Maximum size is 5MB.`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          const base64 = result.split(',')[1];
+          setAttachments(prev => [...prev, {
+            filename: file.name,
+            contentType: file.type || "application/octet-stream",
+            content: base64,
+            size: file.size
+          }]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem("qwikmailer_bulk_state");
@@ -88,7 +128,6 @@ export default function BulkUploadPage() {
         if (parsed.useHtml !== undefined) setUseHtml(parsed.useHtml);
         if (parsed.fromEmail) setFromEmail(parsed.fromEmail);
         if (parsed.fromName) setFromName(parsed.fromName);
-        if (parsed.replyTo) setReplyTo(parsed.replyTo);
         if (parsed.selectedCertificateId)
           setSelectedCertificateId(parsed.selectedCertificateId);
       }
@@ -114,7 +153,6 @@ export default function BulkUploadPage() {
       useHtml,
       fromEmail,
       fromName,
-      replyTo,
       selectedCertificateId,
     };
     localStorage.setItem("qwikmailer_bulk_state", JSON.stringify(stateToSave));
@@ -150,6 +188,7 @@ export default function BulkUploadPage() {
           .then((json) => {
             if (json.success) {
               setSenders(json.data);
+              setSendersLoaded(true);
               if (json.data.length > 0 && !fromEmail) {
                 setFromEmail(json.data[0].email);
               }
@@ -331,12 +370,16 @@ export default function BulkUploadPage() {
       formData.append("listId", selectedListId);
       if (fromEmail) formData.append("from", fromEmail);
       if (fromName) formData.append("fromName", fromName);
-      if (replyTo) formData.append("replyTo", replyTo);
       formData.append("subject", subject);
       formData.append("htmlBody", useHtml ? htmlBody : "");
       formData.append("textBody", useHtml ? "" : textBody);
       if (selectedCertificateId)
         formData.append("certificateId", selectedCertificateId);
+      if (attachments.length > 0)
+        formData.append("attachments", JSON.stringify(attachments));
+      if (isScheduled && scheduledDate)
+        formData.append("scheduledAt", new Date(scheduledDate).toISOString());
+
       const res = await fetch(`${API}/v1/bulk-upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${getToken()}` },
@@ -381,11 +424,13 @@ export default function BulkUploadPage() {
     setTextBody("");
     setResult(null);
     setLiveProgress(null);
-    setError("");
     setSelectedTemplateId("");
+    setAttachments([]);
+    setIsScheduled(false);
+    setScheduledDate("");
   }
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in">
+    <div className="max-w-4xl mx-auto ">
       {" "}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -471,7 +516,7 @@ export default function BulkUploadPage() {
       )}{" "}
       {/* ── STEP 1: Upload ── */}{" "}
       {step === "upload" && (
-        <div className="flex flex-col gap-5 animate-fade-in">
+        <div className="flex flex-col gap-5 ">
           {" "}
           {/* Saved Lists Dropdown */}{" "}
           {lists.length > 0 && (
@@ -630,7 +675,7 @@ export default function BulkUploadPage() {
       )}{" "}
       {/* ── STEP 2: Preview ── */}{" "}
       {step === "preview" && preview && (
-        <div className="flex flex-col gap-5 animate-fade-in">
+        <div className="flex flex-col gap-5 ">
           {" "}
           {/* Stats */}{" "}
           <div className="grid grid-cols-3 gap-4">
@@ -972,7 +1017,7 @@ export default function BulkUploadPage() {
       )}{" "}
       {/* ── STEP 3: Compose ── */}{" "}
       {step === "compose" && (
-        <div className="glass-card p-6 space-y-5 animate-fade-in">
+        <div className="glass-card p-6 space-y-5 ">
           {" "}
           {/* Recipients summary */}{" "}
           <div
@@ -1092,67 +1137,54 @@ export default function BulkUploadPage() {
                 </div>
               )}{" "}
             </div>{" "}
-          </div>{" "}
-          {/* From */}{" "}
+          </div> 
+          {/* From */}
+          {sendersLoaded && senders.length === 0 && (
+            <div className="p-4 rounded-xl text-sm mb-4" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+              <div className="font-semibold mb-1">Sender Identity Required</div>
+              <p>You must create a sender identity before you can send emails.</p>
+              <a href="/dashboard/domains" className="inline-block mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">
+                Create Sender Identity
+              </a>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
-            {" "}
             <div>
-              {" "}
               <label
                 className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
                 style={{ color: "var(--text-muted)" }}
               >
                 From Email
-              </label>{" "}
+              </label>
               <select
                 className="input"
                 value={fromEmail}
                 onChange={(e) => setFromEmail(e.target.value)}
               >
-                {" "}
-                {senders.length === 0 && <option value="">Platform Default</option>}{" "}
+                {senders.length === 0 && <option value="">No senders found</option>}
                 {senders.map((s) => (
                   <option key={s.id} value={s.email}>
                     {s.email}
                   </option>
-                ))}{" "}
-              </select>{" "}
-            </div>{" "}
-            {senders.length === 0 && (
-              <>
-                <div>
-                  <label
-                    className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    From Name
-                  </label>
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Your Company"
-                    value={fromName}
-                    onChange={(e) => setFromName(e.target.value)}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label
-                    className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Reply-To Email
-                  </label>
-                  <input
-                    className="input"
-                    type="email"
-                    placeholder="reply@example.com (Optional)"
-                    value={replyTo}
-                    onChange={(e) => setReplyTo(e.target.value)}
-                  />
-                </div>
-              </>
-            )}{" "}
-          </div>{" "}
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                style={{ color: "var(--text-muted)" }}
+              >
+                From Name <span className="normal-case font-normal">(optional)</span>
+              </label>
+              <input
+                className="input"
+                type="text"
+                placeholder="Leave empty to use sender default"
+                value={fromName}
+                onChange={(e) => setFromName(e.target.value)}
+              />
+            </div>
+          </div>
           {/* Subject */}{" "}
           <div>
             {" "}
@@ -1225,8 +1257,81 @@ export default function BulkUploadPage() {
               style={{ fontFamily: useHtml ? "monospace" : "inherit" }}
             />{" "}
           </div>{" "}
+          {/* Attachments Section */}
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
+                Attachments <span className="normal-case font-normal">(Max 5MB each)</span>
+              </label>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-medium rounded-xl border border-gray-200 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                    Attach Files
+                    <input type="file" multiple className="hidden" onChange={handleFileChange} />
+                  </label>
+                </div>
+                {attachments.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    {attachments.map((att, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="p-2 bg-gray-50 rounded-lg text-gray-500 border border-gray-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-semibold text-gray-800 truncate">{att.filename}</span>
+                            <span className="text-xs text-gray-400">{(att.size / 1024).toFixed(1)} KB</span>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => removeAttachment(i)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div> 
+          
+          {/* Scheduling Section */}
+          <div className="p-4 rounded-xl bg-gray-50 border border-gray-200/80 space-y-3 mt-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="accent-indigo-600"
+                checked={isScheduled}
+                onChange={(e) => setIsScheduled(e.target.checked)}
+              />
+              <span
+                className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Schedule this email for later
+              </span>
+            </label>
+            {isScheduled && (
+              <div className="animate-fade-up">
+                <input
+                  type="datetime-local"
+                  className="input"
+                  required={isScheduled}
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                />
+                <p
+                  className="text-xs mt-1"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Select the date and time when you want this bulk campaign to be sent.
+                </p>
+              </div>
+            )}
+          </div>
+
           <div
-            className="flex gap-3 pt-2 border-t"
+            className="flex gap-3 pt-2 border-t mt-4"
             style={{ borderColor: "var(--border-subtle)" }}
           >
             {" "}
@@ -1242,9 +1347,14 @@ export default function BulkUploadPage() {
               disabled={
                 !subject.trim() ||
                 (!htmlBody.trim() && !textBody.trim()) ||
-                loading
+                loading ||
+                senders.length === 0
               }
-              className="btn-primary flex-2 flex items-center justify-center gap-2"
+              className={`flex-2 flex items-center justify-center gap-2 py-3 px-8 rounded-xl text-base font-semibold shadow-md transition-all ${
+                senders.length === 0 
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
+                : "bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer"
+              }`}
               style={{ flex: 2 }}
             >
               {" "}
@@ -1301,7 +1411,7 @@ export default function BulkUploadPage() {
       )}{" "}
       {/* ── STEP: Done ── */}{" "}
       {step === "done" && result && (
-        <div className="flex flex-col gap-6 animate-fade-in">
+        <div className="flex flex-col gap-6 ">
           {" "}
           {/* Success card */}{" "}
           <div className="text-center p-12 rounded-xl bg-emerald-50/50 border border-emerald-100">
@@ -1431,7 +1541,7 @@ export default function BulkUploadPage() {
             {" "}
             <button
               onClick={reset}
-              className="flex-1 flex items-center justify-center gap-2 py-4 rounded-full bg-white border border-gray-200 text-gray-700 text-sm font-bold shadow-sm hover:bg-gray-50 :bg-gray-700 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 py-4 rounded-full bg-white border border-gray-200 text-gray-700 text-sm font-bold shadow-sm hover:bg-gray-50 transition-colors"
             >
               {" "}
               <RotateCcw size={16} /> Send Another{" "}

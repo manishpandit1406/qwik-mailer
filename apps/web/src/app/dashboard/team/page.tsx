@@ -196,7 +196,7 @@ export default function TeamPage() {
     ),
   ];
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-5 ">
       <div className="flex items-center justify-between">
         <div>
           <h2
@@ -460,7 +460,7 @@ export default function TeamPage() {
         </div>
       )}
       {showCreate && (
-        <div className="fixed inset-0 lg:left-60 z-50 flex items-center justify-center p-4 bg-gray-900/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="glass-card p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
               <h3

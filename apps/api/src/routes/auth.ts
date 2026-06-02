@@ -4,11 +4,14 @@ import bcrypt from "bcryptjs";
 import { eq, desc } from "drizzle-orm";
 import { db, users, refreshTokens, reputationLogs } from "@qwikmailer/db";
 import { nanoid } from "nanoid";
+import UAParser from "ua-parser-js";
+import { sendNewLoginAlertEmail, send2FAEnabledEmail, send2FADisabledEmail } from "../services/email.service.js";
 import crypto from "crypto";
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
+  sendPasswordResetSuccessEmail,
 } from "../services/email.service.js";
 import { authenticate } from "../middleware/auth.js";
 import { PLAN_LIMITS, getUserLimits } from "../utils/quota.js";
@@ -41,6 +44,12 @@ const onboardingSchema = z.object({
   websiteUrl: z.string().url().optional().or(z.literal("")),
   phoneNumber: z.string().min(5).max(50),
   useCase: z.string().min(2).max(100),
+  companyAddress: z.string().optional(),
+  companyAddress2: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  country: z.string().optional(),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -169,10 +178,32 @@ export async function authRoutes(app: FastifyInstance) {
 
     // Store refresh token hash
     const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+    
+    const userAgent = req.headers["user-agent"] || "";
+    const ipAddress = (req.headers["x-forwarded-for"] as string)?.split(',')[0] || req.ip || "Unknown IP";
+    const parser = new UAParser(userAgent);
+    const browser = parser.getBrowser();
+    const os = parser.getOS();
+    const device = parser.getDevice();
+    
+    const deviceName = device.model || device.vendor ? `${device.vendor || ""} ${device.model || ""}`.trim() : "Unknown Device";
+    const deviceOs = os.name ? `${os.name} ${os.version || ""}`.trim() : "Unknown OS";
+    const browserName = browser.name ? `${browser.name} ${browser.version || ""}`.trim() : "Unknown Browser";
+
+    const existingSession = await db.query.refreshTokens.findFirst({
+      where: (rt, { eq, and, or }) => and(eq(rt.userId, user.id), or(eq(rt.ipAddress, ipAddress), eq(rt.userAgent, userAgent))),
+    });
+
+    if (!existingSession) {
+      sendNewLoginAlertEmail(user.email, user.name || "", deviceName, deviceOs, browserName, ipAddress, new Date().toLocaleString()).catch(err => console.error("Failed to send login alert", err));
+    }
+
     await db.insert(refreshTokens).values({
       userId: user.id,
       tokenHash,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      ipAddress,
+      userAgent,
     });
 
     return reply.send({
@@ -224,7 +255,9 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/auth/resend-verification
-  app.post("/resend-verification", async (req, reply) => {
+  app.post("/resend-verification", {
+    config: { rateLimit: { max: 3, timeWindow: '15 minutes' } }
+  }, async (req, reply) => {
     const { email } = z.object({ email: z.string().email() }).parse(req.body);
 
     const user = await db.query.users.findFirst({ where: eq(users.email, email) });
@@ -290,6 +323,10 @@ export async function authRoutes(app: FastifyInstance) {
       updatedAt: new Date(),
     }).where(eq(users.id, user.id));
 
+    sendPasswordResetSuccessEmail(user.email, user.name ?? "").catch((err) => {
+      console.error(`[Auth] Failed to send password reset success email to ${user.email}:`, err.message);
+    });
+
     return reply.send({ success: true, data: { message: "Password reset successfully. You can now log in." } });
   });
 
@@ -334,24 +371,48 @@ export async function authRoutes(app: FastifyInstance) {
         billingPeriodStart: user.billingPeriodStart,
         dailyEmailCount: user.dailyEmailCount,
         dailyPeriodStart: user.dailyPeriodStart,
+        dailyPeriodStart: user.dailyPeriodStart,
         planLimit: getUserLimits(user).monthlyLimit,
         dailyLimit: getUserLimits(user).dailyLimit,
+        companyAddress: user.companyAddress,
+        companyAddress2: user.companyAddress2,
+        city: user.city,
+        state: user.state,
+        zipCode: user.zipCode,
+        country: user.country,
       },
     });
   });
 
-  // PUT /v1/auth/me — update profile name
-  app.put("/me", { preHandler: authenticate }, async (req, reply) => {
+  // PUT /v1/auth/me — update profile
+  app.put("/me", {
+    preHandler: authenticate,
+    config: { rateLimit: { max: 10, timeWindow: '1 hour' } }
+  }, async (req, reply) => {
     const user = req.user as { sub: string };
-    const { name } = z.object({ name: z.string().min(2).max(100) }).parse(req.body);
+    const body = z.object({ 
+      name: z.string().min(2).max(100).optional(),
+      companyAddress: z.string().optional(),
+      companyAddress2: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      zipCode: z.string().optional(),
+      country: z.string().optional(),
+    }).parse(req.body);
 
-    await db.update(users).set({ name, updatedAt: new Date() }).where(eq(users.id, user.sub));
+    await db.update(users).set({ 
+      ...body, 
+      updatedAt: new Date() 
+    }).where(eq(users.id, user.sub));
 
     return reply.send({ success: true, data: { message: "Profile updated." } });
   });
 
   // POST /v1/auth/onboarding
-  app.post("/onboarding", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/onboarding", {
+    preHandler: authenticate,
+    config: { rateLimit: { max: 5, timeWindow: '1 hour' } }
+  }, async (req, reply) => {
     const user = req.user as { sub: string };
     const body = onboardingSchema.parse(req.body);
 
@@ -360,6 +421,12 @@ export async function authRoutes(app: FastifyInstance) {
       websiteUrl: body.websiteUrl || null,
       phoneNumber: body.phoneNumber,
       useCase: body.useCase,
+      companyAddress: body.companyAddress,
+      companyAddress2: body.companyAddress2,
+      city: body.city,
+      state: body.state,
+      zipCode: body.zipCode,
+      country: body.country,
       onboardingCompleted: true,
       updatedAt: new Date(),
     }).where(eq(users.id, user.sub));
@@ -418,6 +485,20 @@ export async function authRoutes(app: FastifyInstance) {
       .set({ totpEnabled: true, totpSecret: secret, updatedAt: new Date() })
       .where(eq(users.id, user.sub));
 
+    const dbUser = await db.query.users.findFirst({ where: eq(users.id, user.sub) });
+    if (dbUser) {
+      const userAgent = req.headers["user-agent"] || "";
+      const parser = new UAParser(userAgent);
+      const browser = parser.getBrowser();
+      const os = parser.getOS();
+      const device = parser.getDevice();
+      const deviceName = device.model || device.vendor ? `${device.vendor || ""} ${device.model || ""}`.trim() : "Unknown Device";
+      const deviceOs = os.name ? `${os.name} ${os.version || ""}`.trim() : "Unknown OS";
+      const browserName = browser.name ? `${browser.name} ${browser.version || ""}`.trim() : "Unknown Browser";
+      
+      send2FAEnabledEmail(dbUser.email, dbUser.name || "", deviceName, deviceOs, browserName).catch(console.error);
+    }
+
     return reply.send({ success: true, data: { message: "2FA enabled successfully." } });
   });
 
@@ -441,6 +522,17 @@ export async function authRoutes(app: FastifyInstance) {
     await db.update(users)
       .set({ totpEnabled: false, totpSecret: null, updatedAt: new Date() })
       .where(eq(users.id, user.sub));
+
+    const userAgent = req.headers["user-agent"] || "";
+    const parser = new UAParser(userAgent);
+    const browser = parser.getBrowser();
+    const os = parser.getOS();
+    const device = parser.getDevice();
+    const deviceName = device.model || device.vendor ? `${device.vendor || ""} ${device.model || ""}`.trim() : "Unknown Device";
+    const deviceOs = os.name ? `${os.name} ${os.version || ""}`.trim() : "Unknown OS";
+    const browserName = browser.name ? `${browser.name} ${browser.version || ""}`.trim() : "Unknown Browser";
+    
+    send2FADisabledEmail(dbUser.email, dbUser.name || "", deviceName, deviceOs, browserName).catch(console.error);
 
     return reply.send({ success: true, data: { message: "2FA disabled successfully." } });
   });

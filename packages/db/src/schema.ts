@@ -109,7 +109,14 @@ export const users = pgTable(
     websiteUrl: text("website_url"),
     phoneNumber: varchar("phone_number", { length: 50 }),
     useCase: varchar("use_case", { length: 100 }),
+    companyAddress: text("company_address"),
+    companyAddress2: text("company_address_2"),
+    city: varchar("city", { length: 100 }),
+    state: varchar("state", { length: 100 }),
+    zipCode: varchar("zip_code", { length: 20 }),
+    country: varchar("country", { length: 100 }),
     onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
+    webauthnCurrentChallenge: text("webauthn_current_challenge"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -118,6 +125,43 @@ export const users = pgTable(
     index("users_plan_idx").on(t.plan),
   ]
 );
+
+
+
+// ─── User Passkeys (WebAuthn) ────────────────────────────────────────────────
+
+export const userPasskeys = pgTable(
+  "user_passkeys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    credentialId: text("credential_id").notNull(),
+    publicKey: text("public_key").notNull(),
+    counter: integer("counter").default(0).notNull(),
+    transports: jsonb("transports").$type<string[]>(),
+    deviceType: varchar("device_type", { length: 64 }),
+    deviceName: varchar("device_name", { length: 255 }),
+    deviceOs: varchar("device_os", { length: 64 }),
+    browser: varchar("browser", { length: 64 }),
+    ipAddress: varchar("ip_address", { length: 64 }),
+    backedUp: boolean("backed_up").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("passkeys_user_id_idx").on(t.userId),
+    uniqueIndex("passkeys_credential_id_idx").on(t.credentialId),
+  ]
+);
+
+export const userPasskeysRelations = relations(userPasskeys, ({ one }) => ({
+  user: one(users, {
+    fields: [userPasskeys.userId],
+    references: [users.id],
+  }),
+}));
 
 // ─── API Keys ─────────────────────────────────────────────────────────────────
 
@@ -195,10 +239,12 @@ export const domains = pgTable(
     dkimPublicKey: text("dkim_public_key"),
     dkimPrivateKey: text("dkim_private_key"),
     dkimSelector: varchar("dkim_selector", { length: 50 }).default("qwikmailer"),
+    sesDkimTokens: text("ses_dkim_tokens").array(),
     dmarcRecord: text("dmarc_record"),
     spfVerified: boolean("spf_verified").default(false).notNull(),
     dkimVerified: boolean("dkim_verified").default(false).notNull(),
     dmarcVerified: boolean("dmarc_verified").default(false).notNull(),
+    mailFromVerified: boolean("mail_from_verified").default(false).notNull(),
     isTrackingDomain: boolean("is_tracking_domain").default(false).notNull(),
     trackingCname: varchar("tracking_cname", { length: 255 }),
     cnameVerified: boolean("cname_verified").default(false).notNull(),
@@ -235,6 +281,8 @@ export const domainSenders = pgTable(
     zipCode: varchar("zip_code", { length: 20 }),
     country: varchar("country", { length: 100 }),
     nickname: varchar("nickname", { length: 255 }),
+    usernameLastEditedAt: timestamp("username_last_edited_at"),
+    usernameEditCount: integer("username_edit_count").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [
@@ -484,8 +532,10 @@ export const refreshTokens = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    tokenHash: text("token_hash").notNull().unique(),
+    tokenHash: varchar("token_hash", { length: 255 }).notNull().unique(),
     expiresAt: timestamp("expires_at").notNull(),
+    ipAddress: varchar("ip_address", { length: 64 }),
+    userAgent: varchar("user_agent", { length: 255 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [index("refresh_tokens_user_idx").on(t.userId)]
@@ -610,6 +660,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   workflows: many(workflows),
   teams: many(teams),
   teamMembers: many(teamMembers),
+  passkeys: many(userPasskeys),
 }));
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
