@@ -14,6 +14,7 @@ import { authRoutes } from "./routes/auth.js";
 import passkeysRoutes from "./routes/passkeys.js";
 import { emailRoutes } from "./routes/emails.js";
 import { domainRoutes } from "./routes/domains.js";
+import { senderRoutes } from "./routes/senders.js";
 import { apiKeyRoutes } from "./routes/api-keys.js";
 import { templateRoutes } from "./routes/templates.js";
 import { analyticsRoutes } from "./routes/analytics.js";
@@ -23,12 +24,15 @@ import { trackRoutes } from "./routes/track.js";
 import { suppressionRoutes } from "./routes/suppression.js";
 import { certificateRoutes } from "./routes/certificates.js";
 import { aiRoutes } from "./routes/ai.js";
+import { securityLogRoutes } from "./routes/security-logs.js";
 import { teamRoutes } from "./routes/teams.js";
-import { ipRoutes } from "./routes/ips.js";
 import { inboundRoutes } from "./routes/inbound.js";
 import { listRoutes } from "./routes/lists.js";
 import { marketingRoutes } from "./routes/marketing.js";
 import { supportRoutes } from "./routes/support.js";
+import { sesWebhookRoutes } from "./routes/ses-webhooks.js";
+import { formRoutes } from "./routes/forms.js";
+import { contactRoutes } from "./routes/contacts.js";
 import { errorHandler } from "./middleware/error-handler.js";
 
 // @ts-ignore
@@ -100,7 +104,7 @@ export async function buildApp() {
       return cb(null, true);
     },
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Team-ID"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 
@@ -124,7 +128,7 @@ export async function buildApp() {
   // Rate limiting — uses Redis if available, otherwise in-memory store
   await app.register(rateLimit, {
     global: true,
-    max: 100,
+    max: 1000,
     timeWindow: "1 minute",
     ...(redis ? { redis } : {}),
     keyGenerator: (req) => {
@@ -148,6 +152,7 @@ export async function buildApp() {
   await app.register(passkeysRoutes, { prefix: "/v1/auth/passkey" });
   await app.register(emailRoutes, { prefix: "/v1" });
   await app.register(domainRoutes, { prefix: "/v1/domains" });
+  await app.register(senderRoutes, { prefix: "/v1/senders" });
   await app.register(apiKeyRoutes, { prefix: "/v1/api-keys" });
   await app.register(templateRoutes, { prefix: "/v1/templates" });
   await app.register(analyticsRoutes, { prefix: "/v1/analytics" });
@@ -157,12 +162,15 @@ export async function buildApp() {
   await app.register(suppressionRoutes, { prefix: "/v1/suppression-list" });
   await app.register(certificateRoutes, { prefix: "/v1/certificates" });
   await app.register(aiRoutes, { prefix: "/v1/ai" });
+  await app.register(securityLogRoutes, { prefix: "/v1/security-logs" });
   await app.register(teamRoutes, { prefix: "/v1/teams" });
-  app.register(ipRoutes, { prefix: "/v1/ips" });
   app.register(inboundRoutes, { prefix: "/v1/inbound" });
   await app.register(listRoutes, { prefix: "/v1/lists" });
   await app.register(marketingRoutes, { prefix: "/v1/marketing" });
   await app.register(supportRoutes, { prefix: "/v1/support" });
+  await app.register(sesWebhookRoutes, { prefix: "/v1/webhooks" });
+  await app.register(formRoutes, { prefix: "/v1/forms" });
+  await app.register(contactRoutes, { prefix: "/v1/contacts" });
 
   return app;
 }

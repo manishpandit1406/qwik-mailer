@@ -2,8 +2,9 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "@qwikmailer/db";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import crypto from "crypto";
+import { sendTeamInviteEmail } from "../services/email.service.js";
 
 // Raw SQL approach for team tables since schema might not have them exported yet
 async function getTeamsByOwner(userId: string) {
@@ -64,6 +65,85 @@ export async function teamRoutes(app: FastifyInstance) {
       return reply.code(500).send({ success: false, error: "Internal server error" });
     }
   });
+  // GET /v1/teams/invite/:token
+  app.get("/invite/:token", async (req, reply) => {
+    const { token } = req.params as { token: string };
+    try {
+      const inviteData = await db.execute(
+        sql`SELECT i.email, i.role, i.expires_at as "expiresAt", t.name as "teamName", u.name as "inviterName"
+         FROM team_invites i
+         JOIN teams t ON t.id = i.team_id
+         JOIN users u ON u.id = i.invited_by
+         WHERE i.token = ${token}`
+      );
+      const rows = (inviteData as any).rows || inviteData;
+      if (!rows.length) {
+        return reply.code(404).send({ success: false, error: "Invite not found or expired." });
+      }
+      const invite = rows[0];
+      if (new Date(invite.expiresAt) < new Date()) {
+        return reply.code(400).send({ success: false, error: "Invite has expired." });
+      }
+      return reply.send({ success: true, data: invite });
+    } catch (err: any) {
+      console.error("[Teams Invite]", err);
+      return reply.code(500).send({ success: false, error: "Internal server error" });
+    }
+  });
+
+  // POST /v1/teams/invite/:token/accept
+  app.post("/invite/:token/accept", { preHandler: authenticate }, async (req, reply) => {
+    const user = req.user as { sub: string };
+    const { token } = req.params as { token: string };
+    try {
+      // Get invite
+      const inviteData = await db.execute(
+        sql`SELECT id, team_id, email, role, expires_at FROM team_invites WHERE token = ${token}`
+      );
+      const rows = (inviteData as any).rows || inviteData;
+      if (!rows.length) {
+        return reply.code(404).send({ success: false, error: "Invite not found." });
+      }
+      const invite = rows[0];
+      const inviteTeamId = invite.team_id || invite.teamId;
+      const inviteExpiresAt = invite.expires_at || invite.expiresAt;
+      if (new Date(inviteExpiresAt) < new Date()) {
+        return reply.code(400).send({ success: false, error: "Invite has expired." });
+      }
+
+      // Check if user email matches invite email
+      const userData = await db.execute(sql`SELECT email FROM users WHERE id = ${user.sub}`);
+      const userEmail = ((userData as any).rows || userData)[0]?.email;
+      if (userEmail !== invite.email) {
+        return reply.code(403).send({ success: false, error: "This invite was sent to a different email address." });
+      }
+
+      // Check if user is already in the team
+      const existingMemberData = await db.execute(
+        sql`SELECT id FROM team_members WHERE team_id = ${inviteTeamId} AND user_id = ${user.sub}`
+      );
+      const existingMemberRows = (existingMemberData as any).rows || existingMemberData;
+      
+      if (existingMemberRows.length > 0) {
+        await db.execute(
+          sql`UPDATE team_members SET role = ${invite.role} WHERE team_id = ${inviteTeamId} AND user_id = ${user.sub}`
+        );
+      } else {
+        await db.execute(
+          sql`INSERT INTO team_members (team_id, user_id, role) VALUES (${inviteTeamId}, ${user.sub}, ${invite.role})`
+        );
+      }
+
+      // Delete invite
+      await db.execute(sql`DELETE FROM team_invites WHERE token = ${token}`);
+
+      return reply.send({ success: true, data: { teamId: inviteTeamId } });
+    } catch (err: any) {
+      console.error("[Teams Invite Accept]", err);
+      require("fs").writeFileSync("scratch/error.log", String(err.stack || err.message || err));
+      return reply.code(500).send({ success: false, error: err.message || "Internal server error" });
+    }
+  });
 
   // GET /v1/teams/:id/members
   app.get("/:id/members", { preHandler: authenticate }, async (req, reply) => {
@@ -93,7 +173,7 @@ export async function teamRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/teams/:id/invite
-  app.post("/:id/invite", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/:id/invite", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id } = req.params as { id: string };
     const { email, role } = z.object({
@@ -123,6 +203,26 @@ export async function teamRoutes(app: FastifyInstance) {
 
       const inviteLink = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/invite/${token}`;
 
+      // Fetch team and user names for the email
+      const teamQuery = await db.execute(sql`SELECT name FROM teams WHERE id = ${id}`);
+      const teamName = ((teamQuery as any).rows || teamQuery)[0]?.name || "a team";
+      
+      const userQuery = await db.execute(sql`SELECT name FROM users WHERE id = ${user.sub}`);
+      const inviterName = ((userQuery as any).rows || userQuery)[0]?.name || "Someone";
+
+      try {
+        await sendTeamInviteEmail(
+          email,
+          inviterName,
+          teamName,
+          inviteLink,
+          role,
+          expiresAt
+        );
+      } catch (e) {
+        console.error("[Teams] Failed to send invite email", e);
+      }
+
       return reply.send({
         success: true,
         data: { email, role, inviteLink, token, expiresAt },
@@ -134,7 +234,7 @@ export async function teamRoutes(app: FastifyInstance) {
   });
 
   // PATCH /v1/teams/:id/members/:memberId/role
-  app.patch("/:id/members/:memberId/role", { preHandler: authenticate }, async (req, reply) => {
+  app.patch("/:id/members/:memberId/role", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id, memberId } = req.params as { id: string; memberId: string };
     const { role } = z.object({ role: z.enum(["admin", "member", "viewer"]) }).parse(req.body);
@@ -157,7 +257,7 @@ export async function teamRoutes(app: FastifyInstance) {
   });
 
   // DELETE /v1/teams/:id/members/:memberId
-  app.delete("/:id/members/:memberId", { preHandler: authenticate }, async (req, reply) => {
+  app.delete("/:id/members/:memberId", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id, memberId } = req.params as { id: string; memberId: string };
 
@@ -185,8 +285,32 @@ export async function teamRoutes(app: FastifyInstance) {
     }
   });
 
+  // PATCH /v1/teams/:id - Update team
+  app.patch("/:id", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
+    const user = req.user as { sub: string };
+    const { id } = req.params as { id: string };
+    const { name } = z.object({ name: z.string().min(1).max(100) }).parse(req.body);
+
+    try {
+      const isOwner = await db.execute(
+        sql`SELECT 1 FROM teams WHERE id = ${id} AND owner_id = ${user.sub}`
+      );
+      if (!(isOwner as any).rows?.length && !(Array.isArray(isOwner) && isOwner.length > 0)) {
+        return reply.code(403).send({ success: false, error: "Only owners can update team settings" });
+      }
+
+      await db.execute(
+        sql`UPDATE teams SET name = ${name} WHERE id = ${id}`
+      );
+      return reply.send({ success: true });
+    } catch (err: any) {
+      console.error("[Teams]", err);
+      return reply.code(500).send({ success: false, error: "Internal server error" });
+    }
+  });
+
   // DELETE /v1/teams/:id
-  app.delete("/:id", { preHandler: authenticate }, async (req, reply) => {
+  app.delete("/:id", { preHandler: [authenticate, requireTeamRole(["owner"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id } = req.params as { id: string };
 

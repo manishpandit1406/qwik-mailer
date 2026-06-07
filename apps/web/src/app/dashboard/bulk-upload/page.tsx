@@ -756,7 +756,7 @@ export default function BulkUploadPage() {
                 </button>
               ))}{" "}
             </div>{" "}
-            <div style={{ maxHeight: 320, overflowY: "auto" }}>
+            <div style={{ maxHeight: 320, overflowY: "auto", overflowX: "auto" }}>
               {" "}
               {activeTab === "recipients" ? (
                 <table
@@ -811,9 +811,10 @@ export default function BulkUploadPage() {
                               "Email",
                               "EMAIL",
                               "NAME",
+                              "email_address",
+                              "full_name",
                             ].includes(c),
                         )
-                        .slice(0, 3)
                         .map((c) => (
                           <th
                             key={c}
@@ -823,6 +824,7 @@ export default function BulkUploadPage() {
                               color: "var(--text-muted)",
                               fontWeight: 600,
                               borderBottom: "1px solid var(--border-subtle)",
+                              whiteSpace: "nowrap"
                             }}
                           >
                             {c}
@@ -867,15 +869,17 @@ export default function BulkUploadPage() {
                                 "Email",
                                 "EMAIL",
                                 "NAME",
+                                "email_address",
+                                "full_name",
                               ].includes(c),
                           )
-                          .slice(0, 3)
                           .map((c) => (
                             <td
                               key={c}
                               style={{
                                 padding: "9px 16px",
                                 color: "var(--text-muted)",
+                                whiteSpace: "nowrap"
                               }}
                             >
                               {r[c] || "—"}

@@ -33,14 +33,7 @@ interface Field {
   type?: "text" | "qr";
   size?: number;
 }
-const DOC_TYPES = [
-  { value: "certificate", label: "Certificate", icon: Award },
-  { value: "invoice", label: "Invoice", icon: Receipt },
-  { value: "hall_ticket", label: "Hall Ticket", icon: Ticket },
-  { value: "offer_letter", label: "Offer Letter", icon: FileText },
-  { value: "id_card", label: "ID Card", icon: CreditCard },
-  { value: "report", label: "Report", icon: BarChart2 },
-];
+
 function getToken() {
   return typeof window !== "undefined"
     ? (localStorage.getItem("mf_access_token") ?? "")
@@ -54,7 +47,6 @@ function CertificateBuilderInner() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [name, setName] = useState("");
-  const [docType, setDocType] = useState("certificate");
   const [file, setFile] = useState<File | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [fields, setFields] = useState<Field[]>([
@@ -70,6 +62,18 @@ function CertificateBuilderInner() {
     },
   ]);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // Prevent accidental refresh and loss of data
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if ((file || name || fields.length > 1) && !saving) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [file, name, fields, saving]);
   useEffect(() => {
     if (editId) {
       fetchCert(editId);
@@ -83,7 +87,6 @@ function CertificateBuilderInner() {
       const json = await res.json();
       if (json.success) {
         setName(json.data.name);
-        setDocType(json.data.type ?? "certificate");
         setPdfUrl(`${API}${json.data.fileUrl}`);
         setFields(
           json.data.config?.length > 0
@@ -137,7 +140,6 @@ function CertificateBuilderInner() {
     try {
       const formData = new FormData();
       formData.append("name", name.trim());
-      formData.append("type", docType);
       const reqHeaders: Record<string, string> = {
         Authorization: `Bearer ${getToken()}`,
       };
@@ -146,7 +148,6 @@ function CertificateBuilderInner() {
         reqHeaders["Content-Type"] = "application/json";
         reqBody = JSON.stringify({
           name: name.trim(),
-          type: docType,
           config: fields,
         });
       } else {
@@ -235,13 +236,14 @@ function CertificateBuilderInner() {
             {" "}
             <ArrowLeft size={18} />{" "}
           </Link>{" "}
-          <h3
-            className="font-bold text-lg"
+          <input
+            type="text"
+            className="font-bold text-lg bg-transparent border border-transparent hover:border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg px-2 py-1 outline-none transition-all placeholder:text-gray-300 w-80"
+            placeholder={editId ? "Document Name" : "New Document"}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             style={{ color: "var(--text-primary)" }}
-          >
-            {" "}
-            {editId ? "Edit Document Template" : "New PDF Document"}{" "}
-          </h3>{" "}
+          />{" "}
         </div>{" "}
         <div className="flex items-center gap-3">
           {" "}
@@ -276,42 +278,9 @@ function CertificateBuilderInner() {
           style={{ borderColor: "var(--border)" }}
         >
           {" "}
-          <div className="p-5 space-y-5 flex-1">
+          <div className="p-5 space-y-5">
             {" "}
-            <div>
-              {" "}
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-gray-500">
-                Name
-              </label>{" "}
-              <input
-                className="input"
-                placeholder="e.g. Hackathon Winner"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />{" "}
-            </div>{" "}
-            <div>
-              {" "}
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-gray-500">
-                Document Type
-              </label>{" "}
-              <div className="space-y-1">
-                {" "}
-                {DOC_TYPES.map((t) => {
-                  const Icon = t.icon;
-                  return (
-                    <button
-                      key={t.value}
-                      onClick={() => setDocType(t.value)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all border ${docType === t.value ? "border-gray-300 bg-gray-100 text-gray-800 shadow-sm" : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"}`}
-                    >
-                      <Icon size={14} className={docType === t.value ? "text-gray-700" : "text-gray-400"} />
-                      {t.label}
-                    </button>
-                  );
-                })}
-              </div>{" "}
-            </div>{" "}
+
             <div>
               {" "}
               <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-gray-500">

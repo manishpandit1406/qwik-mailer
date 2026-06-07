@@ -10,9 +10,21 @@ export const PLAN_LIMITS: Record<string, number> = {
   enterprise: 10000000,
 };
 
-export async function checkAndConsumeQuota(userId: string, requestedEmailsCount: number): Promise<void> {
+export const SENDER_IDENTITY_LIMITS: Record<string, number> = {
+  free: 1,
+  event_level: 2,
+  starter: 5,
+  growth: 15,
+  premium: 50,
+  enterprise: 99999,
+};
+
+import { getTeamOwnerId } from "./team-owner.js";
+
+export async function checkAndConsumeQuota(teamId: string, requestedEmailsCount: number): Promise<void> {
+  const ownerId = await getTeamOwnerId(teamId);
   const user = await db.query.users.findFirst({
-    where: eq(users.id, userId),
+    where: eq(users.id, ownerId),
   });
 
   if (!user) {
@@ -33,7 +45,7 @@ export async function checkAndConsumeQuota(userId: string, requestedEmailsCount:
         monthlyEmailCount: 0, 
         billingPeriodStart: new Date(now.getFullYear(), now.getMonth(), 1) 
       })
-      .where(eq(users.id, userId));
+      .where(eq(users.id, ownerId));
   }
 
   const dailyStart = new Date(user.dailyPeriodStart);
@@ -44,7 +56,7 @@ export async function checkAndConsumeQuota(userId: string, requestedEmailsCount:
         dailyEmailCount: 0, 
         dailyPeriodStart: new Date(now.getFullYear(), now.getMonth(), now.getDate()) 
       })
-      .where(eq(users.id, userId));
+      .where(eq(users.id, ownerId));
   }
 
   // 2. Determine limits based on plan and account age
@@ -83,7 +95,7 @@ export async function checkAndConsumeQuota(userId: string, requestedEmailsCount:
       monthlyEmailCount: currentMonthlyUsage + requestedEmailsCount,
       dailyEmailCount: currentDailyUsage + requestedEmailsCount 
     })
-    .where(eq(users.id, userId));
+    .where(eq(users.id, ownerId));
 }
 
 export function getUserLimits(user: any) {

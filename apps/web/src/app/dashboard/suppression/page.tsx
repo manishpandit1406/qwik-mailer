@@ -1,4 +1,5 @@
 "use client";
+import { formatIST } from "@/lib/dateUtils";
 import { useState, useEffect } from "react";
 import {
   ShieldAlert,
@@ -9,7 +10,9 @@ import {
   Ban,
   RefreshCw,
 } from "lucide-react";
+import { Select } from "@/components/Select";
 import { LogoLoader } from "@/components/LogoLoader";
+import { useRole } from "@/lib/useRole";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 interface SuppressionItem {
@@ -39,6 +42,7 @@ export default function SuppressionPage() {
   const [newType, setNewType] = useState("unsubscribe");
   const [newReason, setNewReason] = useState("");
   const [adding, setAdding] = useState(false);
+  const { isViewer } = useRole();
   const limit = 15;
   
   const tabs = [
@@ -176,12 +180,14 @@ export default function SuppressionPage() {
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
           </button>
-          <button
-            className="btn-primary flex items-center gap-2"
-            onClick={() => setShowAdd(true)}
-          >
-            <Plus size={14} /> Suppress Email
-          </button>
+          {!isViewer && (
+            <button
+              className="btn-primary flex items-center gap-2"
+              onClick={() => setShowAdd(true)}
+            >
+              <Plus size={14} /> Suppress Email
+            </button>
+          )}
         </div>
       </div>
       {/* Success/Error banners */}
@@ -312,16 +318,18 @@ export default function SuppressionPage() {
                       {item.reason || "-"}
                     </td>
                     <td className="text-xs">
-                      {new Date(item.addedAt).toLocaleString()}
+                      {formatIST(item.addedAt, false)}
                     </td>
                     <td>
-                      <button
-                        className="btn-ghost p-1.5 text-red-400 hover:text-red-600 flex items-center gap-1 text-xs"
-                        title="Remove Suppression"
-                        onClick={() => handleRemoveSuppression(item.email)}
-                      >
-                        <Trash2 size={13} /> Unblock
-                      </button>
+                      {!isViewer && (
+                        <button
+                          className="btn-ghost p-1.5 text-red-400 hover:text-red-600 flex items-center gap-1 text-xs"
+                          title="Remove Suppression"
+                          onClick={() => handleRemoveSuppression(item.email)}
+                        >
+                          <Trash2 size={13} /> Unblock
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -393,17 +401,17 @@ export default function SuppressionPage() {
                 >
                   Type
                 </label>
-                <select
-                  className="input"
+                <Select
                   value={newType}
-                  onChange={(e) => setNewType(e.target.value)}
-                >
-                  <option value="unsubscribe">Manual (Unsubscribed)</option>
-                  <option value="bounce">Hard Bounce</option>
-                  <option value="spam_report">Spam Report</option>
-                  <option value="block">Block</option>
-                  <option value="invalid">Invalid Email</option>
-                </select>
+                  onChange={(value) => setNewType(value)}
+                  options={[
+                    { label: "Manual (Unsubscribed)", value: "unsubscribe" },
+                    { label: "Hard Bounce", value: "bounce" },
+                    { label: "Spam Report", value: "spam_report" },
+                    { label: "Block", value: "block" },
+                    { label: "Invalid Email", value: "invalid" }
+                  ]}
+                />
               </div>
               <div>
                 <label

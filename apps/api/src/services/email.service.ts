@@ -97,7 +97,7 @@ export async function sendVerificationEmail(
   `;
 
   await getTransporter().sendMail({
-    from: { name: process.env.SMTP_FROM_NAME ?? "Qwik Mailer", address: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in" },
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
     subject: "Verify your Qwik Mailer account",
     html: emailLayout(content, "Welcome! Please verify your email to get started."),
@@ -137,7 +137,7 @@ export async function sendPasswordResetEmail(
   `;
 
   await getTransporter().sendMail({
-    from: { name: process.env.SMTP_FROM_NAME ?? "Qwik Mailer", address: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in" },
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
     subject: "Reset your Qwik Mailer password",
     html: emailLayout(content, "Reset your password — link expires in 1 hour."),
@@ -164,7 +164,7 @@ export async function sendPasswordResetSuccessEmail(
   `;
 
   await getTransporter().sendMail({
-    from: { name: process.env.SMTP_FROM_NAME ?? "Qwik Mailer", address: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in" },
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
     subject: "Your Qwik Mailer password has been changed",
     html: emailLayout(content, "Your password was recently changed."),
@@ -199,7 +199,7 @@ export async function sendWelcomeEmail(
   `;
 
   await getTransporter().sendMail({
-    from: { name: process.env.SMTP_FROM_NAME ?? "Qwik Mailer", address: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in" },
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
     subject: "Welcome to Qwik Mailer — you're all set! 🎉",
     html: emailLayout(content, "Your account is ready — start sending emails today."),
@@ -227,7 +227,7 @@ export async function sendDomainVerifiedEmail(
   `;
 
   await getTransporter().sendMail({
-    from: { name: process.env.SMTP_FROM_NAME ?? "Qwik Mailer", address: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in" },
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
     subject: `Domain ${domainName} is now verified 🎉`,
     html: emailLayout(content, `Your domain ${domainName} is fully verified.`),
@@ -262,7 +262,7 @@ export async function sendPasskeyAddedEmail(
   `;
 
   await getTransporter().sendMail({
-    from: { name: process.env.SMTP_FROM_NAME ?? "Qwik Mailer", address: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in" },
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
     subject: "A new passkey was added to your account",
     html: emailLayout(content, "Security Alert: A new passkey was added."),
@@ -297,7 +297,7 @@ export async function sendPasskeyDeletedEmail(
   `;
 
   await getTransporter().sendMail({
-    from: { name: process.env.SMTP_FROM_NAME ?? "Qwik Mailer", address: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in" },
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
     subject: "A passkey was removed from your account",
     html: emailLayout(content, "Security Alert: A passkey was removed."),
@@ -332,7 +332,7 @@ export async function send2FAEnabledEmail(
   `;
 
   await getTransporter().sendMail({
-    from: { name: process.env.SMTP_FROM_NAME ?? "Qwik Mailer", address: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in" },
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
     subject: "2FA was enabled on your account",
     html: emailLayout(content, "Security Alert: 2FA was enabled."),
@@ -367,7 +367,7 @@ export async function send2FADisabledEmail(
   `;
 
   await getTransporter().sendMail({
-    from: { name: process.env.SMTP_FROM_NAME ?? "Qwik Mailer", address: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in" },
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
     subject: "2FA was disabled on your account",
     html: emailLayout(content, "Security Alert: 2FA was disabled."),
@@ -406,7 +406,7 @@ export async function sendNewLoginAlertEmail(
   `;
 
   await getTransporter().sendMail({
-    from: { name: process.env.SMTP_FROM_NAME ?? "Qwik Mailer", address: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in" },
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
     subject: "New login to your account",
     html: emailLayout(content, "Security Alert: New Login."),
@@ -436,4 +436,56 @@ export async function sendSharedSenderOtpEmail(to: string, otp: string) {
     subject: "Your Verification Code - Qwik Mailer",
     html,
   });
+}
+
+// ─── Send Team Invite Email ──────────────────────────────────────────────────
+
+export async function sendTeamInviteEmail(
+  to: string,
+  inviterName: string,
+  teamName: string,
+  inviteLink: string,
+  role: string,
+  expiresAt: Date
+): Promise<void> {
+  const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+  const expiryStr = expiresAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+  const content = `
+    <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">You're invited to join a team 🎉</h1>
+    <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
+      <strong style="color:#111827;">${inviterName}</strong> has invited you to join the
+      <strong style="color:#111827;">${teamName}</strong> team on Qwik Mailer as a
+      <strong style="color:#111827;">${roleLabel}</strong>.
+    </p>
+    <div style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:0 0 32px 0;">
+      <p style="margin:0 0 6px 0;font-size:14px;color:#374151;"><strong>Team:</strong> ${teamName}</p>
+      <p style="margin:0 0 6px 0;font-size:14px;color:#374151;"><strong>Your role:</strong> ${roleLabel}</p>
+      <p style="margin:0;font-size:14px;color:#374151;"><strong>Invited by:</strong> ${inviterName}</p>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${inviteLink}"
+         style="display:inline-block;background-color:#000000;color:#ffffff;font-size:14px;font-weight:500;padding:12px 32px;border-radius:6px;text-decoration:none;">
+        Accept Invitation &rarr;
+      </a>
+    </div>
+    <p style="color:#6b7280;font-size:13px;margin:24px 0 0 0;text-align:center;">
+      This invitation expires on <strong style="color:#111827;">${expiryStr}</strong>.
+      If you don't have a Qwik Mailer account, you'll be prompted to create one.
+    </p>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+    <p style="color:#9ca3af;font-size:12px;margin:0;word-break:break-all;">
+      Or copy this link: <span style="color:#4b5563;">${inviteLink}</span>
+    </p>
+  `;
+
+  await getTransporter().sendMail({
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
+    to,
+    subject: `${inviterName} invited you to join ${teamName} on Qwik Mailer`,
+    html: emailLayout(content, `You've been invited to join ${teamName} as a ${roleLabel}.`),
+    text: `${inviterName} has invited you to join ${teamName} on Qwik Mailer as a ${roleLabel}.\n\nAccept here: ${inviteLink}\n\nExpires: ${expiryStr}`,
+  });
+
+  console.log(`[EmailService] Team invite email sent to ${to}`);
 }

@@ -18,8 +18,8 @@ export async function suppressionRoutes(app: FastifyInstance) {
 
     const offset = (page - 1) * limit;
     
-    const user = req.user as { sub: string };
-    const conditions = [eq(suppressionList.userId, user.sub)];
+    const teamId = req.teamId!;
+    const conditions = [eq(suppressionList.teamId, teamId)];
     
     if (search) {
       conditions.push(like(suppressionList.email, `%${search.trim().toLowerCase()}%`));
@@ -69,11 +69,11 @@ export async function suppressionRoutes(app: FastifyInstance) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const user = req.user as { sub: string };
+    const teamId = req.teamId!;
     // Check if already suppressed
     const existing = await db.query.suppressionList.findFirst({
       where: and(
-        eq(suppressionList.userId, user.sub),
+        eq(suppressionList.teamId, teamId),
         eq(suppressionList.email, normalizedEmail)
       ),
     });
@@ -88,12 +88,12 @@ export async function suppressionRoutes(app: FastifyInstance) {
     const [newItem] = await db
       .insert(suppressionList)
       .values({
-        userId: user.sub,
+        teamId,
         email: normalizedEmail,
         type,
         reason,
         addedAt: new Date(),
-      })
+      } as any)
       .returning();
 
     return reply.code(201).send({ success: true, data: newItem });
@@ -104,10 +104,10 @@ export async function suppressionRoutes(app: FastifyInstance) {
     const { email } = req.params as { email: string };
     const normalizedEmail = email.trim().toLowerCase();
 
-    const user = req.user as { sub: string };
+    const teamId = req.teamId!;
     const existing = await db.query.suppressionList.findFirst({
       where: and(
-        eq(suppressionList.userId, user.sub),
+        eq(suppressionList.teamId, teamId),
         eq(suppressionList.email, normalizedEmail)
       ),
     });
@@ -121,7 +121,7 @@ export async function suppressionRoutes(app: FastifyInstance) {
 
     await db.delete(suppressionList).where(
       and(
-        eq(suppressionList.userId, user.sub),
+        eq(suppressionList.teamId, teamId),
         eq(suppressionList.email, normalizedEmail)
       )
     );

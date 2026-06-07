@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     template: "%s | Qwik Mailer",
   },
   description:
-    "Developer-first email infrastructure with intelligent deliverability, AI-powered analytics, and built-in anti-abuse protection. Send transactional emails with confidence.",
+    "Email infrastructure made easy. Perfect for developers, startup founders, creators, and anyone running a hackathon. Get intelligent deliverability and AI spam protection with just a 10-minute setup.",
   keywords: [
     "email API",
     "transactional email",

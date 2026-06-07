@@ -27,24 +27,24 @@ export function ConfirmModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
         <div className="p-6">
           <div className="flex items-start gap-4">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isDestructive ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isDestructive ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'}`}>
               <AlertTriangle size={20} />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
                 {title}
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-500">
                 {message}
               </p>
             </div>
           </div>
         </div>
         
-        <div className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-white/5 flex justify-end gap-3">
+        <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
           <button 
             onClick={onCancel} 
             disabled={isLoading}

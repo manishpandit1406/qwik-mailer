@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { db, domains, domainSenders, users } from "@qwikmailer/db";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { generateDkimKeys, checkDnsRecord } from "../services/dns.service.js";
 import { isRelatedToCompany } from "../utils/validation.js";
 import { sendSharedSenderOtpEmail } from "../services/email.service.js";
@@ -35,7 +35,7 @@ export async function domainRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/domains
-  app.post("/", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { domain } = z.object({ domain: z.string().min(4) }).parse(req.body);
 
@@ -140,7 +140,7 @@ export async function domainRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/domains/:id/verify
-  app.post("/:id/verify", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/:id/verify", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id } = req.params as { id: string };
 
@@ -207,7 +207,7 @@ export async function domainRoutes(app: FastifyInstance) {
   });
 
   // DELETE /v1/domains/:id
-  app.delete("/:id", { preHandler: authenticate }, async (req, reply) => {
+  app.delete("/:id", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id } = req.params as { id: string };
 
@@ -228,7 +228,7 @@ export async function domainRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/domains/:id/link-branding
-  app.post("/:id/link-branding", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/:id/link-branding", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id } = req.params as { id: string };
 
@@ -247,142 +247,11 @@ export async function domainRoutes(app: FastifyInstance) {
     return reply.send({ success: true, data: { trackingCname } });
   });
 
-  // ─── Senders ─────────────────────────────────────────────────────────────────
-
-  // GET /v1/domains/all-senders
-  app.get("/all-senders", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
-    const allSenders = await db.query.domainSenders.findMany({
-      where: eq(domainSenders.userId, user.sub),
-      orderBy: (senders, { desc }) => [desc(senders.createdAt)],
-    });
-    return reply.send({ success: true, data: allSenders });
-  });
-
-  // GET /v1/domains/:id/senders
-  app.get("/:id/senders", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
-    const { id } = req.params as { id: string };
-
-    const senders = await db.query.domainSenders.findMany({
-      where: and(eq(domainSenders.domainId, id), eq(domainSenders.userId, user.sub)),
-    });
-    return reply.send({ success: true, data: senders });
-  });
-
-  // POST /v1/domains/:id/senders
-  app.post("/:id/senders", { 
-    preHandler: authenticate,
-    config: { rateLimit: { max: 20, timeWindow: '1 hour' } }
-  }, async (req, reply) => {
-    const user = req.user as { sub: string };
-    const { id } = req.params as { id: string };
-    const { 
-      prefix,
-      fromName,
-      replyTo,
-      companyAddress,
-      companyAddress2,
-      city,
-      state,
-      zipCode,
-      country,
-      nickname
-    } = z.object({ 
-      prefix: z.string().min(1).max(100),
-      fromName: z.string().max(255).optional(),
-      replyTo: z.string().email().optional().or(z.literal("")),
-      companyAddress: z.string().optional(),
-      companyAddress2: z.string().optional(),
-      city: z.string().optional(),
-      state: z.string().optional(),
-      zipCode: z.string().optional(),
-      country: z.string().optional(),
-      nickname: z.string().max(255).optional(),
-    }).parse(req.body);
-
-    const domain = await db.query.domains.findFirst({
-      where: and(eq(domains.id, id), eq(domains.userId, user.sub)),
-    });
-    if (!domain) return reply.code(404).send({ success: false, error: "Domain not found" });
-
-    if (domain.status !== "verified") {
-      return reply.code(400).send({ success: false, error: "Domain must be verified first" });
-    }
-
-    const email = `${prefix.toLowerCase()}@${domain.domain.toLowerCase()}`;
-
-    if (domain.domain === "mail.qwikmailer.in") {
-      if (!replyTo) {
-        return reply.code(400).send({ success: false, error: "Reply-To email is strictly required when using the shared domain." });
-      }
-
-      const userRec = await db.query.users.findFirst({ where: eq(users.id, user.sub) });
-      if (!isRelatedToCompany(userRec?.companyName, prefix)) {
-        return reply.code(400).send({ success: false, error: "Sender username must be related to your company name." });
-      }
-      if (fromName && !isRelatedToCompany(userRec?.companyName, fromName)) {
-        return reply.code(400).send({ success: false, error: "From name must be related to your company name." });
-      }
-      
-      const existingSenders = await db.query.domainSenders.findMany({
-        where: and(eq(domainSenders.userId, user.sub), eq(domainSenders.domainId, domain.id))
-      });
-      if (existingSenders.length >= 1) {
-        return reply.code(400).send({ success: false, error: "You can only create one sender identity on the shared domain." });
-      }
-    } else {
-      // Fuzzy match name against domain root for custom domains
-      if (fromName) {
-        const domainRoot = domain.domain.split(".")[0].toLowerCase();
-        if (!fromName.toLowerCase().includes(domainRoot)) {
-          return reply.code(400).send({ success: false, error: `Sender name must include your domain name '${domainRoot}' (e.g., '${fromName} | ${domainRoot.charAt(0).toUpperCase() + domainRoot.slice(1)}')` });
-        }
-      }
-    }
-
-    const existing = await db.query.domainSenders.findFirst({
-      where: eq(domainSenders.email, email),
-    });
-    if (existing) return reply.code(409).send({ success: false, error: "Sender email already exists" });
-
-    const [newSender] = await db.insert(domainSenders).values({
-      userId: user.sub,
-      domainId: domain.id,
-      email,
-      fromName,
-      replyTo: replyTo || undefined,
-      companyAddress,
-      companyAddress2,
-      city,
-      state,
-      zipCode,
-      country,
-      nickname,
-    }).returning();
-
-    return reply.code(201).send({ success: true, data: newSender });
-  });
-
-  // DELETE /v1/domains/:id/senders/:senderId
-  app.delete("/:id/senders/:senderId", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
-    const { id, senderId } = req.params as { id: string, senderId: string };
-
-    const sender = await db.query.domainSenders.findFirst({
-      where: and(eq(domainSenders.id, senderId), eq(domainSenders.domainId, id), eq(domainSenders.userId, user.sub)),
-    });
-    if (!sender) return reply.code(404).send({ success: false, error: "Sender not found" });
-
-    await db.delete(domainSenders).where(eq(domainSenders.id, senderId));
-    return reply.send({ success: true, data: { message: "Sender deleted." } });
-  });
-
 
   // POST /v1/domains/shared/setup
-  app.post("/shared/setup", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/shared/setup", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
-    const { username, displayName, replyTo, companyAddress, companyAddress2, city, state, zipCode, country } = z.object({
+    const { username, displayName, replyTo, companyAddress, companyAddress2, city, state, zipCode, country, teamId } = z.object({
       username: z.string().min(3),
       displayName: z.string().min(1),
       replyTo: z.string().email(),
@@ -392,6 +261,7 @@ export async function domainRoutes(app: FastifyInstance) {
       state: z.string().optional(),
       zipCode: z.string().optional(),
       country: z.string().optional(),
+      teamId: z.string().optional(),
     }).parse(req.body);
 
     const userRec = await db.query.users.findFirst({ where: eq(users.id, user.sub) });
@@ -415,7 +285,7 @@ export async function domainRoutes(app: FastifyInstance) {
     if (redis) {
       await redis.set(`shared_otp:${user.sub}:${replyTo}`, otp, "EX", 600);
       await redis.set(`shared_data:${user.sub}:${replyTo}`, JSON.stringify({ 
-        username, displayName, companyAddress, companyAddress2, city, state, zipCode, country 
+        username, displayName, companyAddress, companyAddress2, city, state, zipCode, country, teamId 
       }), "EX", 600);
     }
 
@@ -424,7 +294,7 @@ export async function domainRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/domains/shared/verify
-  app.post("/shared/verify", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/shared/verify", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { otp, replyTo } = z.object({ otp: z.string(), replyTo: z.string().email() }).parse(req.body);
 
@@ -439,7 +309,7 @@ export async function domainRoutes(app: FastifyInstance) {
     const storedDataRaw = await redis.get(`shared_data:${user.sub}:${replyTo}`);
     if (!storedDataRaw) return reply.code(400).send({ success: false, error: "Session expired" });
 
-    const { username, displayName, companyAddress, companyAddress2, city, state, zipCode, country } = JSON.parse(storedDataRaw);
+    const { username, displayName, companyAddress, companyAddress2, city, state, zipCode, country, teamId } = JSON.parse(storedDataRaw);
 
     let sharedDomain = await db.query.domains.findFirst({
       where: and(eq(domains.userId, user.sub), eq(domains.domain, "mail.qwikmailer.in"))
@@ -460,11 +330,15 @@ export async function domainRoutes(app: FastifyInstance) {
 
     const email = `${username.toLowerCase()}@mail.qwikmailer.in`;
 
+    const existingSendersQuery = teamId 
+      ? and(eq((domainSenders as any).teamId, teamId), eq(domainSenders.domainId, sharedDomain.id))
+      : and(eq(domainSenders.userId, user.sub), eq(domainSenders.domainId, sharedDomain.id));
+
     const existingSenders = await db.query.domainSenders.findMany({
-      where: and(eq(domainSenders.userId, user.sub), eq(domainSenders.domainId, sharedDomain.id))
+      where: existingSendersQuery
     });
     if (existingSenders.length >= 1) {
-      return reply.code(400).send({ success: false, error: "You can only create one sender identity on the shared domain." });
+      return reply.code(400).send({ success: false, error: "You can only create one sender identity on the shared domain per project." });
     }
 
     const [newSender] = await db.insert(domainSenders).values({
@@ -479,6 +353,7 @@ export async function domainRoutes(app: FastifyInstance) {
       state,
       zipCode,
       country,
+      teamId: teamId || undefined,
     }).returning();
 
     await redis.del(`shared_otp:${user.sub}:${replyTo}`);
@@ -488,7 +363,7 @@ export async function domainRoutes(app: FastifyInstance) {
   });
 
   // PATCH /v1/domains/:id/senders/:senderId
-  app.patch("/:id/senders/:senderId", { preHandler: authenticate }, async (req, reply) => {
+  app.patch("/:id/senders/:senderId", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id, senderId } = req.params as { id: string, senderId: string };
     const { username, fromName, nickname, companyAddress, companyAddress2, city, state, zipCode, country } = z.object({
@@ -576,7 +451,7 @@ export async function domainRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/domains/:id/senders/:senderId/reply-to/setup
-  app.post("/:id/senders/:senderId/reply-to/setup", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/:id/senders/:senderId/reply-to/setup", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id, senderId } = req.params as { id: string, senderId: string };
     const { replyTo } = z.object({ replyTo: z.string().email() }).parse(req.body);
@@ -597,7 +472,7 @@ export async function domainRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/domains/:id/senders/:senderId/reply-to/verify
-  app.post("/:id/senders/:senderId/reply-to/verify", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/:id/senders/:senderId/reply-to/verify", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id, senderId } = req.params as { id: string, senderId: string };
     const { otp, replyTo } = z.object({ otp: z.string(), replyTo: z.string().email() }).parse(req.body);

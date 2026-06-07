@@ -12,10 +12,10 @@ const supportTicketSchema = z.object({
 export async function supportRoutes(app: FastifyInstance) {
   // GET /v1/support/tickets - Get user's support tickets
   app.get("/tickets", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const teamId = req.teamId!;
     try {
       const tickets = await db.query.supportTickets.findMany({
-        where: eq(supportTickets.userId, user.sub),
+        where: eq((supportTickets as any).teamId || (supportTickets as any).userId, teamId),
         orderBy: [desc(supportTickets.createdAt)],
       });
       return reply.send({ success: true, data: tickets });
@@ -27,17 +27,17 @@ export async function supportRoutes(app: FastifyInstance) {
 
   // POST /v1/support/tickets - Create a new support ticket
   app.post("/tickets", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const teamId = req.teamId!;
     
     try {
       const { subject, description } = supportTicketSchema.parse(req.body);
 
       const [ticket] = await db.insert(supportTickets).values({
-        userId: user.sub,
+        userId: teamId!,
         subject,
         description,
         status: "open",
-      }).returning();
+      } as any).returning();
 
       return reply.code(201).send({ success: true, data: ticket });
     } catch (err: any) {

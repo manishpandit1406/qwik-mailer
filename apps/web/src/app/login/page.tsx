@@ -49,7 +49,7 @@ export default function LoginPage() {
       if (data.user.onboardingCompleted === false) {
         router.push("/onboarding");
       } else {
-        router.push("/dashboard");
+        router.push("/projects");
       }
     } catch (err: any) {
       setError(err.message || "Passkey login failed.");
@@ -70,7 +70,7 @@ export default function LoginPage() {
           }
         } catch (e) {}
       }
-      router.push("/dashboard");
+      router.push("/projects");
     }
   }, [router]);
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
       if (!data.data.user.onboardingCompleted) {
         router.push("/onboarding");
       } else {
-        router.push("/dashboard");
+        router.push("/projects");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";

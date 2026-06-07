@@ -1,6 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Send, Plus, X, Eye, Code2, RefreshCw } from "lucide-react";
+import { Send, Plus, X, Eye, Code2, RefreshCw, Upload, Mail as MailIcon, Users, Award } from "lucide-react";
+import { Select } from "@/components/Select";
+import * as XLSX from "xlsx";
+import { BulkUploadWizard } from "@/components/BulkUploadWizard";
+import { useRole } from "@/lib/useRole";
 interface Template {
   id: string;
   name: string;
@@ -18,14 +22,19 @@ export default function SendEmailPage() {
     subject: "",
     html: "",
     text: "",
-    tags: [] as string[],
   });
-  const [newTag, setNewTag] = useState("");
+  const [sendMode, setSendMode] = useState<"single" | "bulk_upload">("single");
+  const [parsedContacts, setParsedContacts] = useState<any[]>([]);
+  const [bulkFileName, setBulkFileName] = useState("");
+  const [bulkTags, setBulkTags] = useState("");
   const [tab, setTab] = useState<"visual" | "code">("visual");
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
     message: string;
+    issues?: string[];
+    suggestions?: string[];
+    spamScore?: number;
   } | null>(null);
   const [showPreview, setShowPreview] = useState(false); // Advanced features states
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -37,6 +46,7 @@ export default function SendEmailPage() {
   const [attachments, setAttachments] = useState<{ filename: string; content: string; contentType: string; size: number }[]>([]);
   const [certificates, setCertificates] = useState<{ id: string; name: string }[]>([]);
   const [selectedCertificateId, setSelectedCertificateId] = useState("");
+  const { isViewer } = useRole();
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -78,17 +88,28 @@ export default function SendEmailPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const token = localStorage.getItem("mf_access_token"); // Load templates
+        const token = localStorage.getItem("mf_access_token");
+        const teamId = localStorage.getItem("mf_active_team") || "";
+        
+        // Load templates
         fetch(`${API}/v1/templates`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "x-team-id": teamId 
+          },
         })
           .then((res) => res.json())
           .then((json) => {
             if (json.success) setTemplates(json.data);
           })
-          .catch(console.error); // Load senders
-        fetch(`${API}/v1/domains/all-senders`, {
-          headers: { Authorization: `Bearer ${token}` },
+          .catch(console.error);
+        
+        // Load senders
+        fetch(`${API}/v1/senders`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "x-team-id": teamId
+          },
         })
           .then((res) => res.json())
           .then((json) => {
@@ -106,13 +127,19 @@ export default function SendEmailPage() {
           });
         // Load certificates
         fetch(`${API}/v1/certificates`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "x-team-id": teamId
+          },
         })
           .then((res) => res.json())
           .then((json) => {
             if (json.success) setCertificates(json.data);
           })
           .catch(console.error);
+
+
+
       } catch (err) {
         console.error("Failed to load data:", err);
         setSendersLoaded(true);
@@ -143,28 +170,49 @@ export default function SendEmailPage() {
     setResult(null);
     try {
       const token = localStorage.getItem("mf_access_token");
-      const res = await fetch(`${API}/v1/send`, {
+      const teamId = localStorage.getItem("mf_active_team") || "";
+      
+      const endpoint = sendMode === "bulk_upload" ? "/v1/bulk-send" : "/v1/send";
+      let payload: any = {};
+      
+      const commonData = {
+        from: form.from || undefined,
+        fromName: form.fromName || undefined,
+        replyTo: form.replyTo || undefined,
+        subject: form.subject,
+        html: form.html || undefined,
+        text: form.text || undefined,
+        templateId: selectedTemplateId || undefined,
+        metadata: selectedCertificateId ? { certificateId: selectedCertificateId } : undefined,
+        attachments: attachments.length > 0 ? attachments : undefined,
+        scheduledAt: isScheduled && scheduledDate ? new Date(scheduledDate).toISOString() : undefined,
+      };
+
+      if (sendMode === "bulk_upload") {
+        const tags = bulkTags.split(",").map(t => t.trim()).filter(t => t);
+        payload = {
+          emails: parsedContacts.map((contact: any) => ({
+             ...commonData,
+             to: contact.email,
+             tags,
+             variables: contact
+          }))
+        };
+      } else {
+        payload = {
+          ...commonData,
+          to: form.to,
+        };
+      }
+
+      const res = await fetch(`${API}${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
+          "x-team-id": teamId,
         },
-        body: JSON.stringify({
-          to: form.to,
-          from: form.from || undefined,
-          fromName: form.fromName || undefined,
-          replyTo: form.replyTo || undefined,
-          subject: form.subject,
-          html: form.html || undefined,
-          text: form.text || undefined,
-          tags: form.tags,
-          metadata: selectedCertificateId ? { certificateId: selectedCertificateId } : undefined,
-          attachments: attachments.length > 0 ? attachments : undefined,
-          scheduledAt:
-            isScheduled && scheduledDate
-              ? new Date(scheduledDate).toISOString()
-              : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
@@ -182,7 +230,6 @@ export default function SendEmailPage() {
           subject: "",
           html: "",
           text: "",
-          tags: [],
         });
         setAttachments([]);
         setSelectedTemplateId("");
@@ -193,6 +240,9 @@ export default function SendEmailPage() {
         setResult({
           success: false,
           message: data.error ?? "Failed to send email.",
+          issues: data.issues,
+          suggestions: data.suggestions,
+          spamScore: data.spamScore,
         });
       }
     } catch {
@@ -204,14 +254,41 @@ export default function SendEmailPage() {
       setSending(false);
     }
   }
-  function addTag() {
-    if (newTag.trim() && !form.tags.includes(newTag.trim())) {
-      setForm({ ...form, tags: [...form.tags, newTag.trim()] });
-      setNewTag("");
-    }
+
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkFileName(file.name);
+    
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const bstr = evt.target?.result;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const validContacts = data.filter((row: any) => {
+        const email = (row["email"] || row["Email"] || row["EMAIL"] || row["e-mail"] || "").toString().trim();
+        return email && emailRegex.test(email);
+      }).map((row: any) => ({
+        ...row,
+        email: (row["email"] || row["Email"] || row["EMAIL"] || row["e-mail"] || "").toString().trim(),
+        name: (row["first_name"] || row["firstName"] || row["Name"] || row["name"] || row["FullName"] || "").toString().trim()
+      }));
+      
+      setParsedContacts(validContacts);
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  if (sendMode === "bulk_upload") {
+    return <BulkUploadWizard onSwitchToSingle={() => setSendMode("single")} />;
   }
+
   return (
-    <div className="max-w-3xl mx-auto space-y-5 animate-fade-in">
+    <div className="max-w-4xl mx-auto space-y-5 animate-fade-in pb-10">
       <div>
         <h2
           className="text-xl font-bold mb-1"
@@ -220,12 +297,26 @@ export default function SendEmailPage() {
           Compose Email
         </h2>
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          Send a single transactional or marketing email.
+          Send a single transactional email, or a bulk campaign to your audience.
         </p>
+      </div>
+      
+      <div className="flex bg-gray-100 p-1 rounded-xl w-full max-w-sm">
+        <button
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-lg transition-all bg-white text-gray-900 shadow-sm`}
+        >
+          <MailIcon size={16} /> Single Email
+        </button>
+        <button
+          onClick={() => setSendMode("bulk_upload")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-lg transition-all text-gray-500 hover:text-gray-700`}
+        >
+          <Users size={16} /> Bulk Campaign
+        </button>
       </div>
       {result && (
         <div
-          className={`px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${result.success ? "badge-success" : "badge-danger"}`}
+          className={`px-4 py-3 rounded-xl text-sm flex flex-col gap-2 ${result.success ? "badge-success" : "badge-danger"}`}
           style={{
             background: result.success
               ? "rgba(16,185,129,0.1)"
@@ -234,234 +325,202 @@ export default function SendEmailPage() {
             color: result.success ? "#34d399" : "#f87171",
           }}
         >
-          {result.message}
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">{result.message}</span>
+            <button
+              onClick={() => setResult(null)}
+              style={{
+                color: result.success ? "#10b981" : "#ef4444",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+          {result.issues && result.issues.length > 0 && (
+            <div className="mt-1">
+              <strong className="block mb-1">Issues Found:</strong>
+              <ul className="list-disc pl-4 space-y-0.5 opacity-90">
+                {result.issues.map((issue, idx) => (
+                  <li key={idx}>{issue}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {result.suggestions && result.suggestions.length > 0 && (
+            <div className="mt-1">
+              <strong className="block mb-1">Suggestions:</strong>
+              <ul className="list-disc pl-4 space-y-0.5 opacity-90">
+                {result.suggestions.map((suggestion, idx) => (
+                  <li key={idx}>{suggestion}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
-      <form onSubmit={handleSend} className="glass-card p-6 space-y-5">
-        {sendersLoaded && senders.length === 0 && (
+
+      <form onSubmit={handleSend} className="space-y-6">
+        {!sendersLoaded ? (
+          <div className="p-4 bg-gray-50 rounded-xl text-sm text-gray-500 text-center animate-pulse">
+            Loading sender identities...
+          </div>
+        ) : senders.length === 0 ? (
           <div className="p-4 rounded-xl text-sm mb-4" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
             <div className="font-semibold mb-1">Sender Identity Required</div>
             <p>You must create a sender identity before you can send emails.</p>
-            <a href="/dashboard/domains" className="inline-block mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">
+            <a href="/dashboard/senders" className="inline-block mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">
               Create Sender Identity
             </a>
           </div>
-        )}
+        ) : null}
 
-        {/* Certificate Selector */}
-        {certificates.length > 0 && (
-          <div>
-            <label
-              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Attach Certificate
-            </label>
-            <select
-              className="input"
-              value={selectedCertificateId}
-              onChange={(e) => setSelectedCertificateId(e.target.value)}
-            >
-              <option value="">-- No certificate --</option>
-              {certificates.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Sender details and subject */}
-        {templates.length > 0 && (
-          <div>
-            <label
-              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Use Saved Template
-            </label>
-            <select
-              className="input"
-              value={selectedTemplateId}
-              onChange={(e) => handleTemplateChange(e.target.value)}
-            >
-              <option value="">-- Select a template (optional) --</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {/* To */}
-        <div>
-          <label
-            className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-            style={{ color: "var(--text-muted)" }}
-          >
-            To
-          </label>
-          <input
-            id="compose-to"
-            className="input"
-            type="email"
-            placeholder="recipient@example.com"
-            required
-            value={form.to}
-            onChange={(e) => setForm({ ...form, to: e.target.value })}
-          />
-        </div>
-        {/* From */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label
-              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-              style={{ color: "var(--text-muted)" }}
-            >
-              From Email
-            </label>
-            <select
-              id="compose-from"
-              className="input"
-              value={form.from}
-              onChange={(e) => setForm({ ...form, from: e.target.value })}
-            >
-              {senders.length === 0 && <option value="">No senders found</option>}
-              {senders.map((s) => (
-                <option key={s.id} value={s.email}>
-                  {s.email}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-              style={{ color: "var(--text-muted)" }}
-            >
-              From Name <span className="normal-case font-normal">(optional)</span>
-            </label>
+        {/* Envelope Metadata Box */}
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          {/* To Row */}
+          <div className="flex items-center border-b border-gray-100 px-4 py-3">
+            <label className="text-gray-400 font-medium text-sm w-16 shrink-0">To:</label>
             <input
-              id="compose-from-name"
-              className="input"
-              type="text"
-              placeholder="Leave empty to use sender default"
-              value={form.fromName}
-              onChange={(e) => setForm({ ...form, fromName: e.target.value })}
+              id="compose-to"
+              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-300"
+              type="email"
+              placeholder="recipient@example.com"
+              required
+              value={form.to}
+              onChange={(e) => setForm({ ...form, to: e.target.value })}
+            />
+          </div>
+
+          {/* From Row */}
+          <div className="flex items-center border-b border-gray-100 px-4 py-3">
+            <label className="text-gray-400 font-medium text-sm w-16 shrink-0">From:</label>
+            <div className="flex-1 flex items-center gap-3">
+              <input
+                className="bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-300 w-48"
+                type="text"
+                placeholder="Name (e.g. Rahul)"
+                value={form.fromName}
+                onChange={(e) => setForm({ ...form, fromName: e.target.value })}
+              />
+              <span className="text-gray-300 text-sm">via</span>
+              <select
+                className="bg-gray-50 border border-gray-200 text-sm rounded-lg px-2 py-1 outline-none text-gray-700 hover:border-gray-300 transition-colors"
+                value={form.from}
+                onChange={(e) => setForm({ ...form, from: e.target.value })}
+              >
+                {senders.map(s => <option key={s.email} value={s.email}>{s.email}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Reply-To Row */}
+          <div className="flex items-center px-4 py-3">
+            <label className="text-gray-400 font-medium text-sm w-20 shrink-0">Reply-To:</label>
+            <input
+              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-300"
+              type="email"
+              placeholder="support@example.com (Optional)"
+              value={form.replyTo}
+              onChange={(e) => setForm({ ...form, replyTo: e.target.value })}
             />
           </div>
         </div>
-        {/* Subject */}
-        <div>
-          <label
-            className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Subject
-          </label>
+
+        {/* Editor Box */}
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-gray-900 focus-within:border-gray-900 transition-all">
+          {/* Subject */}
           <input
             id="compose-subject"
-            className="input"
+            className="w-full bg-transparent border-b border-gray-100 outline-none text-lg font-semibold text-gray-800 placeholder-gray-300 px-6 py-4"
             type="text"
-            placeholder="Welcome to Qwik Mailer!"
+            placeholder="Subject"
             required
             value={form.subject}
             onChange={(e) => setForm({ ...form, subject: e.target.value })}
           />
-        </div>
-        {/* Body tabs */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label
-              className="block text-xs font-semibold uppercase tracking-wider"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Body
-            </label>
-            <div
-              className="flex rounded-lg overflow-hidden border"
-              style={{ borderColor: "var(--border-subtle)" }}
-            >
+
+          {/* Editor Format Toggle */}
+          <div className="flex justify-between items-center px-6 py-2 bg-gray-50/50 border-b border-gray-100">
+            <div className="flex rounded-lg overflow-hidden bg-gray-200/50 p-1">
               {(["visual", "code"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setTab(t)}
-                  className={`px-3 py-1 text-xs font-medium capitalize transition-all ${tab === t ? "text-white" : ""}`}
-                  style={{
-                    background:
-                      tab === t ? "rgba(99,102,241,0.3)" : "transparent",
-                    color: tab === t ? "#fff" : "var(--text-muted)",
-                  }}
+                  className={`px-3 py-1 text-xs font-medium capitalize rounded-md transition-all ${tab === t ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                 >
                   {t === "visual" ? (
-                    <>
-                      <Eye size={11} className="inline mr-1" />
-                      Visual
-                    </>
+                    <><Eye size={12} className="inline mr-1" /> Visual</>
                   ) : (
-                    <>
-                      <Code2 size={11} className="inline mr-1" />
-                      HTML
-                    </>
+                    <><Code2 size={12} className="inline mr-1" /> HTML</>
                   )}
                 </button>
               ))}
             </div>
+            
+            {templates.length > 0 && (
+              <select
+                className="bg-transparent border-none outline-none text-xs text-gray-900 font-medium cursor-pointer"
+                value={selectedTemplateId}
+                onChange={(e) => handleTemplateChange(e.target.value)}
+              >
+                <option value="">Use a Template...</option>
+                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            )}
           </div>
+
+          {/* Editor Body */}
           {tab === "visual" ? (
             <textarea
               id="compose-text"
-              className="input resize-none font-sans"
-              rows={8}
-              placeholder="Write your email content here. Use {{name}}, {{otp}} for variables."
+              className="w-full h-80 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-300 px-6 py-4 resize-y font-sans"
+              placeholder="Write your email here..."
               value={form.text}
               onChange={(e) => setForm({ ...form, text: e.target.value })}
             />
           ) : (
             <textarea
               id="compose-html"
-              className="input resize-none font-mono text-xs"
-              rows={10}
-              placeholder={
-                "<h1>Hello {{name}}!</h1>\n<p>Your OTP is <strong>{{otp}}</strong></p>"
-              }
+              className="w-full h-80 bg-slate-50/50 text-slate-700 border-none outline-none text-xs placeholder-gray-400 px-6 py-4 resize-y font-mono shadow-inner"
+              placeholder="<h1>Hello!</h1>"
               value={form.html}
               onChange={(e) => setForm({ ...form, html: e.target.value })}
             />
           )}
-        </div>
-        {/* Attachments */}
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
-            Attachments <span className="normal-case font-normal">(Max 5MB each)</span>
-          </label>
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-medium rounded-xl border border-gray-200 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                Attach Files
+
+          {/* Attachments Area (Inside Editor) */}
+          <div className="bg-gray-50/80 px-6 py-4 border-t border-gray-100 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <label className="cursor-pointer inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
+                <Upload size={16} /> Attach Files
                 <input type="file" multiple className="hidden" onChange={handleFileChange} />
               </label>
+              
+              {certificates.length > 0 && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Award size={16} />
+                  <select
+                    className="bg-transparent border-none outline-none font-medium cursor-pointer hover:text-gray-900"
+                    value={selectedCertificateId}
+                    onChange={(e) => setSelectedCertificateId(e.target.value)}
+                  >
+                    <option value="">Attach Certificate...</option>
+                    {certificates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
+
             {attachments.length > 0 && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-2 mt-2">
                 {attachments.map((att, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-white shadow-sm">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="p-2 bg-gray-50 rounded-lg text-gray-500 border border-gray-100">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-semibold text-gray-800 truncate">{att.filename}</span>
-                        <span className="text-xs text-gray-400">{(att.size / 1024).toFixed(1)} KB</span>
-                      </div>
-                    </div>
-                    <button type="button" onClick={() => removeAttachment(i)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                    </button>
+                  <div key={i} className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
+                    <span className="text-xs font-semibold text-gray-700 truncate max-w-[150px]">{att.filename}</span>
+                    <span className="text-[10px] text-gray-400">{(att.size / 1024).toFixed(0)}kb</span>
+                    <button type="button" onClick={() => removeAttachment(i)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
                   </div>
                 ))}
               </div>
@@ -469,71 +528,49 @@ export default function SendEmailPage() {
           </div>
         </div>
 
-        {/* Scheduling Section */}
-        <div className="p-4 rounded-xl bg-gray-50 border border-gray-200/80 space-y-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="accent-indigo-600"
-              checked={isScheduled}
-              onChange={(e) => setIsScheduled(e.target.checked)}
-            />
-            <span
-              className="text-xs font-semibold uppercase tracking-wider"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Schedule this email for later
-            </span>
-          </label>
-          {isScheduled && (
-            <div className="animate-fade-up">
+        {/* Schedule & Submit Footer */}
+        <div className="flex items-center justify-between pt-4">
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600 hover:text-gray-900 transition-colors">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                checked={isScheduled}
+                onChange={(e) => setIsScheduled(e.target.checked)}
+              />
+              Schedule for later
+            </label>
+            {isScheduled && (
               <input
                 type="datetime-local"
-                className="input"
+                className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-gray-900 transition-colors shadow-sm"
                 required={isScheduled}
                 value={scheduledDate}
                 onChange={(e) => setScheduledDate(e.target.value)}
               />
-              <p
-                className="text-xs mt-1"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Select the date and time when you want this email to be sent.
-              </p>
-            </div>
-          )}
-        </div>
-        {/* Submit */}
-        <div
-          className="flex items-center justify-between pt-2 border-t"
-          style={{ borderColor: "var(--border-subtle)" }}
-        >
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {isScheduled
-              ? "Emails are queued and sent at the scheduled time."
-              : "Emails are queued and processed within seconds."}
-          </p>
-          <div className="flex items-center gap-2">
+            )}
+          </div>
+          
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setShowPreview(true)}
               disabled={!form.html && !form.text}
-              className="btn-secondary flex items-center gap-2"
+              className="text-gray-500 hover:text-gray-900 font-medium text-sm transition-colors"
             >
-              <Eye size={14} /> Preview
+              Preview
             </button>
             <button
               id="compose-submit"
               type="submit"
-              disabled={sending || (sendersLoaded && senders.length === 0)}
-              className="btn-primary flex items-center gap-2"
+              disabled={sending || isViewer || !form.to || !form.subject || (!form.text && !form.html)}
+              className="bg-gray-900 hover:bg-black disabled:bg-gray-300 text-white font-semibold py-2.5 px-6 rounded-xl flex items-center gap-2 shadow-sm transition-all"
             >
               {sending ? (
-                <RefreshCw size={14} className="animate-spin" />
+                <RefreshCw size={16} className="animate-spin" />
               ) : (
                 <>
-                  <Send size={14} />{" "}
-                  {isScheduled ? "Schedule Email" : "Send Email"}
+                  <Send size={16} /> {isScheduled ? "Schedule" : "Send Now"}
                 </>
               )}
             </button>
@@ -546,7 +583,7 @@ export default function SendEmailPage() {
           <div className="bg-white rounded-lg shadow-md w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                <Eye size={18} className="text-indigo-500" /> Email Preview
+                <Eye size={18} className="text-gray-900" /> Email Preview
               </h3>
               <button
                 onClick={() => setShowPreview(false)}
@@ -599,7 +636,7 @@ export default function SendEmailPage() {
                   setShowPreview(false);
                   handleSend(e as any);
                 }}
-                disabled={sending}
+                disabled={sending || isViewer}
                 className="btn-primary flex items-center gap-2"
               >
                 <Send size={14} /> Send Now

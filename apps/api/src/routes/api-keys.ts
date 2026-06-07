@@ -3,15 +3,15 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 import { db, apiKeys } from "@qwikmailer/db";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { nanoid } from "nanoid";
 
 export async function apiKeyRoutes(app: FastifyInstance) {
   // GET /v1/api-keys
   app.get("/", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const teamId = (req as any).teamId!;
     const keys = await db.query.apiKeys.findMany({
-      where: eq(apiKeys.userId, user.sub),
+      where: eq(apiKeys.teamId, teamId),
     });
     // Never return the full hash
     return reply.send({
@@ -29,8 +29,8 @@ export async function apiKeyRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/api-keys
-  app.post("/", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+  app.post("/", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
+    const teamId = (req as any).teamId!;
     const { name, expiresAt } = z
       .object({
         name: z.string().min(1).max(100),
@@ -46,7 +46,7 @@ export async function apiKeyRoutes(app: FastifyInstance) {
     const [key] = await db
       .insert(apiKeys)
       .values({
-        userId: user.sub,
+        teamId: teamId,
         name,
         keyHash,
         keyPrefix,
@@ -68,12 +68,12 @@ export async function apiKeyRoutes(app: FastifyInstance) {
   });
 
   // DELETE /v1/api-keys/:id
-  app.delete("/:id", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+  app.delete("/:id", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
+    const teamId = (req as any).teamId!;
     const { id } = req.params as { id: string };
 
     const key = await db.query.apiKeys.findFirst({
-      where: and(eq(apiKeys.id, id), eq(apiKeys.userId, user.sub)),
+      where: and(eq(apiKeys.id, id), eq(apiKeys.teamId, teamId)),
     });
     if (!key) return reply.code(404).send({ success: false, error: "API key not found" });
 

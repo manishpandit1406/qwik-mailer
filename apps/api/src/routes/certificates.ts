@@ -17,9 +17,9 @@ const UPLOADS_DIR = path.join(__dirname, "..", "..", "uploads", "certificates");
 export async function certificateRoutes(app: FastifyInstance) {
   // GET /v1/certificates
   app.get("/", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const userId = (req.user as any).sub;
     const certs = await db.query.certificates.findMany({
-      where: eq(certificates.userId, user.sub),
+      where: eq(certificates.userId, userId),
       orderBy: (certs, { desc }) => [desc(certs.createdAt)],
     });
     return reply.send({ success: true, data: certs });
@@ -27,10 +27,10 @@ export async function certificateRoutes(app: FastifyInstance) {
 
   // GET /v1/certificates/:id
   app.get("/:id", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const userId = (req.user as any).sub;
     const { id } = req.params as { id: string };
     const cert = await db.query.certificates.findFirst({
-      where: and(eq(certificates.id, id), eq(certificates.userId, user.sub)),
+      where: and(eq(certificates.id, id), eq(certificates.userId, userId)),
     });
     if (!cert) return reply.code(404).send({ success: false, error: "Not found" });
     return reply.send({ success: true, data: cert });
@@ -38,7 +38,7 @@ export async function certificateRoutes(app: FastifyInstance) {
 
   // POST /v1/certificates
   app.post("/", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const userId = (req.user as any).sub;
     
     const parts = req.parts();
     let name = "Untitled Certificate";
@@ -60,7 +60,22 @@ export async function certificateRoutes(app: FastifyInstance) {
         const uniqueName = crypto.randomBytes(16).toString("hex") + ext;
         const savePath = path.join(UPLOADS_DIR, uniqueName);
         
-        await pipeline(part.file, fs.createWriteStream(savePath));
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+        let uploadedBytes = 0;
+        const writeStream = fs.createWriteStream(savePath);
+        
+        for await (const chunk of part.file) {
+           uploadedBytes += chunk.length;
+           if (uploadedBytes > MAX_FILE_SIZE) {
+               writeStream.destroy();
+               fs.unlinkSync(savePath); // Delete the partial file
+               return reply.code(400).send({ success: false, error: "File exceeds maximum allowed size of 5MB" });
+           }
+           if (!writeStream.write(chunk)) {
+               await new Promise((resolve) => writeStream.once('drain', resolve));
+           }
+        }
+        writeStream.end();
         fileUrl = `/uploads/certificates/${uniqueName}`;
       } else {
         if (part.fieldname === "name") name = part.value as string;
@@ -80,7 +95,7 @@ export async function certificateRoutes(app: FastifyInstance) {
     }
 
     const [newCert] = await db.insert(certificates).values({
-      userId: user.sub,
+      userId: userId,
       name,
       fileUrl,
       config: parsedConfig,
@@ -91,7 +106,7 @@ export async function certificateRoutes(app: FastifyInstance) {
 
   // PUT /v1/certificates/:id
   app.put("/:id", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const userId = (req.user as any).sub;
     const { id } = req.params as { id: string };
     const schema = z.object({
       name: z.string().optional(),
@@ -100,7 +115,7 @@ export async function certificateRoutes(app: FastifyInstance) {
     const parsed = schema.parse(req.body);
 
     const existing = await db.query.certificates.findFirst({
-      where: and(eq(certificates.id, id), eq(certificates.userId, user.sub)),
+      where: and(eq(certificates.id, id), eq(certificates.userId, userId)),
     });
     if (!existing) return reply.code(404).send({ success: false, error: "Certificate not found" });
 
@@ -114,11 +129,11 @@ export async function certificateRoutes(app: FastifyInstance) {
 
   // DELETE /v1/certificates/:id
   app.delete("/:id", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const userId = (req.user as any).sub;
     const { id } = req.params as { id: string };
 
     const existing = await db.query.certificates.findFirst({
-      where: and(eq(certificates.id, id), eq(certificates.userId, user.sub)),
+      where: and(eq(certificates.id, id), eq(certificates.userId, userId)),
     });
     if (!existing) return reply.code(404).send({ success: false, error: "Certificate not found" });
 

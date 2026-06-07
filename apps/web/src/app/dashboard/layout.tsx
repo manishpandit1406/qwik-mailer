@@ -28,17 +28,24 @@ import {
   Users,
   Paperclip,
   BookOpen,
+  FilePlus,
+  Network,
   LifeBuoy,
-  Fingerprint,
-  Phone,
   Shield,
+  ShieldAlert,
+  ClipboardList,
+  BookUser,
 } from "lucide-react";
+import { Select } from "@/components/Select";
+import { useRole } from "@/lib/useRole";
+
 interface NavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
   badge?: string;
 }
+
 const navItems: NavItem[] = [
   {
     label: "Overview",
@@ -49,11 +56,6 @@ const navItems: NavItem[] = [
     label: "Send Email",
     href: "/dashboard/send",
     icon: <SendHorizonal size={16} />,
-  },
-  {
-    label: "Bulk Upload",
-    href: "/dashboard/bulk-upload",
-    icon: <FileSpreadsheet size={16} />,
   },
   { label: "Email Logs", href: "/dashboard/logs", icon: <Mail size={16} /> },
   {
@@ -66,7 +68,6 @@ const navItems: NavItem[] = [
     href: "/dashboard/analytics",
     icon: <BarChart3 size={16} />,
   },
-  { label: "Domains", href: "/dashboard/domains", icon: <Globe size={16} /> },
   {
     label: "Attachments",
     href: "/dashboard/certificates",
@@ -78,10 +79,24 @@ const navItems: NavItem[] = [
     icon: <FileText size={16} />,
   },
   {
-    label: "Team",
+    label: "Forms",
+    href: "/dashboard/forms",
+    icon: <ClipboardList size={16} />,
+  },
+  {
+    label: "Contacts",
+    href: "/dashboard/contacts",
+    icon: <BookUser size={16} />,
+  },
+  {
+    label: "Team Members",
     href: "/dashboard/team",
     icon: <Users size={16} />,
-    badge: "New",
+  },
+  {
+    label: "Sender Identities",
+    href: "/dashboard/senders",
+    icon: <Mail size={16} />,
   },
   {
     label: "Suppression List",
@@ -89,7 +104,6 @@ const navItems: NavItem[] = [
     icon: <Ban size={16} />,
   },
   { label: "API Keys", href: "/dashboard/api-keys", icon: <Key size={16} /> },
-  { label: "API Docs", href: "/docs", icon: <BookOpen size={16} /> },
   {
     label: "Webhooks",
     href: "/dashboard/webhooks",
@@ -101,120 +115,11 @@ const navItems: NavItem[] = [
     icon: <LifeBuoy size={16} />,
   },
   {
-    label: "Settings",
+    label: "Project Settings",
     href: "/dashboard/settings",
     icon: <Settings size={16} />,
   },
 ];
-function Sidebar({ onClose }: { onClose?: () => void }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [user, setUser] = useState({
-    name: "Developer",
-    email: "dev@qwikmailer.in",
-    plan: "free",
-  });
-  useEffect(() => {
-    const userStr = localStorage.getItem("mf_user");
-    if (userStr) {
-      try {
-        setUser(JSON.parse(userStr));
-      } catch (e) {}
-    }
-  }, []);
-  function handleLogout() {
-    localStorage.removeItem("mf_access_token");
-    localStorage.removeItem("mf_refresh_token");
-    localStorage.removeItem("mf_user");
-    router.push("/login");
-  }
-  return (
-    <div className="flex flex-col h-full">
-      {" "}
-      {/* Plan badge */}{" "}
-      <div className="px-4 py-3">
-        {" "}
-        <div className="flex items-center justify-between px-3 py-2 rounded-md bg-gray-50 border border-gray-200">
-          {" "}
-          <div className="flex items-center gap-2 text-gray-700">
-            {" "}
-            <Zap size={13} />{" "}
-            <span className="text-xs font-semibold capitalize">
-              {" "}
-              {user.plan} Plan{" "}
-            </span>{" "}
-          </div>{" "}
-          <Link
-            href="/dashboard/settings"
-            className="text-xs font-medium text-gray-500 hover:text-gray-700"
-          >
-            {" "}
-            Upgrade{" "}
-          </Link>{" "}
-        </div>{" "}
-      </div>{" "}
-      {/* Nav */}{" "}
-      <nav className="flex-1 px-3 pb-4 overflow-y-auto space-y-0.5">
-        {" "}
-        {navItems.map((item) => {
-          const active =
-            pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href as any}
-              onClick={onClose}
-              className={`nav-item ${active ? "active" : ""}`}
-            >
-              {" "}
-              {item.icon} {item.label}{" "}
-              {item.badge && !active && (
-                <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
-                  {" "}
-                  {item.badge}{" "}
-                </span>
-              )}{" "}
-            </Link>
-          );
-        })}{" "}
-      </nav>{" "}
-      {/* User */}{" "}
-      <div className="border-t p-3" style={{ borderColor: "var(--border)" }}>
-        {" "}
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-gray-50 transition-colors">
-          {" "}
-          <div className="w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold bg-gray-800 text-white">
-            {" "}
-            {user.name?.[0]?.toUpperCase() ?? "D"}{" "}
-          </div>{" "}
-          <div className="flex-1 min-w-0">
-            {" "}
-            <p className="text-sm font-medium truncate text-gray-900">
-              {" "}
-              {user.name}{" "}
-            </p>{" "}
-            <p className="text-xs truncate text-gray-500">
-              {" "}
-              {user.email}{" "}
-            </p>{" "}
-          </div>{" "}
-          <button
-            onClick={handleLogout}
-            className="btn-ghost p-1.5 shrink-0"
-            title="Logout"
-          >
-            {" "}
-            <LogOut
-              size={14}
-              className="text-gray-400 hover:text-gray-600"
-            />{" "}
-          </button>{" "}
-        </div>{" "}
-      </div>{" "}
-    </div>
-  );
-}
 
 function SecurityReminderPopup() {
   const [show, setShow] = useState(false);
@@ -318,16 +223,27 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState<{name: string, onboardingCompleted?: boolean}>({ name: "User" });
+  const pathname = usePathname();
   const router = useRouter();
   
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const isCollapsed = !isHovered;
+
+  const [user, setUser] = useState<{name: string, email?: string, plan?: string, onboardingCompleted?: boolean}>({ name: "User", email: "dev@qwikmailer.in", plan: "free" });
+  const [userInitial, setUserInitial] = useState("U");
+  
+  const [teams, setTeams] = useState<any[]>([]);
+  const [activeTeamId, setActiveTeamId] = useState("");
+  const { role, isViewer, canAdmin } = useRole();
+
   useEffect(() => {
     const userStr = localStorage.getItem("mf_user");
     if (userStr) {
       try {
         const parsed = JSON.parse(userStr);
         setUser(parsed);
+        if (parsed.name) setUserInitial(parsed.name[0].toUpperCase());
         if (parsed.onboardingCompleted === false) {
           router.push("/onboarding");
         }
@@ -337,69 +253,238 @@ export default function DashboardLayout({
     }
   }, [router]);
 
-  const pathname = usePathname();
-  const pageTitle =
-    navItems.find(
-      (n) =>
-        n.href === pathname ||
-        (n.href !== "/dashboard" && pathname.startsWith(n.href)),
-    )?.label ?? "Dashboard";
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const token = localStorage.getItem("mf_access_token");
+        if (!token) return;
+        const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+        const res = await fetch(`${API}/v1/teams`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          const allTeams = [
+            ...(data.data.owned || []).map((t: any) => ({ ...t, role: 'owner' })),
+            ...(data.data.member || []).filter((m: any) => !(data.data.owned || []).some((o: any) => o.id === m.id))
+          ];
+          setTeams(allTeams);
+          const savedTeam = localStorage.getItem("mf_active_team");
+          if (savedTeam && allTeams.some((t: any) => t.id === savedTeam)) {
+            setActiveTeamId(savedTeam);
+            const team = allTeams.find((t: any) => t.id === savedTeam);
+            localStorage.setItem("mf_active_team_role", team.role);
+          } else if (allTeams.length > 0) {
+            setActiveTeamId(allTeams[0].id);
+            localStorage.setItem("mf_active_team", allTeams[0].id);
+            localStorage.setItem("mf_active_team_role", allTeams[0].role);
+          } else {
+            setActiveTeamId("");
+            localStorage.removeItem("mf_active_team");
+            localStorage.removeItem("mf_active_team_role");
+            router.push("/projects");
+          }
+        }
+      } catch (e) {}
+    };
+    fetchTeams();
+  }, [router]);
+
+  function handleTeamChange(id: string) {
+    setActiveTeamId(id);
+    localStorage.setItem("mf_active_team", id);
+    const selectedTeam = teams.find(t => t.id === id);
+    if (selectedTeam) {
+      localStorage.setItem("mf_active_team_role", selectedTeam.role);
+    }
+    window.location.reload(); // Reload to refetch resources for the new team
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("mf_access_token");
+    localStorage.removeItem("mf_refresh_token");
+    localStorage.removeItem("mf_user");
+    localStorage.removeItem("mf_active_team");
+    router.push("/login");
+  }
+
   return (
-    <div className="h-screen overflow-hidden flex flex-col bg-primary">
-      {/* Global Top Navbar */}
-      <header 
-        className="h-16 shrink-0 flex items-center justify-between px-6 z-40 bg-white/80 backdrop-blur-md border-b"
-        style={{ borderColor: "var(--border-subtle, #eaeaea)" }}
-      >
+    <div className="flex flex-col h-screen bg-[#fafafa] font-sans text-gray-900 overflow-hidden">
+      {/* Top Full-Width Header */}
+      <header className="h-16 shrink-0 flex items-center justify-between px-4 lg:px-6 bg-white border-b border-gray-200 z-50">
         <div className="flex items-center gap-4">
           <button
-            className="lg:hidden btn-ghost p-1.5 text-gray-700"
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden text-gray-600 hover:bg-gray-100 p-2 rounded-md transition-colors"
           >
-            <Menu size={18} />
+            <Menu size={20} />
           </button>
-          <Link href="/dashboard" className="flex items-center gap-2.5 font-bold text-lg">
+
+          <Link href="/projects" className="flex items-center gap-2.5 font-bold">
             <div className="w-8 h-8 rounded-md flex items-center justify-center bg-black shadow-sm">
               <Mail size={16} className="text-white" />
             </div>
-            <span className="text-black tracking-tight hidden sm:block">
-              Qwik Mailer
-            </span>
+            <span className="text-black tracking-tight font-bold hidden sm:block">Qwik Mailer</span>
+            {activeTeamId && teams.length > 0 && (
+              <span className="text-gray-400 font-normal hidden sm:block ml-1">/ {teams.find(t => t.id === activeTeamId)?.name}</span>
+            )}
           </Link>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="btn-ghost p-2 relative rounded-full hover:bg-gray-100 transition-colors">
-            <Bell size={18} className="text-gray-700" />
-            <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-black" />
+
+        <div className="ml-auto flex items-center gap-4">
+          <button className="p-2 relative rounded-full hover:bg-gray-100 transition-colors text-gray-600">
+            <Bell size={18} />
+            <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-red-500" />
           </button>
-          <Link href="/dashboard/settings" className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-sm font-bold uppercase transition-transform hover:scale-105 shadow-sm">
-            {user.name?.[0] || 'U'}
-          </Link>
+          <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-sm">
+              {userInitial}
+            </div>
+            <span className="text-sm font-medium text-gray-700 hidden sm:block">
+              {user.name}
+            </span>
+          </div>
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Desktop sidebar */}
-        <aside className="hidden lg:flex flex-col w-60 border-r shrink-0 border-theme bg-secondary overflow-y-auto">
-          <Sidebar />
-        </aside>
-
+      {/* Main Body below header */}
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
-          <div className="lg:hidden fixed inset-0 z-50 flex">
-            <div className="absolute inset-0 bg-gray-900/40" onClick={() => setSidebarOpen(false)} />
-            <aside className="relative flex flex-col w-72 border-r border-theme bg-secondary overflow-y-auto">
-              <div className="flex items-center justify-between p-4 border-b border-theme shrink-0">
-                <span className="font-bold">Menu</span>
-                <button onClick={() => setSidebarOpen(false)} className="btn-ghost p-1"><X size={18} /></button>
-              </div>
-              <Sidebar onClose={() => setSidebarOpen(false)} />
-            </aside>
-          </div>
+        {mobileOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden"
+            onClick={() => setMobileOpen(false)}
+          />
         )}
 
-        {/* Main content */}
-        <main className="flex-1 overflow-auto p-6 relative">
+        {/* Sidebar */}
+        <aside
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transform transition-all duration-300 ease-in-out lg:static flex flex-col mt-16 lg:mt-0 overflow-x-hidden shrink-0 ${
+            mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          } ${isCollapsed ? "w-16" : "w-64"}`}
+        >
+          {/* Mobile header (hidden on desktop since main header spans full width) */}
+          <div className="h-16 flex items-center px-4 border-b border-gray-100 shrink-0 lg:hidden">
+            <Link href="/projects" className="flex items-center gap-2.5 font-bold">
+              <div className="w-8 h-8 rounded-md flex items-center justify-center bg-black shadow-sm">
+                <Mail size={16} className="text-white" />
+              </div>
+              <span className="text-black tracking-tight font-bold whitespace-nowrap">Qwik Mailer</span>
+            </Link>
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="ml-auto text-gray-500 hover:bg-gray-100 p-1.5 rounded-md"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="flex flex-col h-full overflow-hidden">
+            {/* Team Switcher & Plan Badge (only visible when expanded on desktop, or mobile) */}
+            <div className={`shrink-0 transition-opacity duration-300 ${isCollapsed ? "opacity-0 h-0 overflow-hidden" : "opacity-100 h-auto"}`}>
+              <div className="px-4 py-3">
+                <div className="flex flex-col gap-1 whitespace-nowrap">
+                  <Select 
+                    value={activeTeamId} 
+                    onChange={handleTeamChange}
+                    options={teams.length === 0 ? [] : teams.map(t => ({ label: t.name, value: t.id }))}
+                    placeholder={teams.length === 0 ? "Loading..." : "Select Project"}
+                  />
+                </div>
+              </div>
+              <div className="px-4 pb-3">
+                <div className="flex items-center justify-between px-3 py-2 rounded-md bg-gray-50 border border-gray-200 whitespace-nowrap">
+                  <div className="flex items-center gap-2 text-gray-700">
+                    <Zap size={13} />
+                    <span className="text-xs font-semibold capitalize">
+                      {user.plan} Plan
+                    </span>
+                  </div>
+                  <Link
+                    href="/dashboard/team"
+                    className="text-xs font-medium text-gray-500 hover:text-gray-700 ml-2"
+                  >
+                    Upgrade
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Nav */}
+            <div className="p-0 py-2 flex-1 overflow-y-auto overflow-x-hidden">
+              <nav className="space-y-1.5">
+                {navItems
+                  .filter(item => {
+                    if (isViewer) {
+                      return !["API Keys", "Webhooks", "Project Settings"].includes(item.label);
+                    }
+                    if (!canAdmin) {
+                      return item.label !== "Project Settings";
+                    }
+                    return true;
+                  })
+                  .map((item) => {
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center px-3 py-2 mx-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap overflow-hidden ${
+                        isActive
+                          ? "bg-gray-100 text-gray-900 shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <div className="w-6 shrink-0 flex justify-center mr-3">
+                        <span className={isActive ? "text-gray-900" : "text-gray-400"}>
+                          {item.icon}
+                        </span>
+                      </div>
+                      <span
+                        className={`transition-opacity duration-300 ${
+                          isCollapsed ? "opacity-0" : "opacity-100"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                      {item.badge && !isActive && !isCollapsed && (
+                        <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+
+            <div className="py-3 border-t border-gray-100 overflow-x-hidden shrink-0">
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center px-3 py-2 mx-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors whitespace-nowrap overflow-hidden"
+              >
+                <div className="w-6 shrink-0 flex justify-center mr-3">
+                  <LogOut size={16} />
+                </div>
+                <span
+                  className={`transition-opacity duration-300 ${
+                    isCollapsed ? "opacity-0" : "opacity-100"
+                  }`}
+                >
+                  Log out
+                </span>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-auto p-4 lg:p-6 relative bg-[#fafafa]">
           {children}
           <SecurityReminderPopup />
         </main>
@@ -407,3 +492,4 @@ export default function DashboardLayout({
     </div>
   );
 }
+

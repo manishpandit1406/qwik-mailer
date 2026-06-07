@@ -17,9 +17,12 @@ const UPLOADS_DIR = path.join(__dirname, "..", "..", "uploads", "lists");
 export async function listRoutes(app: FastifyInstance) {
   // GET /v1/lists
   app.get("/", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const teamId = req.teamId;
+    if (!teamId) {
+      return reply.send({ success: true, data: [] });
+    }
     const lists = await db.query.contactLists.findMany({
-      where: eq(contactLists.userId, user.sub),
+      where: eq(contactLists.teamId, teamId as string),
       orderBy: (lists, { desc }) => [desc(lists.createdAt)],
     });
     return reply.send({ success: true, data: lists });
@@ -27,7 +30,7 @@ export async function listRoutes(app: FastifyInstance) {
 
   // POST /v1/lists
   app.post("/", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const teamId = req.teamId;
     
     const parts = req.parts();
     let fileUrl = "";
@@ -76,12 +79,12 @@ export async function listRoutes(app: FastifyInstance) {
     }
 
     const [newList] = await db.insert(contactLists).values({
-      userId: user.sub,
+      teamId: teamId as string,
       name: originalName,
       fileUrl,
       totalRows: rows.length,
       validEmails,
-    }).returning();
+    } as any).returning();
 
     return reply.code(201).send({ success: true, data: newList });
   });

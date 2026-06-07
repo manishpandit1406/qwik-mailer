@@ -1,4 +1,5 @@
 "use client";
+import { formatIST } from "@/lib/dateUtils";
 import { useState, useEffect } from "react";
 import { BarChart3, TrendingUp, Clock, Globe, Monitor } from "lucide-react";
 import {
@@ -104,20 +105,14 @@ export default function AnalyticsPage() {
         if (dailyDataJson.success) {
           const dataMap = new Map();
           dailyDataJson.data.forEach((d: any) => {
-            const dateStr = new Date(d.date).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            });
+            const dateStr = formatIST(d.date, false);
             dataMap.set(dateStr, d);
           });
           const formatted = [];
           for (let i = periodDays - 1; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
-            const dateStr = d.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            });
+            const dateStr = formatIST(d, false);
             formatted.push(
               dataMap.has(dateStr)
                 ? { ...dataMap.get(dateStr), date: dateStr }

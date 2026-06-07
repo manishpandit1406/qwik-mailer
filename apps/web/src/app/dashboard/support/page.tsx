@@ -1,4 +1,5 @@
 "use client";
+import { formatIST } from "@/lib/dateUtils";
 
 import { useState, useEffect } from "react";
 import { Plus, ChevronDown, ChevronUp, LifeBuoy, CheckCircle2, CircleDashed, CircleDot } from "lucide-react";
@@ -227,7 +228,7 @@ export default function SupportPage() {
                       {ticket.description}
                     </p>
                     <div className="mt-3 pt-3 border-t border-gray-50 text-[10px] text-gray-400 font-medium">
-                      Submitted on {new Date(ticket.createdAt).toLocaleDateString()}
+                      Submitted on {formatIST(ticket.createdAt, false)}
                     </div>
                   </div>
                 ))}

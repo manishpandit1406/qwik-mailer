@@ -2,7 +2,7 @@
 const nextConfig = {
   transpilePackages: ["@qwikmailer/types"],
   experimental: {
-    typedRoutes: true,
+    typedRoutes: false,
   },
 };
 

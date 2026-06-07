@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loadingResend, setLoadingResend] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
   const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,7 +29,7 @@ export default function RegisterPage() {
       const res = await fetch(`${API}/v1/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, agreeTerms }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
@@ -162,11 +163,27 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            <div className="flex items-start gap-2 mt-4">
+              <input
+                id="agree-terms"
+                type="checkbox"
+                required
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
+                className="mt-1 w-4 h-4 text-black border-gray-300 rounded focus:ring-black cursor-pointer"
+              />
+              <label htmlFor="agree-terms" className="text-xs text-gray-600 leading-relaxed cursor-pointer">
+                I agree to the <Link href="/terms" className="text-black underline hover:text-gray-700">Terms of Service</Link>, <Link href="/privacy" className="text-black underline hover:text-gray-700">Privacy Policy</Link>, and the Anti-Spam Policy. I understand that my account may be suspended without refund if I send unsolicited spam.
+              </label>
+            </div>
+
             <button
               id="reg-submit"
               type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black mt-6"
+              disabled={loading || !agreeTerms}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-all mt-6 ${
+                loading || !agreeTerms ? "bg-gray-400 cursor-not-allowed" : "bg-black hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+              }`}
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -175,10 +192,6 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
-
-          <p className="text-xs mt-6 text-center text-gray-500">
-            By signing up, you agree to our <Link href="/terms" className="text-black underline">Terms of Service</Link> and <Link href="/privacy" className="text-black underline">Privacy Policy</Link>.
-          </p>
         </div>
 
         <p className="text-center mt-8 text-sm text-gray-500">

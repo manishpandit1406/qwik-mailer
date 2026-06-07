@@ -11,16 +11,16 @@ export async function webhookRoutes(app: FastifyInstance) {
 
   // GET /v1/webhooks
   app.get("/", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const teamId = req.teamId!;
     const userWebhooks = await db.query.webhooks.findMany({
-      where: eq(webhooks.userId, user.sub),
+      where: eq(webhooks.teamId, teamId!),
     });
     return reply.send({ success: true, data: userWebhooks });
   });
 
   // POST /v1/webhooks
   app.post("/", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const teamId = req.teamId!;
     const body = z
       .object({
         url: z.string().url(),
@@ -33,7 +33,7 @@ export async function webhookRoutes(app: FastifyInstance) {
     const [webhook] = await db
       .insert(webhooks)
       .values({
-        userId: user.sub,
+        teamId,
         url: body.url,
         secret,
         events: body.events,
@@ -51,7 +51,7 @@ export async function webhookRoutes(app: FastifyInstance) {
 
   // PUT /v1/webhooks/:id
   app.put("/:id", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const teamId = req.teamId!;
     const { id } = req.params as { id: string };
     const body = z
       .object({
@@ -62,7 +62,7 @@ export async function webhookRoutes(app: FastifyInstance) {
       .parse(req.body);
 
     const webhook = await db.query.webhooks.findFirst({
-      where: and(eq(webhooks.id, id), eq(webhooks.userId, user.sub)),
+      where: and(eq(webhooks.id, id), eq(webhooks.teamId, teamId!)),
     });
     if (!webhook) return reply.code(404).send({ success: false, error: "Webhook not found" });
 
@@ -77,11 +77,11 @@ export async function webhookRoutes(app: FastifyInstance) {
 
   // DELETE /v1/webhooks/:id
   app.delete("/:id", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const teamId = req.teamId!;
     const { id } = req.params as { id: string };
 
     const webhook = await db.query.webhooks.findFirst({
-      where: and(eq(webhooks.id, id), eq(webhooks.userId, user.sub)),
+      where: and(eq(webhooks.id, id), eq(webhooks.teamId, teamId!)),
     });
     if (!webhook) return reply.code(404).send({ success: false, error: "Webhook not found" });
 
@@ -91,11 +91,11 @@ export async function webhookRoutes(app: FastifyInstance) {
 
   // GET /v1/webhooks/:id/logs
   app.get("/:id/logs", { preHandler: authenticate }, async (req, reply) => {
-    const user = req.user as { sub: string };
+    const teamId = req.teamId!;
     const { id } = req.params as { id: string };
 
     const webhook = await db.query.webhooks.findFirst({
-      where: and(eq(webhooks.id, id), eq(webhooks.userId, user.sub)),
+      where: and(eq(webhooks.id, id), eq(webhooks.teamId, teamId!)),
     });
     if (!webhook) return reply.code(404).send({ success: false, error: "Webhook not found" });
 

@@ -1,6 +1,8 @@
 "use client";
+import { formatIST } from "@/lib/dateUtils";
 import { useState, useEffect } from "react";
 import { Activity, Search, Filter, Mail, CheckCircle, AlertTriangle, ChevronRight, XCircle } from "lucide-react";
+import { Select } from "@/components/Select";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -96,19 +98,20 @@ export default function ActivityFeedPage() {
         </form>
         
         <div className="relative">
-          <select
-            className="input appearance-none pl-10 pr-8 bg-transparent"
+          <Select
+            className="pl-8"
             value={eventTypeFilter}
-            onChange={(e) => setEventTypeFilter(e.target.value)}
-          >
-            <option value="">All Events</option>
-            <option value="queued">Queued</option>
-            <option value="delivered">Delivered</option>
-            <option value="opened">Opened</option>
-            <option value="clicked">Clicked</option>
-            <option value="bounced">Bounced</option>
-            <option value="complained">Complained</option>
-          </select>
+            onChange={(value) => setEventTypeFilter(value)}
+            options={[
+              { label: "All Events", value: "" },
+              { label: "Queued", value: "queued" },
+              { label: "Delivered", value: "delivered" },
+              { label: "Opened", value: "opened" },
+              { label: "Clicked", value: "clicked" },
+              { label: "Bounced", value: "bounced" },
+              { label: "Complained", value: "complained" }
+            ]}
+          />
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
         </div>
       </div>
@@ -141,7 +144,7 @@ export default function ActivityFeedPage() {
                   <tr key={ev.id} className="hover:bg-black/5 transition-colors">
                     <td className="p-4 whitespace-nowrap">
                       <div className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                        {new Date(ev.occurredAt).toLocaleDateString()}
+                        {formatIST(ev.occurredAt, false)}
                       </div>
                       <div className="text-xs" style={{ color: "var(--text-muted)" }}>
                         {new Date(ev.occurredAt).toLocaleTimeString()}

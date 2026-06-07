@@ -1,7 +1,10 @@
 "use client";
+import { formatIST } from "@/lib/dateUtils";
 import { useState, useEffect } from "react";
-import { Plus, Key, Trash2, Copy, CheckCircle2, RefreshCw } from "lucide-react";
+import { Plus, Key, Trash2, Copy, CheckCircle2, RefreshCw, BookOpen, Shield } from "lucide-react";
+import Link from "next/link";
 import { LogoLoader } from "@/components/LogoLoader";
+import { useRole } from "@/lib/useRole";
 const CODE_LANGS = ["cURL", "Node.js", "Python", "PHP", "Java", "Go"] as const;
 type Lang = (typeof CODE_LANGS)[number];
 const CODE_EXAMPLES: Record<Lang, string> = {
@@ -127,73 +130,165 @@ function getToken() {
     ? (localStorage.getItem("mf_access_token") ?? "")
     : "";
 }
+
 function QuickStart() {
+  const [activeGuide, setActiveGuide] = useState<"api" | "smtp">("api");
   const [lang, setLang] = useState<Lang>("cURL");
   const [codeCopied, setCodeCopied] = useState(false);
+  const [projectId, setProjectId] = useState<string>("Loading...");
+
+  useEffect(() => {
+    async function fetchSlug() {
+      const activeTeamId = localStorage.getItem("mf_active_team");
+      if (!activeTeamId) return;
+      try {
+        const res = await fetch(`${API}/v1/teams`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+        const json = await res.json();
+        if (json.success) {
+          const allTeams = [
+            ...(json.data.owned || []),
+            ...(json.data.member || []),
+          ];
+          const current = allTeams.find((t: any) => t.id === activeTeamId);
+          if (current) {
+            setProjectId(current.slug);
+          }
+        }
+      } catch {}
+    }
+    fetchSlug();
+  }, []);
+  
+  const [copiedHost, setCopiedHost] = useState(false);
+  const [copiedPort, setCopiedPort] = useState(false);
+  const [copiedUser, setCopiedUser] = useState(false);
+
+  function copyText(text: string, setter: React.Dispatch<React.SetStateAction<boolean>>) {
+    navigator.clipboard.writeText(text);
+    setter(true);
+    setTimeout(() => setter(false), 2000);
+  }
+
   function copyCode() {
     navigator.clipboard.writeText(CODE_EXAMPLES[lang]);
     setCodeCopied(true);
     setTimeout(() => setCodeCopied(false), 2000);
   }
+  
   return (
     <div className="glass-card overflow-hidden">
-      {" "}
-      {/* Header */}{" "}
-      <div className="px-5 pt-4 pb-0 flex items-center justify-between">
-        {" "}
-        <p
-          className="text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "var(--text-muted)" }}
+      <div className="flex border-b border-gray-100 bg-gray-50/50">
+        <button 
+          onClick={() => setActiveGuide("api")} 
+          className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeGuide === "api" ? "text-indigo-600 border-b-2 border-indigo-600" : "text-gray-500 hover:bg-gray-50"}`}
         >
-          {" "}
-          Quick Start{" "}
-        </p>{" "}
-        <button
-          onClick={copyCode}
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
-          style={{ color: "var(--text-secondary)" }}
+          REST API
+        </button>
+        <button 
+          onClick={() => setActiveGuide("smtp")} 
+          className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeGuide === "smtp" ? "text-indigo-600 border-b-2 border-indigo-600" : "text-gray-500 hover:bg-gray-50"}`}
         >
-          {" "}
-          {codeCopied ? (
-            <CheckCircle2 size={12} className="text-emerald-500" />
-          ) : (
-            <Copy size={12} />
-          )}{" "}
-          {codeCopied ? "Copied!" : "Copy"}{" "}
-        </button>{" "}
-      </div>{" "}
-      {/* Language tabs */}{" "}
-      <div className="flex border-b border-gray-100 mt-3 px-5 gap-0 overflow-x-auto">
-        {" "}
-        {CODE_LANGS.map((l) => (
-          <button
-            key={l}
-            onClick={() => setLang(l)}
-            className="px-3 py-2 text-xs font-semibold whitespace-nowrap transition-all border-b-2"
+          SMTP Relay
+        </button>
+      </div>
+
+      {activeGuide === "api" ? (
+        <>
+          <div className="px-5 pt-4 pb-0 flex items-center justify-between">
+            <p
+              className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Quick Start
+            </p>
+            <button
+              onClick={copyCode}
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {codeCopied ? (
+                <CheckCircle2 size={12} className="text-emerald-500" />
+              ) : (
+                <Copy size={12} />
+              )}
+              {codeCopied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <div className="flex border-b border-gray-100 mt-3 px-5 gap-0 overflow-x-auto">
+            {CODE_LANGS.map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                className="px-3 py-2 text-xs font-semibold whitespace-nowrap transition-all border-b-2"
+                style={{
+                  borderBottomColor: lang === l ? "var(--accent)" : "transparent",
+                  color: lang === l ? "var(--accent)" : "var(--text-muted)",
+                  background: "transparent",
+                }}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <pre
+            className="text-xs overflow-x-auto p-5 m-0 leading-relaxed"
             style={{
-              borderBottomColor: lang === l ? "var(--accent)" : "transparent",
-              color: lang === l ? "var(--accent)" : "var(--text-muted)",
-              background: "transparent",
+              background: "#f8f9fa",
+              color: "#1e293b",
+              fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+              minHeight: 120,
             }}
           >
-            {" "}
-            {l}{" "}
-          </button>
-        ))}{" "}
-      </div>{" "}
-      {/* Code block */}{" "}
-      <pre
-        className="text-xs overflow-x-auto p-5 m-0 leading-relaxed"
-        style={{
-          background: "#f8f9fa",
-          color: "#1e293b",
-          fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
-          minHeight: 120,
-        }}
-      >
-        {" "}
-        {CODE_EXAMPLES[lang]}{" "}
-      </pre>{" "}
+            {CODE_EXAMPLES[lang]}
+          </pre>
+        </>
+      ) : (
+        <div className="p-6">
+          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+            Send emails from your existing application or email client using our SMTP Relay. Use any standard library like NodeMailer, WP Mail SMTP, or PHPMailer.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">SMTP Host</p>
+                <p className="font-mono text-sm font-medium text-gray-900">smtp.qwikmailer.in</p>
+              </div>
+              <button onClick={() => copyText("smtp.qwikmailer.in", setCopiedHost)} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                {copiedHost ? <CheckCircle2 size={16} className="text-emerald-500" /> : <Copy size={16} />}
+              </button>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Port</p>
+                <p className="font-mono text-sm font-medium text-gray-900">2525</p>
+              </div>
+              <button onClick={() => copyText("2525", setCopiedPort)} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                {copiedPort ? <CheckCircle2 size={16} className="text-emerald-500" /> : <Copy size={16} />}
+              </button>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Username <span className="normal-case text-gray-400 font-normal ml-1">(Project Slug)</span></p>
+                <p className="font-mono text-sm font-medium text-gray-900">{projectId}</p>
+              </div>
+              <button onClick={() => copyText(projectId, setCopiedUser)} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                {copiedUser ? <CheckCircle2 size={16} className="text-emerald-500" /> : <Copy size={16} />}
+              </button>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Password</p>
+                <p className="font-mono text-sm font-medium text-gray-900">mf_live_... <span className="text-gray-400 font-sans text-xs font-normal ml-1">(Your API Key)</span></p>
+              </div>
+              <button disabled title="Copy your actual API Key from the table below" className="p-2 text-gray-300 cursor-not-allowed">
+                <Copy size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -206,6 +301,7 @@ export default function ApiKeysPage() {
   const [copied, setCopied] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const { isViewer, canAdmin } = useRole();
   async function fetchKeys() {
     setLoading(true);
     try {
@@ -286,7 +382,7 @@ export default function ApiKeysPage() {
     setNewKeyName("");
   }
   return (
-    <div className="space-y-5 ">
+    <div className="max-w-5xl mx-auto w-full space-y-5 pb-10">
       {" "}
       <div className="flex items-center justify-between">
         {" "}
@@ -311,13 +407,29 @@ export default function ApiKeysPage() {
               className={loading ? "animate-spin" : ""}
             />{" "}
           </button>{" "}
-          <button
-            className="btn-primary flex items-center gap-2"
-            onClick={() => setShowCreate(true)}
+          <Link
+            href="/dashboard/security-logs"
+            className="btn-secondary flex items-center gap-2"
           >
-            {" "}
-            <Plus size={14} /> Create Key{" "}
-          </button>{" "}
+            <Shield size={14} /> API Logs
+          </Link>
+          <a
+            href="/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary flex items-center gap-2"
+          >
+            <BookOpen size={14} /> API Docs
+          </a>
+          {!isViewer && (
+            <button
+              className="btn-primary flex items-center gap-2"
+              onClick={() => setShowCreate(true)}
+            >
+              {" "}
+              <Plus size={14} /> Create Key{" "}
+            </button>
+          )}{" "}
         </div>{" "}
       </div>{" "}
       {/* Error banner */}{" "}
@@ -397,15 +509,15 @@ export default function ApiKeysPage() {
                   </td>
                   <td className="text-xs">
                     {key.lastUsedAt
-                      ? new Date(key.lastUsedAt).toLocaleString()
+                      ? formatIST(key.lastUsedAt, false)
                       : "Never"}
                   </td>
                   <td className="text-xs">
-                    {new Date(key.createdAt).toLocaleDateString()}
+                    {formatIST(key.createdAt, false)}
                   </td>
                   <td>
                     {" "}
-                    {key.isActive && (
+                    {key.isActive && !isViewer && (
                       <button
                         className="btn-danger flex items-center gap-1 text-xs py-1.5 px-3"
                         onClick={() => revokeKey(key.id)}

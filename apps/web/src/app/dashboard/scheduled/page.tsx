@@ -1,4 +1,5 @@
 "use client";
+import { formatIST } from "@/lib/dateUtils";
 import { useState, useEffect } from "react";
 import {
   Search,
@@ -232,7 +233,7 @@ export default function ScheduledPage() {
                       <td className="text-xs">
                         {" "}
                         <div>
-                          {new Date(batch.createdAt).toLocaleString(undefined, { timeZone: "UTC" })}
+                          {formatIST(batch.createdAt, false)}
                         </div>{" "}
                       </td>
                       <td>
@@ -371,7 +372,7 @@ export default function ScheduledPage() {
                         </td>
                         <td className="text-xs">
                           {email.scheduledAt
-                            ? new Date(email.scheduledAt).toLocaleString()
+                            ? formatIST(email.scheduledAt, false)
                             : "—"}
                         </td>
                         <td>
@@ -441,8 +442,8 @@ export default function ScheduledPage() {
                   [
                     "Scheduled",
                     selected.scheduledAt
-                      ? `${new Date(selected.scheduledAt).toLocaleString()} (${formatDistanceToNow(new Date(selected.scheduledAt), { addSuffix: true })})`
-                      : new Date(selected.createdAt).toLocaleString(undefined, { timeZone: "UTC" }),
+                      ? `${formatIST(selected.scheduledAt, false)} (${formatDistanceToNow(new Date(selected.scheduledAt), { addSuffix: true })})`
+                      : formatIST(selected.createdAt, false),
                   ],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4">

@@ -22,14 +22,14 @@ export default function CookiePolicyPage() {
     <div className="min-h-screen font-sans selection:bg-black selection:text-white bg-[#fafafa]">
       {/* Navbar */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between w-full">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between w-full relative">
           <Link href="/" className="flex items-center gap-2.5 font-bold">
             <div className="w-8 h-8 rounded-md flex items-center justify-center bg-black shadow-sm">
               <Mail size={16} className="text-white" />
             </div>
             <span className="text-black tracking-tight font-bold">Qwik Mailer</span>
           </Link>
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
             {["Home", "Features", "Pricing", "Docs", "Blog"].map((item) => (
               <Link
                 key={item}

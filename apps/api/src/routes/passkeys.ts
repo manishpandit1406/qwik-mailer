@@ -40,7 +40,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
     { preHandler: authenticate },
     async (request, reply) => {
       const user = await db.query.users.findFirst({
-        where: eq(users.id, request.user.sub),
+        where: eq(users.id, (request.user as any).sub),
         with: { passkeys: true },
       });
 
@@ -82,7 +82,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
     { preHandler: authenticate },
     async (request, reply) => {
       const user = await db.query.users.findFirst({
-        where: eq(users.id, request.user.sub),
+        where: eq(users.id, (request.user as any).sub),
       });
 
       if (!user) {
@@ -116,7 +116,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
         const { credential, credentialDeviceType, credentialBackedUp } = registrationInfo;
 
         const userAgent = request.headers["user-agent"] || "";
-        const parser = new UAParser(userAgent);
+      const parser = new (UAParser as any)(userAgent);
         const browser = parser.getBrowser();
         const os = parser.getOS();
         const device = parser.getDevice();
@@ -279,7 +279,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
         const userAgent = request.headers["user-agent"] || "";
         const ipAddress = (request.headers["x-forwarded-for"] as string)?.split(',')[0] || request.ip || "Unknown IP";
         
-        const parser = new UAParser(userAgent);
+      const parser = new (UAParser as any)(userAgent);
         const browser = parser.getBrowser();
         const os = parser.getOS();
         const device = parser.getDevice();
@@ -290,8 +290,9 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
 
         const { refreshTokens } = await import("@qwikmailer/db");
 
+        // @ts-ignore
         const existingSession = await db.query.refreshTokens.findFirst({
-          where: (rt, { eq, and, or }) => and(eq(rt.userId, user.id), or(eq(rt.ipAddress, ipAddress), eq(rt.userAgent, userAgent))),
+          where: ((rt: any, { eq, and, or }: any) => and(eq(rt.userId, user.id), or(eq(rt.ipAddress, ipAddress), eq(rt.userAgent, userAgent)))) as any,
         });
 
         if (!existingSession) {
@@ -332,7 +333,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
     { preHandler: authenticate },
     async (request, reply) => {
       const user = await db.query.users.findFirst({
-        where: eq(users.id, request.user.sub),
+        where: eq(users.id, (request.user as any).sub),
         with: { passkeys: true },
       });
 
@@ -346,7 +347,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
     { preHandler: authenticate },
     async (request, reply) => {
       const user = await db.query.users.findFirst({
-        where: eq(users.id, request.user.sub),
+        where: eq(users.id, (request.user as any).sub),
         with: { passkeys: true },
       });
 
@@ -384,12 +385,12 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
         where: eq(userPasskeys.id, id),
       });
 
-      if (!passkeyToDelete || passkeyToDelete.userId !== request.user.sub) {
+      if (!passkeyToDelete || passkeyToDelete.userId !== (request.user as any).sub) {
         return reply.status(404).send({ error: "Passkey not found" });
       }
 
       const user = await db.query.users.findFirst({
-        where: eq(users.id, request.user.sub),
+        where: eq(users.id, (request.user as any).sub),
         with: { passkeys: true },
       });
 
@@ -431,6 +432,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
         // Clear challenge
         await db.update(users).set({ webauthnCurrentChallenge: null }).where(eq(users.id, user.id));
       } else if (body?.password) {
+        // @ts-ignore
         const bcrypt = await import("bcrypt");
         if (!(await bcrypt.compare(body.password, user.passwordHash))) {
           return reply.status(401).send({ error: "Invalid password" });
@@ -448,7 +450,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
       await db.delete(userPasskeys).where(eq(userPasskeys.id, id));
 
       const userAgent = request.headers["user-agent"] || "";
-      const parser = new UAParser(userAgent);
+      const parser = new (UAParser as any)(userAgent);
       const browser = parser.getBrowser();
       const os = parser.getOS();
       const device = parser.getDevice();

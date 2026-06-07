@@ -14,11 +14,24 @@ export default function PdfMapper({
   onSelectField: (index: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [pdfSize, setPdfSize] = useState({ w: 0, h: 0 });
+  const [pdfPages, setPdfPages] = useState<any[]>([]);
   const [scale, setScale] = useState(1);
   const [loading, setLoading] = useState(true);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handleNativeWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const zoomFactor = e.deltaY > 0 ? 0.92 : 1.08;
+        setScale((prev) => Math.min(Math.max(0.2, prev * zoomFactor), 5));
+      }
+    };
+    el.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleNativeWheel);
+  }, []);
   useEffect(() => {
     setLoading(true); // Remove any existing pdf.js scripts to avoid duplicates
     const existingScript = document.getElementById("pdfjs-script");
@@ -34,30 +47,19 @@ export default function PdfMapper({
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
       pdfjsLib
         .getDocument(pdfUrl)
-        .promise.then((pdf: any) => {
-          pdf.getPage(1).then((page: any) => {
-            const viewport = page.getViewport({ scale: 1 });
-            setPdfSize({ w: viewport.width, h: viewport.height });
-            if (containerRef.current) {
-              const cw = containerRef.current.clientWidth;
-              const ch = containerRef.current.clientHeight || 500;
-              const scaleW = Math.abs(cw / viewport.width);
-              const scaleH = Math.abs(ch / viewport.height);
-              const viewScale = Math.min(scaleW, scaleH) * 0.92;
-              setScale(viewScale);
-              const canvas = canvasRef.current;
-              if (canvas) {
-                const ctx = canvas.getContext("2d");
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                page
-                  .render({ canvasContext: ctx, viewport })
-                  .promise.then(() => {
-                    setLoading(false);
-                  });
-              }
+        .promise.then(async (pdf: any) => {
+          try {
+            const pagesData = [];
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const viewport = page.getViewport({ scale: 1 });
+              pagesData.push({ page, viewport });
             }
-          });
+            setPdfPages(pagesData);
+          } catch (err) {
+            console.error("[PdfMapper] Failed to parse pages:", err);
+            setLoading(false);
+          }
         })
         .catch((err: any) => {
           console.error("[PdfMapper] Failed to load PDF:", err);
@@ -70,6 +72,58 @@ export default function PdfMapper({
       if (s) s.remove();
     };
   }, [pdfUrl]);
+
+  useEffect(() => {
+    let activeTasks: any[] = [];
+    let isCancelled = false;
+
+    if (pdfPages.length > 0 && containerRef.current) {
+      const cw = containerRef.current.clientWidth;
+      const ch = containerRef.current.clientHeight || 500;
+      const firstViewport = pdfPages[0].viewport;
+      const scaleW = Math.abs(cw / firstViewport.width);
+      const scaleH = Math.abs(ch / firstViewport.height);
+      const viewScale = Math.min(scaleW, scaleH) * 0.92;
+      setScale(viewScale);
+
+      Promise.all(
+        pdfPages.map((data, idx) => {
+          const canvas = document.getElementById(`pdf-canvas-${idx}`) as HTMLCanvasElement;
+          if (canvas) {
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+                // Setting height/width clears the canvas automatically
+                canvas.height = data.viewport.height;
+                canvas.width = data.viewport.width;
+                const renderTask = data.page.render({ canvasContext: ctx, viewport: data.viewport });
+                activeTasks.push(renderTask);
+                return renderTask.promise.catch((err: any) => {
+                  if (err.name !== "RenderingCancelledException") {
+                    console.error("PDF render error", err);
+                  }
+                });
+            }
+          }
+          return Promise.resolve();
+        })
+      ).then(() => {
+        if (!isCancelled) {
+          setLoading(false);
+        }
+      });
+    }
+
+    return () => {
+      isCancelled = true;
+      activeTasks.forEach(task => {
+        try {
+          task.cancel();
+        } catch (e) {
+          // ignore
+        }
+      });
+    };
+  }, [pdfPages]);
   function handlePointerDown(e: React.PointerEvent, index: number) {
     setDraggingIdx(index);
     onSelectField(index); // @ts-ignore
@@ -89,11 +143,11 @@ export default function PdfMapper({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full flex items-center justify-center relative overflow-hidden"
+      className="w-full h-full relative overflow-auto bg-gray-100 p-8"
     >
       {" "}
       {loading && (
-        <div className="absolute z-10 flex items-center gap-2 text-gray-400 text-sm">
+        <div className="absolute z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 text-gray-400 text-sm bg-white p-3 rounded-lg shadow-sm border">
           {" "}
           <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
             {" "}
@@ -114,19 +168,36 @@ export default function PdfMapper({
           Loading PDF preview...{" "}
         </div>
       )}{" "}
-      <div
+      
+      <div 
         style={{
-          position: "relative",
-          transform: `scale(${scale})`,
-          transformOrigin: "center center",
-          opacity: loading ? 0 : 1,
-          transition: "opacity 0.3s",
+          width: pdfPages.length > 0 ? pdfPages[0].viewport.width * scale : "auto",
+          height: pdfPages.length > 0 ? pdfPages.reduce((acc, p) => acc + p.viewport.height, 0) * scale : "auto",
+          margin: "0 auto",
+          position: "relative"
         }}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
       >
-        {" "}
-        <canvas ref={canvasRef} className="shadow-xl rounded" />{" "}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+            opacity: loading ? 0 : 1,
+            transition: "opacity 0.3s",
+            display: "flex",
+            flexDirection: "column",
+            gap: 0,
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+          }}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
+          {" "}
+          {pdfPages.map((data, idx) => (
+            <canvas key={idx} id={`pdf-canvas-${idx}`} style={{ display: "block", background: "white" }} />
+          ))}{" "}
         {fields.map((field, idx) => {
           const isActive = idx === activeIndex;
           const isDragging = draggingIdx === idx;
@@ -245,6 +316,7 @@ export default function PdfMapper({
           );
         })}{" "}
       </div>{" "}
+    </div>
     </div>
   );
 }

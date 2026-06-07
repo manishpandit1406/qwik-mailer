@@ -55,3 +55,6 @@ revert-date.js
 unsuspend.ts
 clear-suppression.ts
 verify.ts
+# Scratch directories
+scratch/
+*/scratch/

@@ -7,15 +7,65 @@ import {
   Zap,
   AlertTriangle,
   Wand2,
+  Code2,
+  Type,
+  Monitor,
+  Smartphone,
+  ChevronDown,
+  ChevronUp,
+  Plus
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Select } from "@/components/Select";
+import Editor from "@monaco-editor/react";
+import dynamic from "next/dynamic";
+import "react-quill-new/dist/quill.snow.css";
+import { PREBUILT_TEMPLATES } from "@/lib/prebuilt-templates";
+
+const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
+
+const quillModules = {
+  toolbar: [
+    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+    [{ 'font': [] }],
+    [{ 'size': ['small', false, 'large', 'huge'] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ 'color': [] }, { 'background': [] }],
+    [{ 'align': [] }],
+    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+    ['link', 'clean']
+  ],
+};
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
 function getToken() {
   return typeof window !== "undefined"
     ? (localStorage.getItem("mf_access_token") ?? "")
     : "";
 }
+
+function htmlToText(html: string) {
+  if (!html) return "";
+  return html.replace(/<[^>]*>?/gm, "");
+}
+
+function textToHtml(text: string) {
+  if (!text) return "";
+  // Convert newlines to <br/> to maintain basic formatting in HTML
+  return text.split("\n").map(line => line.trim() ? `${line}<br/>` : "<br/>").join("\n");
+}
+
+function formatHTML(html: string) {
+  if (!html) return "";
+  return html
+    .replace(/<\/(p|h1|h2|h3|h4|h5|h6|div|ul|ol|li)>/gi, '</$1>\n')
+    .replace(/<(p|h1|h2|h3|h4|h5|h6|div|ul|ol|li)(>|\s[^>]*>)/gi, '\n<$1$2')
+    .replace(/^\s*[\r\n]/gm, '')
+    .trim();
+}
+
 function extractVars(html: string) {
   const regex = /\{\{([\s\S]+?)\}\}/g;
   const vars = new Set<string>();
@@ -45,17 +95,32 @@ function extractVars(html: string) {
   }
   return Array.from(vars);
 }
+
 function TemplateBuilderInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("id");
+
   const [loading, setLoading] = useState(!!editId);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [htmlBody, setHtmlBody] = useState("");
-  const [tab, setTab] = useState<"code" | "preview">("code");
+  const [textBody, setTextBody] = useState(""); // Plain text support
+
+  const [spamError, setSpamError] = useState<{
+    issues?: string[];
+    suggestions?: string[];
+    spamScore?: number;
+  } | null>(null);
+
+  // New Editor State
+  const [activeMode, setActiveMode] = useState<"html" | "visual" | "preview">("html");
+  const [devicePreview, setDevicePreview] = useState<"desktop" | "mobile">("desktop");
+  const [spamExpanded, setSpamExpanded] = useState(false);
+
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiTone, setAiTone] = useState("professional");
@@ -65,32 +130,48 @@ function TemplateBuilderInner() {
     html: string;
   } | null>(null);
   const [aiError, setAiError] = useState("");
+
   useEffect(() => {
     if (editId) {
       fetchTemplate(editId);
     } else {
+      const presetId = searchParams.get("preset");
+      if (presetId) {
+        const preset = PREBUILT_TEMPLATES.find(t => t.id === presetId);
+        if (preset) {
+          setName(preset.name);
+          setSubject(preset.subject);
+          setHtmlBody(preset.htmlBody);
+          setActiveMode("visual");
+          return;
+        }
+      }
+
       const draft = localStorage.getItem("mf_template_draft");
       if (draft) {
         try {
-          const { name, subject, htmlBody } = JSON.parse(draft);
+          const { name, subject, htmlBody, textBody } = JSON.parse(draft);
           if (name) setName(name);
           if (subject) setSubject(subject);
           if (htmlBody) setHtmlBody(htmlBody);
+          if (textBody) setTextBody(textBody);
         } catch (e) {}
       }
     }
-  }, [editId]);
+  }, [editId, searchParams]);
+
   useEffect(() => {
-    if (!editId && (name || subject || htmlBody)) {
+    if (!editId && (name || subject || htmlBody || textBody)) {
       const timer = setTimeout(() => {
         localStorage.setItem(
           "mf_template_draft",
-          JSON.stringify({ name, subject, htmlBody }),
+          JSON.stringify({ name, subject, htmlBody, textBody })
         );
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [name, subject, htmlBody, editId]);
+  }, [name, subject, htmlBody, textBody, editId]);
+
   async function fetchTemplate(id: string) {
     try {
       const res = await fetch(`${API}/v1/templates/${id}`, {
@@ -100,7 +181,8 @@ function TemplateBuilderInner() {
       if (json.success) {
         setName(json.data.name);
         setSubject(json.data.subject);
-        setHtmlBody(json.data.htmlBody);
+        setHtmlBody(json.data.htmlBody || "");
+        setTextBody(json.data.textBody || "");
       }
     } catch {
       setError("Failed to load template.");
@@ -108,11 +190,14 @@ function TemplateBuilderInner() {
       setLoading(false);
     }
   }
-  const vars = extractVars(htmlBody + "" + subject);
+
+  const vars = extractVars(htmlBody + "" + subject + "" + textBody);
+
   async function handleSave() {
-    if (!name || !subject || !htmlBody) return;
+    if (!name || !subject || (!htmlBody && !textBody)) return;
     setSaving(true);
     setError("");
+    setSpamError(null);
     try {
       const res = await fetch(
         `${API}/v1/templates${editId ? `/${editId}` : ""}`,
@@ -122,12 +207,19 @@ function TemplateBuilderInner() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${getToken()}`,
           },
-          body: JSON.stringify({ name, subject, htmlBody, variables: vars }),
-        },
+          body: JSON.stringify({ name, subject, htmlBody, textBody, variables: vars }),
+        }
       );
       const json = await res.json();
       if (!json.success) {
         setError(json.error ?? "Failed to save template.");
+        if (json.spamScore !== undefined) {
+          setSpamError({
+            issues: json.issues,
+            suggestions: json.suggestions,
+            spamScore: json.spamScore,
+          });
+        }
         return;
       }
       if (!editId) {
@@ -140,6 +232,7 @@ function TemplateBuilderInner() {
       setSaving(false);
     }
   }
+
   async function handleGenerateAI() {
     if (!aiPrompt) return;
     setAiGenerating(true);
@@ -175,282 +268,418 @@ function TemplateBuilderInner() {
       setAiGenerating(false);
     }
   }
+
   if (loading) {
     return (
       <div className="p-10 flex justify-center">
-        {" "}
-        <RefreshCw className="animate-spin text-gray-400" />{" "}
+        <RefreshCw className="animate-spin text-gray-400" />
       </div>
     );
   }
+
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] -m-6  bg-white relative overflow-hidden">
-      {" "}
-      <div
-        className="p-4 bg-white border-b flex items-center justify-between z-20 shadow-sm"
-        style={{ borderColor: "var(--border)" }}
-      >
-        {" "}
+    <div className="flex flex-col h-[calc(100vh-80px)] -m-6 bg-gray-50 relative overflow-y-auto">
+      {/* Header */}
+      <div className="p-4 bg-white border-b flex items-center justify-between z-20 shadow-sm shrink-0">
         <div className="flex items-center gap-4">
-          {" "}
           <Link
             href="/dashboard/templates"
             className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
           >
-            {" "}
-            <ArrowLeft size={18} />{" "}
-          </Link>{" "}
-          <h3
-            className="font-bold text-lg"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {" "}
-            {editId ? "Edit Template" : "New Template"}{" "}
-          </h3>{" "}
-        </div>{" "}
+            <ArrowLeft size={18} />
+          </Link>
+          <h3 className="font-bold text-lg text-gray-900">
+            {editId ? "Edit Template" : "New Template"}
+          </h3>
+        </div>
         <div className="flex items-center gap-3">
-          {" "}
-          {error && (
+          {error && !spamError && (
             <span className="text-sm text-red-600 flex items-center gap-1">
-              {" "}
-              <AlertTriangle size={13} /> {error}{" "}
+              <AlertTriangle size={13} /> {error}
             </span>
-          )}{" "}
+          )}
           <button
             className="btn-primary flex items-center gap-2 px-6"
             onClick={handleSave}
-            disabled={saving || !name || !subject || !htmlBody}
+            disabled={saving || !name || !subject || (!htmlBody && !textBody)}
           >
-            {" "}
             {saving ? (
               <RefreshCw size={14} className="animate-spin" />
             ) : (
               <Zap size={14} />
-            )}{" "}
-            {saving ? "Saving..." : "Save Template"}{" "}
-          </button>{" "}
-        </div>{" "}
-      </div>{" "}
-      <div
-        className="p-4 grid grid-cols-2 gap-3 border-b"
-        style={{ borderColor: "var(--border)" }}
-      >
-        {" "}
+            )}
+            {saving ? "Saving..." : "Save Template"}
+          </button>
+        </div>
+      </div>
+
+      {/* Spam Error Banner */}
+      {error && spamError && (
+        <div className="p-4 mx-4 mt-4 bg-red-50 border border-red-200 rounded-xl relative z-10 shadow-sm shrink-0">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-red-700 flex items-center gap-2">
+              <AlertTriangle size={16} />
+              {spamError.spamScore !== undefined && (
+                <span className="bg-red-500/20 px-2 py-0.5 rounded text-xs text-red-800">
+                  Spam Score: {spamError.spamScore}/10
+                </span>
+              )}
+              {error}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSpamExpanded(!spamExpanded)}
+                className="p-1.5 text-red-400 hover:text-red-600 transition-colors rounded-md hover:bg-red-100"
+              >
+                {spamExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              <button
+                onClick={() => {
+                  setError("");
+                  setSpamError(null);
+                }}
+                className="p-1.5 text-red-400 hover:text-red-600 transition-colors rounded-md hover:bg-red-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+          {spamExpanded && (
+            <div className="mt-3 pt-3 border-t border-red-100 animate-in fade-in slide-in-from-top-2">
+              {spamError.issues && spamError.issues.length > 0 && (
+                <div className="text-xs text-red-700 pl-2">
+                  <strong className="block mb-1">Issues Found:</strong>
+                  <ul className="list-disc pl-4 space-y-0.5 opacity-90">
+                    {spamError.issues.map((i, idx) => (
+                      <li key={idx}>{i}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {spamError.suggestions && spamError.suggestions.length > 0 && (
+                <div className="mt-3 text-xs text-red-700 pl-2">
+                  <strong className="block mb-1">Suggestions to Fix:</strong>
+                  <ul className="list-disc pl-4 space-y-0.5 opacity-90">
+                    {spamError.suggestions.map((s, idx) => (
+                      <li key={idx}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Details Bar */}
+      <div className="p-4 grid grid-cols-2 gap-3 bg-white border-b shrink-0">
         <input
           className="input"
           placeholder="Template name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-        />{" "}
+        />
         <input
           className="input"
           placeholder="Subject line (use {{variables}})"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-        />{" "}
-      </div>{" "}
+        />
+      </div>
+
       {vars.length > 0 && (
-        <div className="px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex flex-wrap items-center gap-1.5">
-          {" "}
+        <div className="px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex flex-wrap items-center gap-1.5 shrink-0">
           <span className="text-xs text-indigo-600 font-medium">
             Detected variables:
-          </span>{" "}
+          </span>
           {vars.map((v) => (
             <span
               key={v}
               className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-mono"
             >
-              {" "}
-              {"{{"} {v} {"}}"}{" "}
+              {"{{"} {v} {"}}"}
             </span>
-          ))}{" "}
+          ))}
         </div>
-      )}{" "}
-      <div className="flex border-b" style={{ borderColor: "var(--border)" }}>
-        {" "}
-        {(["code", "preview"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className="px-5 py-2.5 text-xs font-semibold capitalize transition-all border-b-2"
-            style={{
-              borderColor: tab === t ? "var(--accent)" : "transparent",
-              color: tab === t ? "var(--accent)" : "var(--text-muted)",
-            }}
-          >
-            {" "}
-            {t === "code" ? "✏️ HTML Editor" : "👁️ Live Preview"}{" "}
-          </button>
-        ))}{" "}
-        <div className="ml-auto pr-4 flex items-center" />{" "}
-      </div>{" "}
-      <div className="flex-1 overflow-hidden">
-        {" "}
-        {tab === "code" ? (
-          <textarea
-            className="w-full h-full font-mono text-xs resize-none border-none outline-none p-4"
-            style={{
-              background: "var(--bg-primary)",
-              color: "var(--text-primary)",
-              minHeight: "300px",
-            }}
-            value={htmlBody}
-            onChange={(e) => setHtmlBody(e.target.value)}
-            placeholder="<h1>Hello {{name}}!</h1>"
-            spellCheck={false}
-          />
-        ) : (
-          <iframe
-            srcDoc={
-              htmlBody ||
-              "<div style='display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-family:sans-serif;'>Preview will appear here</div>"
-            }
-            className="w-full h-full border-none bg-white"
-            style={{ minHeight: "300px" }}
-            title="Template preview"
-          />
-        )}{" "}
-      </div>{" "}
+      )}
+
+      {/* Editor Area */}
+      <div className="flex-1 flex flex-col min-h-[600px] border border-gray-200 bg-white rounded-xl shadow-sm overflow-hidden my-6 max-w-5xl w-full mx-auto">
+        <div className="flex items-center justify-between border-b px-2 bg-gray-50 shrink-0 h-[49px]">
+          <div className="flex items-center h-full">
+            <button
+              onClick={() => {
+                setHtmlBody(formatHTML(htmlBody));
+                setActiveMode("html");
+              }}
+              className={`flex items-center gap-2 px-4 h-full text-sm font-medium border-b-2 transition-colors ${
+                activeMode === "html"
+                  ? "border-indigo-600 text-indigo-600 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100/50"
+              }`}
+            >
+              <Code2 size={16} />
+              HTML Editor
+            </button>
+            <button
+              onClick={() => setActiveMode("visual")}
+              className={`flex items-center gap-2 px-4 h-full text-sm font-medium border-b-2 transition-colors ${
+                activeMode === "visual"
+                  ? "border-indigo-600 text-indigo-600 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100/50"
+              }`}
+            >
+              <Type size={16} />
+              Visual Editor
+            </button>
+            <button
+              onClick={() => setActiveMode("preview")}
+              className={`flex items-center gap-2 px-4 h-full text-sm font-medium border-b-2 transition-colors ${
+                activeMode === "preview"
+                  ? "border-indigo-600 text-indigo-600 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100/50"
+              }`}
+            >
+              <Monitor size={16} />
+              Live Preview
+            </button>
+          </div>
+          
+          {activeMode === "preview" && (
+            <div className="flex bg-gray-100/80 p-1 rounded-md border border-gray-200/50 mr-2">
+              <button
+                onClick={() => setDevicePreview("desktop")}
+                className={`p-1.5 rounded transition-all duration-200 ${
+                  devicePreview === "desktop"
+                    ? "bg-white shadow-sm text-indigo-600 ring-1 ring-gray-200"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
+                }`}
+                title="Desktop Preview"
+              >
+                <Monitor size={14} />
+              </button>
+              <button
+                onClick={() => setDevicePreview("mobile")}
+                className={`p-1.5 rounded transition-all duration-200 ${
+                  devicePreview === "mobile"
+                    ? "bg-white shadow-sm text-indigo-600 ring-1 ring-gray-200"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
+                }`}
+                title="Mobile Preview"
+              >
+                <Smartphone size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {activeMode === "visual" && (
+          <div className="bg-white border-b px-3 py-2 flex items-center gap-2 overflow-x-auto shrink-0">
+            <span className="text-xs font-medium text-gray-500 shrink-0">Insert Variable:</span>
+            {vars.length > 0 ? vars.map((v) => (
+              <button 
+                key={v} 
+                onClick={() => {
+                  const newHtml = htmlBody + `{{${v}}}`;
+                  setHtmlBody(newHtml);
+                  setTextBody(htmlToText(newHtml));
+                }} 
+                className="text-[11px] px-2 py-1 bg-gray-50 hover:bg-gray-100 rounded border text-gray-700 shrink-0 flex items-center gap-1 transition-colors"
+                title={`Insert {{${v}}}`}
+              >
+                <Plus size={10} className="text-gray-400" /> {v}
+              </button>
+            )) : <span className="text-[11px] text-gray-400 italic">No variables detected yet</span>}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-hidden relative flex flex-col bg-gray-50/50">
+          {activeMode === "html" && (
+            <Editor
+              height="100%"
+              defaultLanguage="html"
+              theme="light"
+              value={htmlBody}
+              onChange={(val) => {
+                const newVal = val || "";
+                setHtmlBody(newVal);
+                setTextBody(htmlToText(newVal));
+              }}
+              options={{
+                minimap: { enabled: false },
+                wordWrap: "on",
+                fontSize: 14,
+                lineHeight: 1.6,
+                padding: { top: 16 },
+                lineNumbers: "on",
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+              }}
+            />
+          )}
+          {activeMode === "visual" && (
+            <div className="h-full flex flex-col [&_.quill]:flex-1 [&_.quill]:flex [&_.quill]:flex-col [&_.ql-container]:flex-1 [&_.ql-container]:overflow-auto [&_.ql-editor]:min-h-full bg-white">
+              <ReactQuill
+                theme="snow"
+                value={htmlBody}
+                onChange={(content, delta, source, editor) => {
+                  if (source === "user") {
+                    setHtmlBody(content);
+                    setTextBody(editor.getText());
+                  }
+                }}
+                modules={quillModules}
+                className="h-full"
+              />
+            </div>
+          )}
+          {activeMode === "preview" && (
+            <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 flex items-start justify-center bg-[url('https://transparenttextures.com/patterns/cubes.png')] bg-gray-100/50">
+              <div
+                className={`bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden transition-all duration-300 ease-in-out flex flex-col mx-auto ring-1 ring-black/5 ${
+                  devicePreview === "mobile" 
+                    ? "w-full max-w-[375px] min-h-[667px] shadow-xl mt-4" 
+                    : "w-full h-full"
+                }`}
+              >
+                <iframe
+                  srcDoc={
+                    htmlBody ||
+                    "<div style='display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-family:sans-serif;'>HTML Preview will appear here</div>"
+                  }
+                  className="w-full h-full border-none bg-white flex-1 min-h-[500px]"
+                  title="Template HTML preview"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* AI Button & Drawer */}
       <button
         onClick={() => setAiOpen(true)}
         className="fixed bottom-6 right-6 flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-gray-200 shadow-md hover:shadow-lg text-gray-700 hover:text-indigo-600 hover:border-indigo-300 transition-all z-30 text-sm font-medium"
         title="AI Assistant"
       >
-        {" "}
-        <Wand2 size={15} /> Write with AI{" "}
-      </button>{" "}
+        <Wand2 size={15} /> Write with AI
+      </button>
+
       {aiOpen && (
-        <div className="absolute inset-y-0 right-0 w-96 bg-white shadow-md z-40 flex flex-col border-l border-gray-200">
-          {" "}
+        <div className="absolute inset-y-0 right-0 w-96 bg-white shadow-2xl z-40 flex flex-col border-l border-gray-200 animate-slide-in">
           <div className="p-4 border-b flex items-center justify-between">
-            {" "}
             <div className="flex items-center gap-2 font-semibold text-gray-800">
-              {" "}
-              <Wand2 size={16} className="text-indigo-500" /> Write with AI{" "}
-            </div>{" "}
+              <Wand2 size={16} className="text-indigo-500" /> Write with AI
+            </div>
             <button
               onClick={() => setAiOpen(false)}
               className="p-1.5 hover:bg-indigo-100 rounded-lg text-indigo-500 transition-colors"
             >
-              {" "}
-              <X size={16} />{" "}
-            </button>{" "}
-          </div>{" "}
+              <X size={16} />
+            </button>
+          </div>
           <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-4">
-            {" "}
             <div>
-              {" "}
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                {" "}
-                What kind of email do you want?{" "}
-              </label>{" "}
+                What kind of email do you want?
+              </label>
               <textarea
                 className="input min-h-[100px] resize-none"
                 placeholder="e.g. A welcome email for new signups with a discount offer..."
                 value={aiPrompt}
                 onChange={(e) => setAiPrompt(e.target.value)}
-              />{" "}
-            </div>{" "}
+              />
+            </div>
             <div>
-              {" "}
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                 Tone
-              </label>{" "}
-              <select
-                className="input"
+              </label>
+              <Select
                 value={aiTone}
-                onChange={(e) => setAiTone(e.target.value)}
-              >
-                {" "}
-                <option value="professional">Professional</option>{" "}
-                <option value="friendly">Friendly</option>{" "}
-                <option value="formal">Formal</option>{" "}
-                <option value="casual">Casual</option>{" "}
-              </select>{" "}
-            </div>{" "}
+                onChange={(value) => setAiTone(value)}
+                options={[
+                  { label: "Professional", value: "professional" },
+                  { label: "Friendly", value: "friendly" },
+                  { label: "Formal", value: "formal" },
+                  { label: "Casual", value: "casual" },
+                ]}
+              />
+            </div>
             <button
               className="btn-primary w-full py-2.5 flex items-center justify-center gap-2"
               onClick={handleGenerateAI}
               disabled={aiGenerating || !aiPrompt}
             >
-              {" "}
               {aiGenerating ? (
                 <RefreshCw className="animate-spin" size={16} />
               ) : (
                 <Wand2 size={16} />
-              )}{" "}
-              {aiGenerating ? "Generating..." : "✨ Generate Magic"}{" "}
-            </button>{" "}
+              )}
+              {aiGenerating ? "Generating..." : "✨ Generate Magic"}
+            </button>
             {aiError && (
               <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg border border-red-100 flex items-start gap-2">
-                {" "}
-                <AlertTriangle size={14} className="shrink-0 mt-0.5" />{" "}
-                <p>{aiError}</p>{" "}
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <p>{aiError}</p>
               </div>
-            )}{" "}
+            )}
             {aiResult && (
               <div className="p-4 border rounded-xl bg-gray-50 flex flex-col gap-3">
-                {" "}
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  {" "}
-                  Generated Result ✅{" "}
-                </div>{" "}
+                  Generated Result ✅
+                </div>
                 <div>
-                  {" "}
                   <div className="text-[10px] text-gray-500 font-medium mb-0.5">
                     Subject Line
-                  </div>{" "}
+                  </div>
                   <div className="text-sm font-medium text-gray-900 bg-white border rounded-lg p-2">
-                    {" "}
-                    {aiResult.subject}{" "}
-                  </div>{" "}
-                </div>{" "}
+                    {aiResult.subject}
+                  </div>
+                </div>
                 <div>
-                  {" "}
                   <div className="text-[10px] text-gray-500 font-medium mb-0.5">
                     Body Preview
-                  </div>{" "}
+                  </div>
                   <div className="text-xs text-gray-600 bg-white p-2 border rounded-lg line-clamp-4">
-                    {" "}
                     {aiResult.html
                       .replace(/<[^>]*>?/gm, "")
                       .replace(/\s+/g, "")
                       .trim()
                       .slice(0, 150)}
-                    ...{" "}
-                  </div>{" "}
-                </div>{" "}
+                    ...
+                  </div>
+                </div>
                 <button
                   className="btn-primary mt-1 flex items-center justify-center gap-2 py-2.5"
                   onClick={() => {
                     setSubject(aiResult.subject);
                     setHtmlBody(aiResult.html);
+                    setTextBody(htmlToText(aiResult.html));
+                    setActiveMode("html");
                     setAiOpen(false);
                   }}
                 >
-                  {" "}
-                  <Zap size={14} /> Insert into Editor{" "}
-                </button>{" "}
+                  <Zap size={14} /> Insert into Editor
+                </button>
               </div>
-            )}{" "}
-          </div>{" "}
+            )}
+          </div>
         </div>
-      )}{" "}
+      )}
     </div>
   );
 }
+
 export default function TemplateBuilderPage() {
   return (
     <Suspense
       fallback={
         <div className="p-10 flex justify-center">
-          {" "}
-          <RefreshCw className="animate-spin text-gray-400" />{" "}
+          <RefreshCw className="animate-spin text-gray-400" />
         </div>
       }
     >
-      {" "}
-      <TemplateBuilderInner />{" "}
+      <TemplateBuilderInner />
     </Suspense>
   );
 }

@@ -15,31 +15,41 @@ const ses = new SESv2Client({
 });
 
 export async function addDomainToSes(domain: string): Promise<string[]> {
+  let tokens: string[] = [];
   try {
     const cmd = new CreateEmailIdentityCommand({
       EmailIdentity: domain,
     });
     const res = await ses.send(cmd);
-    
-    try {
-      const mailFromCmd = new PutEmailIdentityMailFromAttributesCommand({
-        EmailIdentity: domain,
-        BehaviorOnMxFailure: "USE_DEFAULT_VALUE",
-        MailFromDomain: `bounces.${domain}`,
-      });
-      await ses.send(mailFromCmd);
-    } catch (e) {
-      console.error(`[SES] Failed to set MAIL FROM for ${domain}:`, e);
-    }
-    
     if (res.DkimAttributes && res.DkimAttributes.Tokens) {
-      return res.DkimAttributes.Tokens;
+      tokens = res.DkimAttributes.Tokens;
     }
-    return [];
-  } catch (error) {
-    console.error(`[SES] Failed to add domain ${domain} to SES:`, error);
-    throw error;
+  } catch (error: any) {
+    if (error.name === "AlreadyExistsException" || (error.message && error.message.includes("already exist"))) {
+      console.log(`[SES] Domain ${domain} already exists. Fetching existing identity...`);
+      const getCmd = new GetEmailIdentityCommand({ EmailIdentity: domain });
+      const existingRes = await ses.send(getCmd);
+      if (existingRes.DkimAttributes && existingRes.DkimAttributes.Tokens) {
+        tokens = existingRes.DkimAttributes.Tokens;
+      }
+    } else {
+      console.error(`[SES] Failed to add domain ${domain} to SES:`, error);
+      throw error;
+    }
   }
+
+  try {
+    const mailFromCmd = new PutEmailIdentityMailFromAttributesCommand({
+      EmailIdentity: domain,
+      BehaviorOnMxFailure: "USE_DEFAULT_VALUE",
+      MailFromDomain: `bounces.${domain}`,
+    });
+    await ses.send(mailFromCmd);
+  } catch (e) {
+    console.error(`[SES] Failed to set MAIL FROM for ${domain}:`, e);
+  }
+
+  return tokens;
 }
 
 export async function getDomainSesStatus(domain: string): Promise<{ dkimVerified: boolean, mailFromVerified: boolean }> {

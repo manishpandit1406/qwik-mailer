@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { eq, desc } from "drizzle-orm";
-import { db, users, refreshTokens, reputationLogs } from "@qwikmailer/db";
+import { eq, desc, and, or } from "drizzle-orm";
+import { db, users, refreshTokens, reputationLogs, teams, teamMembers } from "@qwikmailer/db";
 import { nanoid } from "nanoid";
 import UAParser from "ua-parser-js";
 import { sendNewLoginAlertEmail, send2FAEnabledEmail, send2FADisabledEmail } from "../services/email.service.js";
@@ -22,6 +22,7 @@ const registerSchema = z.object({
   name: z.string().min(2).max(100),
   email: z.string().email(),
   password: z.string().min(8).max(100),
+  agreeTerms: z.boolean().optional(),
 });
 
 const loginSchema = z.object({
@@ -76,6 +77,10 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.code(400).send({ success: false, error: "Disposable email addresses are not allowed." });
     }
 
+    if (!body.agreeTerms) {
+      return reply.code(400).send({ success: false, error: "You must agree to the Terms of Service and Privacy Policy to create an account." });
+    }
+
     // Check if email already exists
     const existing = await db.query.users.findFirst({
       where: eq(users.email, body.email),
@@ -96,6 +101,10 @@ export async function authRoutes(app: FastifyInstance) {
         passwordHash,
         emailVerificationToken: verificationToken,
         emailVerificationExpires: verificationExpires,
+        termsAccepted: true,
+        termsAcceptedAt: new Date(),
+        termsVersion: "v1.0",
+        registrationIpAddress: req.ip,
       })
       .returning({ id: users.id, email: users.email, name: users.name, plan: users.plan });
 
@@ -181,7 +190,7 @@ export async function authRoutes(app: FastifyInstance) {
     
     const userAgent = req.headers["user-agent"] || "";
     const ipAddress = (req.headers["x-forwarded-for"] as string)?.split(',')[0] || req.ip || "Unknown IP";
-    const parser = new UAParser(userAgent);
+    const parser = new (UAParser as any)(userAgent);
     const browser = parser.getBrowser();
     const os = parser.getOS();
     const device = parser.getDevice();
@@ -191,7 +200,7 @@ export async function authRoutes(app: FastifyInstance) {
     const browserName = browser.name ? `${browser.name} ${browser.version || ""}`.trim() : "Unknown Browser";
 
     const existingSession = await db.query.refreshTokens.findFirst({
-      where: (rt, { eq, and, or }) => and(eq(rt.userId, user.id), or(eq(rt.ipAddress, ipAddress), eq(rt.userAgent, userAgent))),
+      where: and(eq(refreshTokens.userId, user.id), or(eq(refreshTokens.ipAddress, ipAddress), eq(refreshTokens.userAgent, userAgent))),
     });
 
     if (!existingSession) {
@@ -371,7 +380,6 @@ export async function authRoutes(app: FastifyInstance) {
         billingPeriodStart: user.billingPeriodStart,
         dailyEmailCount: user.dailyEmailCount,
         dailyPeriodStart: user.dailyPeriodStart,
-        dailyPeriodStart: user.dailyPeriodStart,
         planLimit: getUserLimits(user).monthlyLimit,
         dailyLimit: getUserLimits(user).dailyLimit,
         companyAddress: user.companyAddress,
@@ -411,7 +419,7 @@ export async function authRoutes(app: FastifyInstance) {
   // POST /v1/auth/onboarding
   app.post("/onboarding", {
     preHandler: authenticate,
-    config: { rateLimit: { max: 5, timeWindow: '1 hour' } }
+    config: { rateLimit: { max: 30, timeWindow: '1 hour' } }
   }, async (req, reply) => {
     const user = req.user as { sub: string };
     const body = onboardingSchema.parse(req.body);
@@ -463,6 +471,10 @@ export async function authRoutes(app: FastifyInstance) {
     const qrcode = await import("qrcode");
 
     const secret = authenticator.generateSecret();
+    
+    // Store temporarily
+    await db.update(users).set({ tempTotpSecret: secret }).where(eq(users.id, user.sub));
+
     const otpauth = authenticator.keyuri(user.email, "Qwik Mailer", secret);
     const qrCodeUrl = await qrcode.toDataURL(otpauth);
 
@@ -472,23 +484,26 @@ export async function authRoutes(app: FastifyInstance) {
   // POST /v1/auth/totp/verify
   app.post("/totp/verify", { preHandler: authenticate }, async (req, reply) => {
     const user = req.user as { sub: string };
-    const { secret, token } = z.object({ secret: z.string(), token: z.string() }).parse(req.body);
+    const { token } = z.object({ secret: z.string().optional(), token: z.string() }).parse(req.body);
+
+    const dbUser = await db.query.users.findFirst({ where: eq(users.id, user.sub) });
+    if (!dbUser || !dbUser.tempTotpSecret) {
+      return reply.code(400).send({ success: false, error: "TOTP setup not initialized." });
+    }
 
     const { authenticator } = await import("otplib");
-    const isValid = authenticator.verify({ token, secret });
+    const isValid = authenticator.verify({ token, secret: dbUser.tempTotpSecret });
 
     if (!isValid) {
       return reply.code(400).send({ success: false, error: "Invalid 2FA code." });
     }
 
     await db.update(users)
-      .set({ totpEnabled: true, totpSecret: secret, updatedAt: new Date() })
+      .set({ totpEnabled: true, totpSecret: dbUser.tempTotpSecret, tempTotpSecret: null, updatedAt: new Date() })
       .where(eq(users.id, user.sub));
-
-    const dbUser = await db.query.users.findFirst({ where: eq(users.id, user.sub) });
     if (dbUser) {
       const userAgent = req.headers["user-agent"] || "";
-      const parser = new UAParser(userAgent);
+      const parser = new (UAParser as any)(userAgent);
       const browser = parser.getBrowser();
       const os = parser.getOS();
       const device = parser.getDevice();
@@ -524,7 +539,7 @@ export async function authRoutes(app: FastifyInstance) {
       .where(eq(users.id, user.sub));
 
     const userAgent = req.headers["user-agent"] || "";
-    const parser = new UAParser(userAgent);
+    const parser = new (UAParser as any)(userAgent);
     const browser = parser.getBrowser();
     const os = parser.getOS();
     const device = parser.getDevice();

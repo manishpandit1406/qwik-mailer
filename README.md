@@ -14,13 +14,18 @@
 | SMTP credentials support | ✅ MVP |
 | Dashboard (dark-mode, glassmorphism UI) | ✅ MVP |
 | Domain verification (SPF, DKIM, DMARC) | ✅ MVP |
+| Inbound Email Parsing | ✅ MVP |
+| Bulk Contact Upload | ✅ MVP |
+| Multi-tenant Team Architecture | ✅ MVP |
+| Sender Identities with Plan Limits | ✅ MVP |
 | Email templates with variable support | ✅ MVP |
 | API key management | ✅ MVP |
 | Webhooks (delivered, bounced, opened, etc.) | ✅ MVP |
+| Amazon SES Webhooks Integration | ✅ MVP |
 | Real-time analytics with charts | ✅ MVP |
 | Queue-based email processing (BullMQ) | ✅ MVP |
 | Anti-abuse: reputation scoring, suppression list | ✅ MVP |
-| 2FA (TOTP) | ✅ MVP |
+| 2FA (TOTP) & Passkey Authentication | ✅ MVP |
 | AI spam checker | 🚧 Phase 2 |
 | Dedicated IP warmup | 🚧 Phase 2 |
 | SMS / WhatsApp API | 🔮 Future |
@@ -155,23 +160,23 @@ curl -X POST http://localhost:4000/v1/send \
 |---|---|---|
 | `POST` | `/v1/auth/register` | Create account |
 | `POST` | `/v1/auth/login` | Login + get JWT |
-| `POST` | `/v1/auth/refresh` | Refresh access token |
+| `POST` | `/v1/auth/passkey/...` | WebAuthn passkey flows |
 | `GET`  | `/v1/auth/me` | Get current user |
+| `POST` | `/v1/teams` | Manage teams |
 | `POST` | `/v1/send` | Send single email |
 | `POST` | `/v1/bulk-send` | Send up to 1000 emails |
+| `POST` | `/v1/lists` | Upload contact list (CSV/Excel) |
 | `GET`  | `/v1/logs` | Email delivery logs |
 | `GET`  | `/v1/analytics` | Summary analytics |
-| `GET`  | `/v1/analytics/daily` | Daily breakdown |
 | `POST` | `/v1/domains` | Add sending domain |
 | `GET`  | `/v1/domains/:id/dns-records` | Get DNS records |
 | `POST` | `/v1/domains/:id/verify` | Verify DNS records |
+| `POST` | `/v1/senders` | Create sender identity |
 | `POST` | `/v1/api-keys` | Create API key |
 | `GET`  | `/v1/api-keys` | List API keys |
-| `DELETE` | `/v1/api-keys/:id` | Revoke API key |
 | `POST` | `/v1/templates` | Create template |
-| `GET`  | `/v1/templates` | List templates |
 | `POST` | `/v1/webhooks` | Register webhook |
-| `GET`  | `/v1/webhooks` | List webhooks |
+| `POST` | `/v1/inbound` | Inbound parse webhook |
 
 ---
 
@@ -210,14 +215,17 @@ PostgreSQL ← Drizzle ORM ← All services
 | Table | Description |
 |---|---|
 | `users` | Auth, plan, reputation score |
-| `api_keys` | Hashed keys per user |
+| `teams` & `team_members` | Multi-tenant organization support |
+| `passkeys` | WebAuthn passkey credentials |
+| `api_keys` | Hashed keys per team |
 | `domains` | Sending domains + verification |
+| `domain_senders` | Shared sender identities |
 | `emails` | All sent emails + status |
 | `email_events` | Opens, clicks, bounces |
+| `contact_lists` | Uploaded CSV/Excel lists for bulk |
 | `templates` | HTML templates with variables |
 | `webhooks` | Registered webhook endpoints |
 | `suppression_list` | Global bounce/complaint list |
-| `refresh_tokens` | JWT refresh token store |
 
 ---
 
@@ -284,7 +292,6 @@ Key variables to configure:
 - [ ] SMS API (Twilio integration)
 - [ ] Billing integration (Razorpay / Stripe)
 - [ ] ClickHouse for high-volume analytics
-- [ ] Multi-tenant organization support
 
 ---
 

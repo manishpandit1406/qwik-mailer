@@ -23,19 +23,12 @@ interface Certificate {
   config: Field[];
   createdAt: string;
 }
-const DOC_TYPES = [
-  { value: "certificate", label: "Certificate", icon: Award },
-  { value: "invoice", label: "Invoice", icon: Receipt },
-  { value: "hall_ticket", label: "Hall Ticket", icon: Ticket },
-  { value: "offer_letter", label: "Offer Letter", icon: FileText },
-  { value: "id_card", label: "ID Card", icon: CreditCard },
-  { value: "report", label: "Report", icon: BarChart2 },
-];
+
 export default function CertificatesPage() {
   const [certs, setCerts] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filterType, setFilterType] = useState("all");
+
   useEffect(() => {
     fetchCerts();
   }, []);
@@ -65,108 +58,69 @@ export default function CertificatesPage() {
     });
     setCerts(certs.filter((c) => c.id !== id));
   }
-  const filteredCerts =
-    filterType === "all"
-      ? certs
-      : certs.filter((c) => (c.type ?? "certificate") === filterType);
+
   return (
     <div className="space-y-5 ">
-      {" "}
-      {/* Header */}{" "}
-      <div className="flex items-center justify-between">
-        {" "}
-        <div>
-          {" "}
-          <h2
-            className="text-xl font-bold mb-1"
-            style={{ color: "var(--text-primary)" }}
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-6 sm:p-8 shadow-sm">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 rounded-bl-full -z-10" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-blue-50/50 to-transparent rounded-tr-full -z-10" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+              <FileText className="text-indigo-600" size={24} /> Attachments
+            </h2>
+            <p className="text-sm text-gray-500 mt-1.5 max-w-xl leading-relaxed">
+              Generate dynamic attachments like certificates, invoices, and hall tickets — with QR codes and variable substitution.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/certificates/builder"
+            className="btn-primary flex items-center gap-2 shadow-md shadow-indigo-500/20 whitespace-nowrap"
           >
-            Attachments
-          </h2>{" "}
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            {" "}
-            Generate dynamic attachments like certificates, invoices, and hall
-            tickets — with QR codes and variable substitution.{" "}
-          </p>{" "}
-        </div>{" "}
-        <Link
-          href="/dashboard/certificates/builder"
-          className="btn-primary flex items-center gap-2"
-        >
-          {" "}
-          <Plus size={14} /> New Document{" "}
-        </Link>{" "}
-      </div>{" "}
-      {error && (
-        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
-          {" "}
-          {error}{" "}
-          <button onClick={() => setError("")} className="ml-auto">
-            ✕
-          </button>{" "}
+            <Plus size={16} strokeWidth={2.5} /> New Document
+          </Link>
         </div>
-      )}{" "}
-      {/* Type Filter Pills */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setFilterType("all")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border shadow-sm ${filterType === "all" ? "bg-gray-800 text-white border-gray-800" : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"}`}
-        >
-          All ({certs.length})
-        </button>
-        {DOC_TYPES.map((t) => {
-          const count = certs.filter(
-            (c) => (c.type ?? "certificate") === t.value,
-          ).length;
-          if (count === 0) return null;
-          const Icon = t.icon;
-          return (
-            <button
-              key={t.value}
-              onClick={() => setFilterType(t.value)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border shadow-sm ${filterType === t.value ? "bg-gray-800 text-white border-gray-800" : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"}`}
-            >
-              <Icon size={14} className={filterType === t.value ? "text-gray-300" : "text-gray-400"} />
-              {t.label} ({count})
-            </button>
-          );
-        })}
       </div>
+
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-3 animate-fade-in shadow-sm">
+          <div className="p-1 bg-red-100 rounded-lg"><Trash2 size={14} className="text-red-600" /></div>
+          <span className="font-medium">{error}</span>
+          <button onClick={() => setError("")} className="ml-auto hover:bg-red-100 p-1.5 rounded-lg transition-colors">
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Card Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 stagger-children">
         {" "}
         {loading ? (
-          <div className="col-span-full">
-            <LogoLoader fullPage text="Loading..." />
+          <div className="col-span-full py-20 flex justify-center">
+            <LogoLoader fullPage={false} text="Loading documents..." />
           </div>
-        ) : filteredCerts.length === 0 ? (
-          <div className="md:col-span-3 py-12 text-center glass-card">
-            {" "}
-            <Award size={32} className="mx-auto mb-3 text-indigo-300" />{" "}
-            <p
-              className="text-sm font-medium"
-              style={{ color: "var(--text-primary)" }}
-            >
-              No documents yet
-            </p>{" "}
-            <p
-              className="text-xs mt-1 mb-4"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Create your first dynamic PDF template.
-            </p>{" "}
-            <Link
-              href="/dashboard/certificates/builder"
-              className="btn-primary mx-auto inline-flex items-center gap-2"
-            >
-              {" "}
-              <Plus size={14} /> Create Document{" "}
-            </Link>{" "}
+        ) : certs.length === 0 ? (
+          <div className="col-span-full py-20 text-center bg-white border border-dashed border-gray-200 rounded-3xl relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-transparent pointer-events-none" />
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-5 ring-8 ring-indigo-50/50 group-hover:scale-110 transition-transform duration-500">
+                <FileText size={32} className="text-indigo-500" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No documents found</h3>
+              <p className="text-sm text-gray-500 max-w-sm mx-auto mb-8 leading-relaxed">
+                You haven't created any document templates yet. Start by creating a certificate or document.
+              </p>
+              <Link
+                href="/dashboard/certificates/builder"
+                className="btn-primary inline-flex items-center gap-2 shadow-md shadow-indigo-500/20"
+              >
+                <Plus size={16} strokeWidth={2.5} /> Create Document
+              </Link>
+            </div>
           </div>
         ) : (
-          filteredCerts.map((cert) => {
-            const docTypeInfo = DOC_TYPES.find((t) => t.value === (cert.type ?? "certificate")) ?? DOC_TYPES[0];
-            const Icon = docTypeInfo.icon;
+          certs.map((cert) => {
             const hasQR = cert.config?.some((f) => f.type === "qr");
             return (
               <div
@@ -177,7 +131,7 @@ export default function CertificatesPage() {
                 <div className="relative">
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-gray-50 to-white border border-gray-200 text-gray-700 shadow-sm">
-                      <Icon size={18} strokeWidth={2.5} />
+                      <Award size={18} strokeWidth={2.5} />
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Link
@@ -197,10 +151,7 @@ export default function CertificatesPage() {
                   <h3 className="font-bold text-gray-900 mb-1 line-clamp-1 relative">
                     {cert.name}
                   </h3>
-                  <p className="text-xs mb-3 text-gray-500 relative">
-                    {docTypeInfo.label}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 mb-2 relative">
+                  <div className="flex flex-wrap gap-1.5 mb-2 mt-2 relative">
                     <span className="text-xs px-2 py-0.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-full font-medium">
                       {cert.config?.length ?? 0} fields
                     </span>

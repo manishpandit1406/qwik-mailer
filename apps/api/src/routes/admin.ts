@@ -88,7 +88,7 @@ export async function adminRoutes(app: FastifyInstance) {
       .object({ email: z.string().email(), reason: z.string(), userId: z.string().uuid() })
       .parse(req.body);
 
-    await db.insert(suppressionList).values({ userId, email, reason }).onConflictDoNothing();
+    await db.insert(suppressionList).values({ teamId: userId, email, reason }).onConflictDoNothing();
     return reply.send({ success: true, data: { message: "Address added to suppression list." } });
   });
 }

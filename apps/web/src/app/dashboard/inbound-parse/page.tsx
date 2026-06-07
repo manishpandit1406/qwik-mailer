@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Webhook, Plus, Settings, CheckCircle, Trash2 } from "lucide-react";
+import { Select } from "@/components/Select";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -189,11 +190,11 @@ export default function InboundParsePage() {
             <form onSubmit={handleAdd} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-muted)" }}>Domain</label>
-                <select className="input" value={domainId} onChange={(e) => setDomainId(e.target.value)}>
-                  {domains.map(d => (
-                    <option key={d.id} value={d.id}>{d.domain}</option>
-                  ))}
-                </select>
+                <Select
+                  value={domainId}
+                  onChange={(value) => setDomainId(value)}
+                  options={domains.map(d => ({ label: d.domain, value: d.id }))}
+                />
               </div>
 
               <div>

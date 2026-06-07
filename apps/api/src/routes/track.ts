@@ -24,7 +24,7 @@ export async function trackRoutes(app: FastifyInstance) {
         // Enqueue open event
         await analyticsQueue.add("ingest", {
           emailId,
-          userId: email.userId,
+          teamId: email.teamId!,
           type: "opened",
           ip: req.ip,
           userAgent: req.headers["user-agent"],
@@ -49,10 +49,19 @@ export async function trackRoutes(app: FastifyInstance) {
     try {
       const email = await db.query.emails.findFirst({ where: eq(emails.id, emailId) });
       if (email) {
+        
+        // Anti-Open Redirect: Verify the URL actually exists in the original email content
+        const htmlBody = email.htmlBody || "";
+        const textBody = email.textBody || "";
+        
+        if (!htmlBody.includes(url) && !textBody.includes(url)) {
+           return reply.code(400).send({ success: false, error: "Invalid redirect URL: Not found in original email." });
+        }
+
         // Enqueue click event
         await analyticsQueue.add("ingest", {
           emailId,
-          userId: email.userId,
+          teamId: email.teamId!,
           type: "clicked",
           ip: req.ip,
           userAgent: req.headers["user-agent"],
@@ -81,16 +90,16 @@ export async function trackRoutes(app: FastifyInstance) {
 
     // Add to suppression list
     await db.insert(suppressionList).values({
-      userId: email.userId,
+      teamId: email.teamId!,
       email: email.toEmail,
       reason: "manual",
       addedAt: new Date(),
-    }).onConflictDoNothing();
+    } as any).onConflictDoNothing();
 
     // Enqueue unsubscribe event
     await analyticsQueue.add("ingest", {
       emailId,
-      userId: email.userId,
+      teamId: email.teamId!,
       type: "unsubscribed",
       ip: req.ip,
       userAgent: req.headers["user-agent"],

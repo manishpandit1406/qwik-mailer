@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import nodemailer from "nodemailer";
 import { eq, sql } from "drizzle-orm";
-import { db, domains, emails, emailEvents, suppressionList, users, webhooks, webhookLogs, reputationLogs, certificates, workflows, workflowRuns } from "@qwikmailer/db";
+import { db, domains, emails, emailEvents, suppressionList, users, webhooks, webhookLogs, reputationLogs, certificates, workflows, workflowRuns, dedicatedIps, ipPools } from "@qwikmailer/db";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import QRCode from "qrcode";
 import fs from "fs";
@@ -165,15 +165,19 @@ function renderTemplate(html: string, variables: Record<string, string> = {}): s
 
 // ─── Anti-Abuse: Bounce Rate Check ───────────────────────────────────────────
 
-async function checkBounceRate(userId: string): Promise<boolean> {
-  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+async function checkBounceRate(teamId: string): Promise<boolean> {
+  const { teams } = await import("@qwikmailer/db");
+  const team = await db.query.teams.findFirst({ where: eq(teams.id, teamId) });
+  if (!team) return false;
+  
+  const user = await db.query.users.findFirst({ where: eq(users.id, team.ownerId) });
   if (!user) return false;
 
   // Auto-suspend if reputation < 20
   if (user.reputationScore < 20) {
     await db.update(users)
       .set({ isSuspended: true, suspendReason: "Automatic suspension: low reputation score", updatedAt: new Date() })
-      .where(eq(users.id, userId));
+      .where(eq(users.id, team.ownerId));
     return false;
   }
   return true;
@@ -181,9 +185,9 @@ async function checkBounceRate(userId: string): Promise<boolean> {
 
 // ─── Webhook Dispatcher ────────────────────────────────────────────────────────
 
-async function dispatchWebhooks(userId: string, emailId: string, event: string, toEmail: string, subject: string) {
+async function dispatchWebhooks(teamId: string, emailId: string, event: string, toEmail: string, subject: string) {
   const userWebhooks = await db.query.webhooks.findMany({
-    where: eq(webhooks.userId, userId),
+    where: eq(webhooks.teamId, teamId),
   });
 
   for (const webhook of userWebhooks) {
@@ -193,7 +197,7 @@ async function dispatchWebhooks(userId: string, emailId: string, event: string, 
 
     await webhookQueue.add("dispatch", {
       webhookId: webhook.id,
-      userId,
+      teamId,
       payload: {
         event: event as never,
         emailId,
@@ -207,8 +211,8 @@ async function dispatchWebhooks(userId: string, emailId: string, event: string, 
 
 // ─── Tracking Helpers ────────────────────────────────────────────────────────
 function prepareHtmlBody(html: string, emailId: string, plan: string = "free"): string {
-  const apiRoot = "https://api.qwikmailer.in";
-  const publicUrl = "https://app.qwikmailer.in";
+  const apiRoot = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  const publicUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   // 1. Rewrite Links for Click Tracking
   const clickUrlPrefix = `${apiRoot}/v1/track/click/${emailId}?url=`;
@@ -264,18 +268,18 @@ function prepareHtmlBody(html: string, emailId: string, plan: string = "free"): 
 const worker = new Worker<SendEmailJobData>(
   QUEUE_NAMES.EMAIL_SEND,
   async (job) => {
-    const { emailId, userId } = job.data;
+    const { emailId, teamId } = job.data;
 
     const email = await db.query.emails.findFirst({ where: eq(emails.id, emailId) });
     if (!email) throw new Error(`Email ${emailId} not found`);
 
     // Anti-abuse check
-    const canSend = await checkBounceRate(userId);
+    const canSend = await checkBounceRate(teamId);
     if (!canSend) {
       await db.update(emails).set({ status: "failed", updatedAt: new Date() }).where(eq(emails.id, emailId));
       await analyticsQueue.add("ingest", {
         emailId,
-        userId,
+        teamId,
         type: "failed",
         metadata: { error: "Automatic suspension: low reputation score" },
       });
@@ -290,7 +294,7 @@ const worker = new Worker<SendEmailJobData>(
       await db.update(emails).set({ status: "failed", updatedAt: new Date() }).where(eq(emails.id, emailId));
       await analyticsQueue.add("ingest", {
         emailId,
-        userId,
+        teamId,
         type: "failed",
         metadata: { error: "Recipient in suppression list" },
       });
@@ -304,7 +308,10 @@ const worker = new Worker<SendEmailJobData>(
     console.log(`[Worker] Processing email ${emailId}. Metadata:`, email.metadata);
 
     try {
-      const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+      const { teams } = await import("@qwikmailer/db");
+      const team = await db.query.teams.findFirst({ where: eq(teams.id, teamId) });
+      if (!team) throw new Error("Team not found");
+      const user = await db.query.users.findFirst({ where: eq(users.id, team.ownerId) });
       const userPlan = user?.plan ?? "free";
 
       const renderedTextBody = email.textBody
@@ -323,7 +330,7 @@ const worker = new Worker<SendEmailJobData>(
         ? prepareHtmlBody(baseHtml, emailId, userPlan)
         : undefined;
 
-      const publicUrl = "https://app.qwikmailer.in";
+      const publicUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
       const unsubscribeUrl = `${publicUrl}/unsubscribe?id=${emailId}`;
 
       const renderedSubject = renderTemplate(email.subject, email.metadata as Record<string, string>);
@@ -369,7 +376,6 @@ const worker = new Worker<SendEmailJobData>(
             const pdfBytes = fs.readFileSync(certPath);
             const pdfDoc = await PDFDocument.load(pdfBytes);
             const pages = pdfDoc.getPages();
-            const firstPage = pages[0];
             const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
             const fontNormal = await pdfDoc.embedFont(StandardFonts.Helvetica);
             let config = cert.config as any;
@@ -381,6 +387,15 @@ const worker = new Worker<SendEmailJobData>(
             for (const field of config) {
               const val = metadataObj[field.name] || "";
 
+              let yRemaining = Number(field.y);
+              let targetPageIndex = 0;
+              while (targetPageIndex < pages.length - 1 && yRemaining > pages[targetPageIndex].getHeight()) {
+                yRemaining -= pages[targetPageIndex].getHeight();
+                targetPageIndex++;
+              }
+              const targetPage = pages[targetPageIndex];
+              const localY = yRemaining;
+
               if (field.type === "qr") {
                 try {
                   const qrDataUrl = await QRCode.toDataURL(String(val) || "https://qwikmailer.in", {
@@ -391,9 +406,9 @@ const worker = new Worker<SendEmailJobData>(
                   const qrBytes = Buffer.from(base64Data, "base64");
                   const qrImage = await pdfDoc.embedPng(qrBytes);
                   const size = Number(field.size || 100);
-                  firstPage.drawImage(qrImage, {
+                  targetPage.drawImage(qrImage, {
                     x: Number(field.x),
-                    y: firstPage.getHeight() - Number(field.y) - size,
+                    y: targetPage.getHeight() - localY - size,
                     width: size,
                     height: size,
                   });
@@ -423,9 +438,9 @@ const worker = new Worker<SendEmailJobData>(
                 adjustedX -= textWidth;
               }
 
-              firstPage.drawText(String(val), {
+              targetPage.drawText(String(val), {
                 x: adjustedX,
-                y: firstPage.getHeight() - Number(field.y) - fSize,
+                y: targetPage.getHeight() - localY - fSize,
                 size: fSize,
                 font: selectedFont,
                 color: rgb(r, g, b),
@@ -459,11 +474,11 @@ const worker = new Worker<SendEmailJobData>(
         }
       }
 
+      // Configuration set is no longer used for dedicated IPs as we use shared pool
+      let configurationSetName: string | undefined = undefined;
+
       const info = await transporter.sendMail({
-        from: {
-          name: email.fromName ?? "Qwik Mailer",
-          address: email.fromEmail,
-        },
+        from: `"${email.fromName ?? "Qwik Mailer"}" <${email.fromEmail}>`,
         to: email.toName ? { name: email.toName, address: email.toEmail } : email.toEmail,
         replyTo: email.replyTo ?? undefined,
         subject: renderedSubject,
@@ -473,19 +488,20 @@ const worker = new Worker<SendEmailJobData>(
         attachments,
         headers: {
           "List-Unsubscribe": `<${unsubscribeUrl}>`,
-        },
+          ...(configurationSetName ? { "X-SES-CONFIGURATION-SET": configurationSetName } : {}),
+        } as any,
         dkim: dkimConfig,
       });
 
 
       // Mark delivered
       await db.update(emails)
-        .set({ status: "delivered", deliveredAt: new Date(), messageId: info.messageId, updatedAt: new Date() })
+        .set({ status: "delivered", deliveredAt: new Date(), messageId: (info as any).messageId, updatedAt: new Date() })
         .where(eq(emails.id, emailId));
 
       // Ingest analytics
-      await analyticsQueue.add("ingest", { emailId, userId, type: "sent" as any });
-      await analyticsQueue.add("ingest", { emailId, userId, type: "delivered" });
+      await analyticsQueue.add("ingest", { emailId, teamId, type: "sent" as any });
+      await analyticsQueue.add("ingest", { emailId, teamId, type: "delivered" });
 
       console.log(`[Worker] ✅ Sent email ${emailId} → ${email.toEmail}`);
 
@@ -503,7 +519,7 @@ const worker = new Worker<SendEmailJobData>(
       // Ingest failed or bounced event
       await analyticsQueue.add("ingest", {
         emailId,
-        userId,
+        teamId,
         type: isBounce ? "bounced" : "failed",
         metadata: { error: errMsg },
       });
@@ -511,20 +527,20 @@ const worker = new Worker<SendEmailJobData>(
       // If bounce-like error, update suppression + reduce reputation
       if (isBounce) {
         await db.insert(suppressionList)
-          .values({ email: email.toEmail, reason: "bounce", userId })
+          .values({ email: email.toEmail, reason: "bounce", teamId } as any)
           .onConflictDoNothing();
 
         // Reduce reputation score by 10
         await db.execute(
-          sql`UPDATE users SET reputation_score = reputation_score - 10 WHERE id = ${userId}`
+          sql`UPDATE users SET reputation_score = reputation_score - 10 FROM teams WHERE users.id = teams.owner_id AND teams.id = ${teamId}`
         );
 
         // Log the deduction
         await db.insert(reputationLogs).values({
-          userId,
+          teamId,
           points: -10,
           reason: `Bounce penalty for ${email.toEmail}`,
-        });
+        } as any);
       }
 
       console.error(`[Worker] ❌ Failed email ${emailId}:`, errMsg);
@@ -534,6 +550,10 @@ const worker = new Worker<SendEmailJobData>(
   {
     connection: redis as any,
     concurrency: 100, // Scales parallel processing to handle massive traffic blasts without bottleneck
+    limiter: {
+      max: 1, // Limit to 1 email
+      duration: 1000, // per 1 second
+    }
   }
 );
 
@@ -542,7 +562,7 @@ const worker = new Worker<SendEmailJobData>(
 const analyticsWorker = new Worker(
   QUEUE_NAMES.ANALYTICS_INGEST,
   async (job) => {
-    const { emailId, userId, type, ip, userAgent, url, metadata } = job.data;
+    const { emailId, teamId, type, ip, userAgent, url, metadata } = job.data;
 
     const email = await db.query.emails.findFirst({ where: eq(emails.id, emailId) });
     if (!email) return;
@@ -550,14 +570,14 @@ const analyticsWorker = new Worker(
     // Log raw event in database
     await db.insert(emailEvents).values({
       emailId,
-      userId,
+      teamId,
       type,
       ip: ip || null,
       userAgent: userAgent || null,
       url: url || null,
       metadata: metadata || {},
       occurredAt: new Date(),
-    });
+    } as any);
 
     // Update email status/counts
     if (type === "opened") {
@@ -577,7 +597,7 @@ const analyticsWorker = new Worker(
 
     // Dispatch webhooks (handles open, click, delivered, bounced, failed, sent, queued, etc.)
     if (["delivered", "bounced", "opened", "clicked", "unsubscribed", "complained", "failed", "sent", "queued"].includes(type)) {
-      await dispatchWebhooks(userId, emailId, type, email.toEmail, email.subject);
+      await dispatchWebhooks(teamId, emailId, type, email.toEmail, email.subject);
     }
   },
   { connection: redis as any, concurrency: 25 }
@@ -653,3 +673,5 @@ worker.on("failed", (job, err) => {
 console.log("🔧 Qwik Mailer Mail Worker started");
 console.log(`📬 Listening on queue: ${QUEUE_NAMES.EMAIL_SEND}`);
 console.log(`🔔 Webhook worker listening on: ${QUEUE_NAMES.WEBHOOK_DISPATCH}`);
+
+

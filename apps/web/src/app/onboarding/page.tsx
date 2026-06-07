@@ -142,7 +142,7 @@ export default function OnboardingPage() {
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.error);
-        router.push("/dashboard/domains");
+        router.push("/projects");
       } else if (domainStrategy === "shared") {
         if (!isAwaitingOtp) {
             if (!sharedPrefix) throw new Error("Please enter a sender username.");
@@ -193,34 +193,34 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 font-sans selection:bg-black selection:text-white">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 font-sans selection:bg-blue-500/30 text-gray-900">
       <div className="w-full max-w-[600px] animate-fade-in py-12">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 font-bold text-xl mb-6">
-            <div className="w-8 h-8 rounded-md bg-black flex items-center justify-center shadow-sm">
+            <div className="w-8 h-8 rounded bg-black flex items-center justify-center">
               <Mail size={16} className="text-white" />
             </div>
-            <span className="text-black tracking-tight">Qwik Mailer</span>
+            <span className="text-gray-900 tracking-tight font-semibold">Qwik Mailer</span>
           </div>
           
           <div className="flex items-center justify-center gap-3 mb-6 text-sm font-medium">
-            <div className={`flex items-center gap-2 ${step === 1 ? 'text-black' : 'text-gray-400'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step === 1 ? 'bg-black text-white' : 'bg-gray-200 text-gray-600'}`}>1</div>
+            <div className={`flex items-center gap-2 ${step >= 1 ? 'text-black' : 'text-gray-400'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step >= 1 ? 'bg-black text-white' : 'bg-gray-200 text-gray-500'}`}>1</div>
               Profile
             </div>
-            <div className="w-8 h-px bg-gray-300"></div>
-            <div className={`flex items-center gap-2 ${step === 2 ? 'text-black' : 'text-gray-400'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step === 2 ? 'bg-black text-white' : 'bg-gray-200 text-gray-600'}`}>2</div>
+            <div className={`w-8 h-px ${step >= 2 ? 'bg-black' : 'bg-gray-200'}`}></div>
+            <div className={`flex items-center gap-2 ${step >= 2 ? 'text-black' : 'text-gray-400'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step >= 2 ? 'bg-black text-white' : 'bg-gray-200 text-gray-500'}`}>2</div>
               Address
             </div>
-            <div className="w-8 h-px bg-gray-300"></div>
-            <div className={`flex items-center gap-2 ${step === 3 ? 'text-black' : 'text-gray-400'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step === 3 ? 'bg-black text-white' : 'bg-gray-200 text-gray-600'}`}>3</div>
+            <div className={`w-8 h-px ${step >= 3 ? 'bg-black' : 'bg-gray-200'}`}></div>
+            <div className={`flex items-center gap-2 ${step >= 3 ? 'text-black' : 'text-gray-400'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step >= 3 ? 'bg-black text-white' : 'bg-gray-200 text-gray-500'}`}>3</div>
               Domain
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold mb-2 text-black tracking-tight">
+          <h1 className="text-2xl font-bold mb-2 text-gray-900 tracking-tight">
             {step === 1 ? "Welcome to Qwik Mailer" : step === 2 ? "Your Mailing Address" : "Set up your Sending Domain"}
           </h1>
           <p className="text-sm text-gray-500">
@@ -228,14 +228,14 @@ export default function OnboardingPage() {
           </p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-xl">
           {error && (
-            <div className="mb-6 px-4 py-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-600 flex items-center gap-2">
+            <div className="mb-6 px-4 py-3 rounded-lg text-sm bg-red-500/10 border border-red-500/20 text-red-400 flex items-center gap-2">
               <AlertCircle size={16} /> {error}
             </div>
           )}
           {msg && (
-            <div className="mb-6 px-4 py-3 rounded-lg text-sm bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center gap-2">
+            <div className="mb-6 px-4 py-3 rounded-lg text-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center gap-2">
               <CheckCircle2 size={16} /> {msg.text}
             </div>
           )}
@@ -243,16 +243,16 @@ export default function OnboardingPage() {
           {step === 1 && (
             <form onSubmit={handleStep1Submit} className="space-y-6">
               <div className="space-y-5">
-                <h3 className="font-semibold text-base border-b pb-2">Company Details</h3>
+                <h3 className="font-semibold text-base border-b border-gray-200 pb-2 text-gray-900">Company Details</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
-                      <Building size={14} /> Company or Project Name *
+                      <Building size={14} /> Company or Organization Name *
                     </label>
                     <input
                       type="text" required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                       placeholder="Acme Corp"
                       value={form.companyName}
                       onChange={(e) => setForm({ ...form, companyName: e.target.value })}
@@ -265,7 +265,7 @@ export default function OnboardingPage() {
                     </label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                       placeholder="acme.com"
                       value={form.websiteUrl}
                       onChange={(e) => setForm({ ...form, websiteUrl: e.target.value })}
@@ -280,7 +280,7 @@ export default function OnboardingPage() {
                     </label>
                     <div className="flex gap-2">
                       <select
-                        className="w-[90px] px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm bg-white"
+                        className="w-[90px] px-2 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
                         value={form.countryCode}
                         onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
                       >
@@ -291,7 +291,7 @@ export default function OnboardingPage() {
                       </select>
                       <input
                         type="tel" required
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                        className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                         placeholder="99999 00000"
                         value={form.phoneNumber}
                         onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
@@ -305,7 +305,7 @@ export default function OnboardingPage() {
                     </label>
                     <select
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm bg-white"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
                       value={form.useCase}
                       onChange={(e) => setForm({ ...form, useCase: e.target.value })}
                     >
@@ -318,10 +318,10 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t">
+              <div className="pt-4 border-t border-gray-200">
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800 transition-colors focus:outline-none"
                 >
                   Continue to Address <ArrowRight size={16} />
                 </button>
@@ -332,7 +332,7 @@ export default function OnboardingPage() {
           {step === 2 && (
             <form onSubmit={handleStep2Submit} className="space-y-6">
               <div className="space-y-5">
-                <h3 className="font-semibold text-base border-b pb-2 flex items-center gap-2">
+                <h3 className="font-semibold text-base border-b border-gray-200 pb-2 text-gray-900 flex items-center gap-2">
                   <MapPin size={16} className="text-gray-500" /> Address & Billing
                 </h3>
                   
@@ -340,7 +340,7 @@ export default function OnboardingPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Address Line 1 *</label>
                     <input
                       type="text" required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                       placeholder="123 Main St"
                       value={form.companyAddress}
                       onChange={(e) => setForm({ ...form, companyAddress: e.target.value })}
@@ -348,10 +348,10 @@ export default function OnboardingPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Address Line 2 <span className="text-gray-400 font-normal">(Optional)</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Address Line 2 <span className="text-gray-500 font-normal">(Optional)</span></label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                       placeholder="Suite / Apt"
                       value={form.companyAddress2}
                       onChange={(e) => setForm({ ...form, companyAddress2: e.target.value })}
@@ -363,7 +363,7 @@ export default function OnboardingPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
                       <input
                         type="text" required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                         value={form.city}
                         onChange={(e) => setForm({ ...form, city: e.target.value })}
                       />
@@ -372,7 +372,7 @@ export default function OnboardingPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">State/Province *</label>
                       <input
                         type="text" required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                         value={form.state}
                         onChange={(e) => setForm({ ...form, state: e.target.value })}
                       />
@@ -384,7 +384,7 @@ export default function OnboardingPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">ZIP Code *</label>
                       <input
                         type="text" required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                         value={form.zipCode}
                         onChange={(e) => setForm({ ...form, zipCode: e.target.value })}
                       />
@@ -393,7 +393,7 @@ export default function OnboardingPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Country *</label>
                       <input
                         type="text" required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                         placeholder="United States"
                         value={form.country}
                         onChange={(e) => setForm({ ...form, country: e.target.value })}
@@ -402,14 +402,14 @@ export default function OnboardingPage() {
                   </div>
                 </div>
 
-              <div className="pt-4 border-t flex items-center gap-3">
+              <div className="pt-4 border-t border-gray-200 flex items-center gap-3">
                 <button type="button" onClick={() => setStep(1)} className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors shrink-0">
                   ← Back
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800 transition-colors focus:outline-none disabled:opacity-50"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -427,22 +427,22 @@ export default function OnboardingPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div 
                       onClick={() => setDomainStrategy("custom")}
-                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${domainStrategy === 'custom' ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${domainStrategy === 'custom' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-bold text-gray-900">Custom Domain</h3>
-                        {domainStrategy === 'custom' && <CheckCircle2 size={18} className="text-black" />}
+                        {domainStrategy === 'custom' && <CheckCircle2 size={18} className="text-white" />}
                       </div>
                       <p className="text-xs text-gray-500">I have my own domain name (e.g. acme.com) and access to its DNS settings.</p>
                     </div>
 
                     <div 
                       onClick={() => setDomainStrategy("shared")}
-                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${domainStrategy === 'shared' ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${domainStrategy === 'shared' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-bold text-gray-900">Shared Domain</h3>
-                        {domainStrategy === 'shared' && <CheckCircle2 size={18} className="text-black" />}
+                        {domainStrategy === 'shared' && <CheckCircle2 size={18} className="text-white" />}
                       </div>
                       <p className="text-xs text-gray-500">I don't have a domain. Use the Qwik Mailer shared domain to start sending immediately.</p>
                     </div>
@@ -450,13 +450,13 @@ export default function OnboardingPage() {
               )}
 
               {domainStrategy === "custom" && (
-                <div className="bg-gray-50 p-4 rounded-lg border animate-fade-in">
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 animate-fade-in">
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Enter your Domain Name</label>
                   <div className="flex items-center border border-gray-300 rounded-md overflow-hidden bg-white shadow-sm focus-within:ring-1 focus-within:ring-black focus-within:border-black">
                     <div className="px-3 bg-gray-50 text-gray-500 border-r border-gray-300 text-sm">@</div>
                     <input
                       type="text" required
-                      className="w-full px-3 py-2 focus:outline-none sm:text-sm"
+                      className="w-full px-3 py-2 focus:outline-none sm:text-sm text-gray-900 placeholder:text-gray-500"
                       placeholder="yourcompany.com"
                       value={customDomain}
                       onChange={(e) => setCustomDomain(e.target.value)}
@@ -467,14 +467,14 @@ export default function OnboardingPage() {
               )}
 
               {domainStrategy === "shared" && !isAwaitingOtp && (
-                <div className="bg-gray-50 p-4 rounded-lg border animate-fade-in space-y-4">
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 animate-fade-in space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">Sender Username *</label>
                         <div className="flex items-center border border-gray-300 rounded-md overflow-hidden bg-white shadow-sm focus-within:ring-1 focus-within:ring-black focus-within:border-black">
                           <input
                             type="text" required
-                            className="w-full px-3 py-2 focus:outline-none sm:text-sm"
+                            className="w-full px-3 py-2 focus:outline-none sm:text-sm text-gray-900 placeholder:text-gray-500"
                             placeholder="yourcompany"
                             value={sharedPrefix}
                             onChange={(e) => setSharedPrefix(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
@@ -486,7 +486,7 @@ export default function OnboardingPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">From Name *</label>
                         <input
                           type="text" required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm bg-white"
+                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
                           placeholder="Acme Corp"
                           value={sharedDisplayName}
                           onChange={(e) => setSharedDisplayName(e.target.value)}
@@ -499,7 +499,7 @@ export default function OnboardingPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Reply-To Address *</label>
                       <input
                         type="email" required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                         placeholder="you@gmail.com"
                         value={sharedReplyTo}
                         onChange={(e) => setSharedReplyTo(e.target.value)}
@@ -507,10 +507,10 @@ export default function OnboardingPage() {
                       <p className="text-xs text-gray-500 mt-1">Required. Replies to your emails will be sent here.</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Nickname <span className="text-gray-400 font-normal">(Optional)</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Nickname <span className="text-gray-500 font-normal">(Optional)</span></label>
                       <input
                         type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black sm:text-sm"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
                         placeholder="E.g. Support Team"
                         value={sharedNickname}
                         onChange={(e) => setSharedNickname(e.target.value)}
@@ -529,13 +529,13 @@ export default function OnboardingPage() {
                   <h3 className="text-lg font-bold mb-1">Verify your email</h3>
                   <p className="text-gray-500 text-sm mb-6">
                     We sent a 6-digit verification code to<br/>
-                    <span className="font-semibold text-gray-800">{sharedReplyTo}</span>
+                    <span className="font-semibold text-gray-900">{sharedReplyTo}</span>
                   </p>
                   
                   <div className="max-w-[240px] mx-auto">
                     <input
                       type="text"
-                      className="w-full px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                      className="w-full px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-gray-900"
                       placeholder="------"
                       maxLength={6}
                       value={sharedOtp}
@@ -545,28 +545,26 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              <div className="pt-4 border-t flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  {!isAwaitingOtp && (
-                    <button type="button" onClick={() => setStep(2)} className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors shrink-0">
-                      ← Back
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleSkip}
-                    className="text-sm font-medium text-gray-500 hover:text-black transition-colors underline"
-                  >
-                    Skip for now
+              <div className="pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
+                {!isAwaitingOtp && (
+                  <button type="button" onClick={() => setStep(2)} className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors shrink-0">
+                    ← Back
                   </button>
-                </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors bg-transparent border-none"
+                >
+                  Skip for now
+                </button>
                 <button
                   type="submit"
                   disabled={loading || !domainStrategy || (isAwaitingOtp && sharedOtp.length !== 6)}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-900 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 shadow-sm"
                 >
                   {loading ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>{isAwaitingOtp ? "Verify & Finish" : "Complete Setup"} <ChevronRight size={16} /></>
                   )}

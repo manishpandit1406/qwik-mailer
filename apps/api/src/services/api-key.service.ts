@@ -26,7 +26,10 @@ export async function validateApiKey(rawKey: string, reqIp?: string) {
   // Update last used
   await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, key.id));
 
-  const user = await db.query.users.findFirst({ where: eq(users.id, key.userId) });
+  const { teams } = await import("@qwikmailer/db");
+  const team = await db.query.teams.findFirst({ where: eq(teams.id, key.teamId!) });
+  if (!team) return null;
+  const user = await db.query.users.findFirst({ where: eq(users.id, team.ownerId) });
   if (!user || !user.isActive || user.isSuspended) return null;
 
   return {
@@ -34,5 +37,7 @@ export async function validateApiKey(rawKey: string, reqIp?: string) {
     email: user.email,
     plan: user.plan,
     role: user.role,
+    permissions: (key as any).permissions,
+    teamId: key.teamId,
   };
 }

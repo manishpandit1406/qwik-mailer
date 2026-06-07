@@ -1,6 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth.js";
+import crypto from "crypto";
+import { createRedisConnection } from "@qwikmailer/queue";
+
+const redis = createRedisConnection();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const FALLBACK_MODELS = [
@@ -47,6 +51,73 @@ async function callGemini(prompt: string): Promise<string> {
   }
 
   throw new Error(`All fallback AI models failed due to high demand/quota limits. Last error: ${lastError}`);
+}
+
+export async function checkSpamScore(subject: string, html: string): Promise<any> {
+  const contentHash = crypto.createHash("sha256").update((subject || "") + "\n" + (html || "")).digest("hex");
+  const cacheKey = `spam_check:${contentHash}`;
+
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (err) {
+    console.warn("Failed to read from Redis cache for spam check", err);
+  }
+
+  const textContent = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 1000);
+
+  const prompt = `You are a spam detection expert. Analyze this email and return a spam risk score.
+
+Subject: ${subject}
+Content preview: ${textContent}
+
+Analyze for:
+1. Spam trigger words (FREE, WINNER, URGENT, etc.)
+2. Excessive capitalization
+3. Misleading subject lines
+4. Missing unsubscribe link reference
+5. Link-to-text ratio issues
+6. Overly promotional language
+
+Return ONLY a JSON object like:
+{
+  "score": 2,
+  "level": "low",
+  "issues": ["Missing unsubscribe mention", "Promotional language detected"],
+  "suggestions": ["Add clear unsubscribe link", "Reduce exclamation marks"],
+  "breakdown": {
+    "spamWords": 1,
+    "formatting": 0,
+    "links": 1,
+    "promotional": 0
+  }
+}
+
+score: 0-10 (0=clean, 10=certain spam)
+level: "low" | "medium" | "high" | "critical"`;
+
+  const text = await callGemini(prompt);
+  let jsonStr = "";
+  let depth = 0;
+  let started = false;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "{") { depth++; started = true; }
+    if (started) jsonStr += text[i];
+    if (text[i] === "}" && started) { depth--; if (depth === 0) break; }
+  }
+  if (!jsonStr) throw new Error("Invalid AI response format");
+  const result = JSON.parse(jsonStr);
+
+  try {
+    // Cache the result for 7 days to eliminate delay for identical bulk emails
+    await redis.setex(cacheKey, 86400 * 7, JSON.stringify(result));
+  } catch (err) {
+    console.warn("Failed to write to Redis cache for spam check", err);
+  }
+
+  return result;
 }
 
 export async function aiRoutes(app: FastifyInstance) {
@@ -143,51 +214,8 @@ Rules:
       html: z.string().min(1),
     }).parse(req.body);
 
-    const textContent = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 1000);
-
-    const prompt = `You are a spam detection expert. Analyze this email and return a spam risk score.
-
-Subject: ${subject}
-Content preview: ${textContent}
-
-Analyze for:
-1. Spam trigger words (FREE, WINNER, URGENT, etc.)
-2. Excessive capitalization
-3. Misleading subject lines
-4. Missing unsubscribe link reference
-5. Link-to-text ratio issues
-6. Overly promotional language
-
-Return ONLY a JSON object like:
-{
-  "score": 2,
-  "level": "low",
-  "issues": ["Missing unsubscribe mention", "Promotional language detected"],
-  "suggestions": ["Add clear unsubscribe link", "Reduce exclamation marks"],
-  "breakdown": {
-    "spamWords": 1,
-    "formatting": 0,
-    "links": 1,
-    "promotional": 0
-  }
-}
-
-score: 0-10 (0=clean, 10=certain spam)
-level: "low" | "medium" | "high" | "critical"`;
-
     try {
-      const text = await callGemini(prompt);
-      // Find the outermost JSON object robustly (handle arrays inside)
-      let jsonStr = "";
-      let depth = 0;
-      let started = false;
-      for (let i = 0; i < text.length; i++) {
-        if (text[i] === "{") { depth++; started = true; }
-        if (started) jsonStr += text[i];
-        if (text[i] === "}" && started) { depth--; if (depth === 0) break; }
-      }
-      if (!jsonStr) throw new Error("Invalid AI response format");
-      const result = JSON.parse(jsonStr);
+      const result = await checkSpamScore(subject, html);
       return reply.send({ success: true, data: result });
     } catch (err: any) {
       return reply.code(500).send({ success: false, error: err.message });

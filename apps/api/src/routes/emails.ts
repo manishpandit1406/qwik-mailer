@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { db, emails, emailEvents, users, templates, domains, domainSenders, certificates, suppressionList, contactLists } from "@qwikmailer/db";
-import { authenticate } from "../middleware/auth.js";
+import { eq, and, desc, sql, inArray, or } from "drizzle-orm";
+import { db, emails, emailEvents, users, templates, domains, domainSenders, certificates, suppressionList, contactLists, contacts, contactListMembers } from "@qwikmailer/db";
+import { authenticate, requireTeamRole } from "../middleware/auth.js";
+import { getOwnerTeamIds, getTeamOwnerId } from "../utils/team-owner.js";
 import {
   createEmailQueue,
   createAnalyticsQueue,
@@ -58,12 +59,15 @@ const sendEmailSchema = z.object({
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
-async function resolveSenderDomain(userId: string, requestedFrom?: string, requestedFromName?: string) {
+async function resolveSenderDomain(teamId: string, requestedFrom?: string, requestedFromName?: string) {
   let fromEmail = "";
   let fromName = requestedFromName;
   let replyTo: string | undefined = undefined;
 
-  const userRec = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  const ownerId = await getTeamOwnerId(teamId);
+  const ownerTeamIds = await getOwnerTeamIds(teamId);
+
+  const userRec = await db.query.users.findFirst({ where: eq(users.id, ownerId) });
   if (requestedFromName && !isRelatedToCompany(userRec?.companyName, requestedFromName)) {
     throw new Error("From name must be related to your company name.");
   }
@@ -72,7 +76,13 @@ async function resolveSenderDomain(userId: string, requestedFrom?: string, reque
 
   if (requestedFrom) {
     sender = await db.query.domainSenders.findFirst({
-      where: and(eq(domainSenders.userId, userId), eq(domainSenders.email, requestedFrom)),
+      where: and(
+        or(
+          inArray((domainSenders as any).teamId, ownerTeamIds),
+          eq((domainSenders as any).userId, ownerId)
+        ),
+        eq(domainSenders.email, requestedFrom)
+      ),
     });
     if (!sender) {
       throw new Error("Sender identity not found. Please create it first in the dashboard.");
@@ -80,7 +90,10 @@ async function resolveSenderDomain(userId: string, requestedFrom?: string, reque
   } else {
     // If not provided, fetch the most recent sender identity
     sender = await db.query.domainSenders.findFirst({
-      where: eq(domainSenders.userId, userId),
+      where: or(
+        inArray((domainSenders as any).teamId, ownerTeamIds),
+        eq((domainSenders as any).userId, ownerId)
+      ),
       orderBy: (senders, { desc }) => [desc(senders.createdAt)],
     });
     if (!sender) {
@@ -110,7 +123,7 @@ async function resolveSenderDomain(userId: string, requestedFrom?: string, reque
 
 export async function emailRoutes(app: FastifyInstance) {
   // POST /v1/send
-  app.post("/send", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/send", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
     const user = req.user as { sub: string; plan: string; source?: string };
     const body = sendEmailSchema.parse(req.body);
 
@@ -122,7 +135,7 @@ export async function emailRoutes(app: FastifyInstance) {
       : [body.to];
 
     try {
-      await checkAndConsumeQuota(user.sub, toList.length);
+      await checkAndConsumeQuota((req as any).teamId, toList.length);
     } catch (error: any) {
       return reply.code(403).send({ success: false, error: error.message });
     }
@@ -137,7 +150,7 @@ export async function emailRoutes(app: FastifyInstance) {
 
     if (body.templateId) {
       const template = await db.query.templates.findFirst({
-        where: and(eq(templates.id, body.templateId), eq(templates.userId, user.sub))
+        where: and(eq(templates.id, body.templateId), eq((templates as any).teamId, (req as any).teamId))
       });
       if (!template) {
         return reply.code(400).send({ success: false, error: "Template not found" });
@@ -171,7 +184,7 @@ export async function emailRoutes(app: FastifyInstance) {
         }
       }
       if (savedAttachments.length > 0) {
-        mergedMetadata._attachments = JSON.stringify(savedAttachments);
+        (mergedMetadata as any)._attachments = JSON.stringify(savedAttachments);
       }
     }
 
@@ -191,7 +204,7 @@ export async function emailRoutes(app: FastifyInstance) {
 
       let senderDetails;
       try {
-        senderDetails = await resolveSenderDomain(user.sub, body.from, body.fromName);
+        senderDetails = await resolveSenderDomain((req as any).teamId, body.from, body.fromName);
       } catch (err: any) {
         return reply.code(400).send({ success: false, error: err.message });
       }
@@ -201,7 +214,7 @@ export async function emailRoutes(app: FastifyInstance) {
       const [email] = await db
         .insert(emails)
         .values({
-          userId: user.sub,
+          teamId: (req as any).teamId,
           batchId,
           fromEmail,
           fromName,
@@ -218,17 +231,52 @@ export async function emailRoutes(app: FastifyInstance) {
         })
         .returning();
 
+      // Automatically add/update contact in CRM
+      if (recipient.email) {
+        const teamId = (req as any).teamId;
+        const [firstName, ...lastNameParts] = (recipient.name || "").split(" ");
+        const lastName = lastNameParts.join(" ") || undefined;
+        const apiTags = body.tags || [];
+        
+        let tagsSql = sql`COALESCE(${contacts.tags}, '[]'::jsonb)`;
+        if (apiTags.length > 0) {
+          for (const tag of apiTags) {
+             tagsSql = sql`CASE WHEN ${tagsSql} @> ${JSON.stringify([tag])}::jsonb THEN ${tagsSql} ELSE ${tagsSql} || ${JSON.stringify([tag])}::jsonb END`;
+          }
+        }
+
+        try {
+          await db.insert(contacts).values({
+            teamId,
+            email: recipient.email,
+            firstName: firstName || undefined,
+            lastName,
+            tags: apiTags,
+          }).onConflictDoUpdate({
+            target: [contacts.teamId, contacts.email],
+            set: {
+              firstName: firstName || sql`${contacts.firstName}`,
+              lastName: lastName || sql`${contacts.lastName}`,
+              tags: apiTags.length > 0 ? tagsSql : sql`${contacts.tags}`,
+              updatedAt: new Date()
+            }
+          });
+        } catch (e) {
+          console.error("Failed to auto-create contact on send", e);
+        }
+      }
+
       // Enqueue for sending
       await emailQueue.add(
         "send",
-        { emailId: email.id, userId: user.sub },
+        { emailId: email.id, teamId: (req as any).teamId },
         { delay: body.scheduledAt ? new Date(body.scheduledAt).getTime() - Date.now() : 0 }
       );
 
       // Record queued event for webhooks
       await analyticsQueue.add("ingest", {
         emailId: email.id,
-        userId: user.sub,
+        teamId: (req as any).teamId,
         type: "queued" as any,
       });
 
@@ -238,15 +286,210 @@ export async function emailRoutes(app: FastifyInstance) {
     return reply.code(202).send({ success: true, data: results });
   });
 
-  // POST /v1/bulk-send
-  app.post("/bulk-send", { preHandler: authenticate }, async (req, reply) => {
+  // POST /v1/audience-send
+  app.post("/audience-send", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
     const user = req.user as { sub: string; source?: string };
-    const { emails: emailList } = z
-      .object({ emails: z.array(sendEmailSchema).max(50000) })
-      .parse(req.body);
+    const schema = z.object({
+      audience: z.object({
+        listId: z.string().optional(),
+        tag: z.string().optional()
+      }).refine(a => a.listId || a.tag, { message: "Either listId or tag must be provided" }),
+      from: z.string().email().optional(),
+      fromName: z.string().optional(),
+      subject: z.string().min(1).max(998).optional(),
+      html: z.string().optional(),
+      text: z.string().optional(),
+      templateId: z.string().uuid().optional(),
+      scheduledAt: z.string().datetime().optional(),
+      replyTo: z.string().email().optional(),
+      attachments: z.array(z.object({
+        filename: z.string(),
+        content: z.string(),
+        contentType: z.string().optional()
+      })).optional(),
+    });
+
+    const body = schema.parse(req.body);
+    const teamId = (req as any).teamId as string;
+
+    // Fetch contacts
+    let conditions = eq(contacts.teamId, teamId);
+    if (body.audience.listId) {
+      const members = await db.select({ contactId: contactListMembers.contactId })
+                              .from(contactListMembers)
+                              .where(eq(contactListMembers.listId, body.audience.listId));
+      const memberIds = members.map(m => m.contactId);
+      if (memberIds.length === 0) return reply.code(400).send({ success: false, error: "Selected list is empty" });
+      conditions = and(conditions, inArray(contacts.id, memberIds))! as any;
+    }
+    if (body.audience.tag) {
+      conditions = and(conditions, sql`${contacts.tags} @> ${JSON.stringify([body.audience.tag])}::jsonb`)! as any;
+    }
+
+    const audienceContacts = await db.query.contacts.findMany({
+      where: conditions,
+      columns: { email: true, firstName: true, lastName: true, customFields: true }
+    });
+
+    if (audienceContacts.length === 0) {
+      return reply.code(400).send({ success: false, error: "No contacts found for the selected audience" });
+    }
 
     try {
-      await checkAndConsumeQuota(user.sub, emailList.length);
+      await checkAndConsumeQuota(teamId, audienceContacts.length);
+    } catch (error: any) {
+      return reply.code(403).send({ success: false, error: error.message });
+    }
+
+    let finalSubject = body.subject;
+    let finalHtml = body.html;
+    let finalText = body.text;
+
+    if (body.templateId) {
+      const template = await db.query.templates.findFirst({
+        where: and(eq(templates.id, body.templateId), eq((templates as any).teamId, teamId))
+      });
+      if (!template) return reply.code(400).send({ success: false, error: "Template not found" });
+      if (!finalSubject) finalSubject = template.subject;
+      if (!finalHtml) finalHtml = template.htmlBody;
+      if (!finalText && template.textBody) finalText = template.textBody;
+    }
+
+    const batchId = crypto.randomUUID();
+
+    // Attachments handling
+    let attachmentsMetadata: string | undefined = undefined;
+    if (body.attachments && body.attachments.length > 0) {
+      const attachmentsDir = path.join(__dirname, "..", "..", "uploads", "attachments", batchId);
+      if (!fs.existsSync(attachmentsDir)) fs.mkdirSync(attachmentsDir, { recursive: true });
+      const savedAttachments = [];
+      for (let i = 0; i < body.attachments.length; i++) {
+        const att = body.attachments[i];
+        const safeName = att.filename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+        const savePath = path.join(attachmentsDir, `att_${i}_${safeName}`);
+        try {
+          fs.writeFileSync(savePath, Buffer.from(att.content, 'base64'));
+          savedAttachments.push({ filename: att.filename, path: savePath, contentType: att.contentType });
+        } catch (e) {
+          console.error("Failed to save attachment", e);
+        }
+      }
+      if (savedAttachments.length > 0) attachmentsMetadata = JSON.stringify(savedAttachments);
+    }
+
+    // Process in chunks of 1000
+    const CHUNK_SIZE = 1000;
+    const jobIds: string[] = [];
+
+    for (let i = 0; i < audienceContacts.length; i += CHUNK_SIZE) {
+      const chunk = audienceContacts.slice(i, i + CHUNK_SIZE);
+      const insertPayloads = [];
+
+      for (const contact of chunk) {
+        if (!contact.email) continue;
+        const mergedMetadata = { ...contact.customFields, _source: user.source || "audience-api" };
+        if (attachmentsMetadata) (mergedMetadata as any)._attachments = attachmentsMetadata;
+
+        let senderDetails;
+        try {
+          senderDetails = await resolveSenderDomain(teamId, body.from, body.fromName);
+        } catch (err: any) { continue; }
+
+        const { fromEmail, fromName, replyTo } = senderDetails;
+
+        insertPayloads.push({
+          teamId,
+          batchId,
+          fromEmail,
+          fromName,
+          toEmail: contact.email,
+          toName: contact.firstName ? `${contact.firstName} ${contact.lastName || ""}`.trim() : undefined,
+          replyTo: body.replyTo ?? replyTo,
+          subject: finalSubject!,
+          htmlBody: finalHtml,
+          textBody: finalText,
+          metadata: mergedMetadata,
+          scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
+          status: "queued" as any,
+        });
+      }
+
+      if (insertPayloads.length > 0) {
+        const insertedRows = await db.insert(emails).values(insertPayloads).returning({ id: emails.id });
+        const jobs = insertedRows.map(row => ({
+          name: "send",
+          data: { emailId: row.id, teamId },
+          opts: body.scheduledAt ? { delay: new Date(body.scheduledAt).getTime() - Date.now() } : undefined
+        }));
+        await emailQueue.addBulk(jobs);
+        jobIds.push(...insertedRows.map(r => r.id));
+      }
+    }
+
+    return reply.code(202).send({ success: true, data: { queued: jobIds.length, ids: jobIds } });
+  });
+
+  // POST /v1/bulk-send
+  app.post("/bulk-send", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
+    const user = req.user as { sub: string; source?: string };
+    const { emails: parsedEmails, audienceTags, ...commonData } = z
+      .object({
+        emails: z.array(sendEmailSchema).max(50000).optional().default([]),
+        audienceTags: z.array(z.string()).optional(),
+        from: z.string().email().optional(),
+        fromName: z.string().optional(),
+        subject: z.string().min(1).max(998).optional(),
+        html: z.string().optional(),
+        text: z.string().optional(),
+        templateId: z.string().uuid().optional(),
+        scheduledAt: z.string().datetime().optional(),
+        replyTo: z.string().email().optional(),
+        metadata: z.record(z.string()).optional(),
+        attachments: z.array(z.object({
+          filename: z.string(),
+          content: z.string(),
+          contentType: z.string().optional()
+        })).optional(),
+      })
+      .parse(req.body);
+
+    const teamId = (req as any).teamId as string;
+    const emailList = [...parsedEmails];
+
+    if (audienceTags && audienceTags.length > 0) {
+      let tagConditions = [];
+      for (const tag of audienceTags) {
+        tagConditions.push(sql`${contacts.tags} @> ${JSON.stringify([tag])}::jsonb`);
+      }
+      const audienceContacts = await db.query.contacts.findMany({
+        where: and(eq(contacts.teamId, teamId), or(...tagConditions)) as any,
+        columns: { email: true, firstName: true, lastName: true, customFields: true }
+      });
+      for (const contact of audienceContacts) {
+        if (!contact.email) continue;
+        emailList.push({
+          ...commonData,
+          to: contact.email,
+          name: contact.firstName ? `${contact.firstName} ${contact.lastName || ""}`.trim() : undefined,
+          metadata: { ...(commonData.metadata || {}), ...(contact.customFields as object || {}) }
+        } as any);
+      }
+    }
+
+    // Deduplicate by toEmail
+    const uniqueEmails = new Map();
+    for (const e of emailList) {
+       const to = typeof e.to === 'string' ? e.to : Array.isArray(e.to) ? e.to[0]?.email : e.to.email;
+       if (to && !uniqueEmails.has(to.toLowerCase())) uniqueEmails.set(to.toLowerCase(), e);
+    }
+    const finalEmailList = Array.from(uniqueEmails.values());
+
+    if (finalEmailList.length === 0) {
+      return reply.code(400).send({ success: false, error: "No recipients provided" });
+    }
+
+    try {
+      await checkAndConsumeQuota(teamId, finalEmailList.length);
     } catch (error: any) {
       return reply.code(403).send({ success: false, error: error.message });
     }
@@ -257,8 +500,8 @@ export async function emailRoutes(app: FastifyInstance) {
     // Process in chunks of 1000 to avoid DB connection limits and memory spikes
     const CHUNK_SIZE = 1000;
     
-    for (let i = 0; i < emailList.length; i += CHUNK_SIZE) {
-      const chunk = emailList.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < finalEmailList.length; i += CHUNK_SIZE) {
+      const chunk = finalEmailList.slice(i, i + CHUNK_SIZE);
       const insertPayloads = [];
 
       for (const emailData of chunk) {
@@ -268,6 +511,12 @@ export async function emailRoutes(app: FastifyInstance) {
           ? emailData.to[0]?.email
           : emailData.to.email;
 
+        const toName = typeof emailData.to === "string"
+          ? emailData.name
+          : Array.isArray(emailData.to)
+          ? emailData.to[0]?.name || emailData.name
+          : emailData.to.name || emailData.name;
+
         if (!toEmail) continue;
 
         let finalSubject = emailData.subject;
@@ -276,7 +525,7 @@ export async function emailRoutes(app: FastifyInstance) {
 
         if (emailData.templateId) {
           const template = await db.query.templates.findFirst({
-            where: and(eq(templates.id, emailData.templateId), eq(templates.userId, user.sub))
+            where: and(eq(templates.id, emailData.templateId), eq((templates as any).teamId, (req as any).teamId))
           });
           if (!template) continue;
           
@@ -285,11 +534,17 @@ export async function emailRoutes(app: FastifyInstance) {
           if (!finalText && template.textBody) finalText = template.textBody;
         }
 
-        const mergedMetadata = { ...emailData.metadata, ...emailData.variables, _source: user.source || "api" };
+        const mergedMetadata = {
+          email: toEmail,
+          name: toName || "",
+          ...emailData.metadata,
+          ...emailData.variables,
+          _source: user.source || "api"
+        };
 
         let senderDetails;
         try {
-          senderDetails = await resolveSenderDomain(user.sub, emailData.from, emailData.fromName);
+          senderDetails = await resolveSenderDomain((req as any).teamId, emailData.from, emailData.fromName);
         } catch (err: any) {
           continue;
         }
@@ -297,11 +552,12 @@ export async function emailRoutes(app: FastifyInstance) {
         const { fromEmail, fromName, replyTo } = senderDetails;
 
         insertPayloads.push({
-          userId: user.sub,
+          teamId: (req as any).teamId,
           batchId,
           fromEmail,
           fromName,
           toEmail,
+          toName,
           replyTo: emailData.replyTo ?? replyTo,
           subject: finalSubject!,
           htmlBody: finalHtml,
@@ -313,11 +569,38 @@ export async function emailRoutes(app: FastifyInstance) {
       }
 
       if (insertPayloads.length > 0) {
+        // Automatically add/update contacts in CRM for this chunk
+        const teamId = (req as any).teamId;
+        for (const payload of insertPayloads) {
+          const apiTags = payload.tags || [];
+          let tagsSql = sql`COALESCE(${contacts.tags}, '[]'::jsonb)`;
+          if (apiTags.length > 0) {
+            for (const tag of apiTags) {
+               tagsSql = sql`CASE WHEN ${tagsSql} @> ${JSON.stringify([tag])}::jsonb THEN ${tagsSql} ELSE ${tagsSql} || ${JSON.stringify([tag])}::jsonb END`;
+            }
+          }
+          try {
+            await db.insert(contacts).values({
+              teamId,
+              email: payload.toEmail,
+              tags: apiTags,
+            }).onConflictDoUpdate({
+              target: [contacts.teamId, contacts.email],
+              set: {
+                tags: apiTags.length > 0 ? tagsSql : sql`${contacts.tags}`,
+                updatedAt: new Date()
+              }
+            });
+          } catch (e) {
+            console.error("Failed to auto-create contact on bulk-send", e);
+          }
+        }
+
         const insertedRows = await db.insert(emails).values(insertPayloads).returning({ id: emails.id });
         
         const jobs = insertedRows.map(row => ({
           name: "send",
-          data: { emailId: row.id, userId: user.sub }
+          data: { emailId: row.id, teamId: (req as any).teamId }
         }));
         
         await emailQueue.addBulk(jobs);
@@ -339,14 +622,35 @@ export async function emailRoutes(app: FastifyInstance) {
         page: z.coerce.number().default(1),
         limit: z.coerce.number().max(100).default(20),
         status: z.string().optional(),
+        search: z.string().optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
       })
       .parse(req.query);
 
     const offset = (query.page - 1) * query.limit;
 
-    let statusFilter = sql``;
-    if (query.status === "scheduled") {
-      statusFilter = sql`AND status = 'queued'`;
+    let havingClause = sql``;
+    if (query.status && query.status !== "all") {
+      const s = query.status === "scheduled" ? "queued" : query.status;
+      havingClause = sql`HAVING COUNT(*) FILTER (WHERE status = ${s}) > 0`;
+    }
+
+    let whereClause = sql`team_id = ${(req as any).teamId}`;
+    if (query.search) {
+      whereClause = sql`${whereClause} AND (batch_id ILIKE ${'%' + query.search + '%'} OR subject ILIKE ${'%' + query.search + '%'})`;
+    }
+    if (query.dateFrom) {
+      const from = new Date(query.dateFrom + "T00:00:00+05:30");
+      if (!isNaN(from.getTime())) {
+        whereClause = sql`${whereClause} AND created_at >= ${from.toISOString()}`;
+      }
+    }
+    if (query.dateTo) {
+      const to = new Date(query.dateTo + "T23:59:59.999+05:30");
+      if (!isNaN(to.getTime())) {
+        whereClause = sql`${whereClause} AND created_at <= ${to.toISOString()}`;
+      }
     }
 
     const result = await db.execute(sql`
@@ -359,22 +663,27 @@ export async function emailRoutes(app: FastifyInstance) {
         COUNT(*) FILTER (WHERE status = 'failed') as failed,
         COUNT(*) FILTER (WHERE status = 'queued') as queued,
         COUNT(*) FILTER (WHERE status = 'bounced') as bounced,
+        COUNT(*) FILTER (WHERE status = 'complained') as complained,
         COUNT(*) FILTER (WHERE status = 'sending') as sending,
         SUM(open_count) as "openCount",
         SUM(click_count) as "clickCount"
       FROM emails
-      WHERE user_id = ${user.sub} ${statusFilter}
+      WHERE ${whereClause}
       GROUP BY batch_id
+      ${havingClause}
       ORDER BY MIN(created_at) DESC
       LIMIT ${query.limit} OFFSET ${offset}
     `);
 
     const countResult = await db.execute(sql`
-      SELECT COUNT(DISTINCT batch_id) as count
-      FROM emails
-      WHERE user_id = ${user.sub} ${statusFilter}
+      SELECT COUNT(*) as count FROM (
+        SELECT batch_id
+        FROM emails
+        WHERE ${whereClause}
+        GROUP BY batch_id
+        ${havingClause}
+      ) as sub
     `);
-
     const total = Number(countResult[0]?.count || 0);
 
     const items = result.map((row: any) => ({
@@ -384,6 +693,7 @@ export async function emailRoutes(app: FastifyInstance) {
       failed: Number(row.failed || 0),
       queued: Number(row.queued || 0),
       bounced: Number(row.bounced || 0),
+      complained: Number(row.complained || 0),
       sending: Number(row.sending || 0),
       openCount: Number(row.openCount || 0),
       clickCount: Number(row.clickCount || 0),
@@ -421,7 +731,7 @@ export async function emailRoutes(app: FastifyInstance) {
 
     const offset = (query.page - 1) * query.limit;
 
-    let whereClause: any = and(eq(emails.userId, user.sub), eq(emails.batchId, batchId));
+    let whereClause: any = and(eq((emails as any).teamId, (req as any).teamId), eq(emails.batchId, batchId));
 
     if (query.status && query.status !== "all") {
       whereClause = and(whereClause, eq(emails.status, query.status as any));
@@ -436,14 +746,11 @@ export async function emailRoutes(app: FastifyInstance) {
     }
 
     if (query.dateFrom) {
-      whereClause = and(whereClause, sql`${emails.createdAt} >= ${new Date(query.dateFrom)}`);
+      whereClause = and(whereClause, sql`${emails.createdAt} >= ${new Date(query.dateFrom + "T00:00:00+05:30")}`);
     }
 
     if (query.dateTo) {
-      // Add 1 day to include the end date fully
-      const toDate = new Date(query.dateTo);
-      toDate.setDate(toDate.getDate() + 1);
-      whereClause = and(whereClause, sql`${emails.createdAt} < ${toDate}`);
+      whereClause = and(whereClause, sql`${emails.createdAt} <= ${new Date(query.dateTo + "T23:59:59.999+05:30")}`);
     }
 
     if (query.search) {
@@ -491,7 +798,7 @@ export async function emailRoutes(app: FastifyInstance) {
 
     const offset = (query.page - 1) * query.limit;
 
-    let whereClause: any = eq(emails.userId, user.sub);
+    let whereClause: any = eq((emails as any).teamId, (req as any).teamId);
 
     if (query.status) {
       whereClause = and(whereClause, eq(emails.status, query.status as any));
@@ -534,7 +841,7 @@ export async function emailRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
 
     const email = await db.query.emails.findFirst({
-      where: and(eq(emails.id, id), eq(emails.userId, user.sub)),
+      where: and(eq(emails.id, id), eq((emails as any).teamId, (req as any).teamId)),
       with: { events: true } as never,
     });
 
@@ -544,12 +851,12 @@ export async function emailRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/logs/:id/cancel
-  app.post("/logs/:id/cancel", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/logs/:id/cancel", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id } = req.params as { id: string };
 
     const email = await db.query.emails.findFirst({
-      where: and(eq(emails.id, id), eq(emails.userId, user.sub)),
+      where: and(eq(emails.id, id), eq((emails as any).teamId, (req as any).teamId)),
     });
 
     if (!email) {
@@ -568,13 +875,13 @@ export async function emailRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/logs/batches/:batchId/cancel
-  app.post("/logs/batches/:batchId/cancel", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/logs/batches/:batchId/cancel", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { batchId } = req.params as { batchId: string };
 
     await db.update(emails)
       .set({ status: "failed", updatedAt: new Date() })
-      .where(and(eq(emails.batchId, batchId), eq(emails.userId, user.sub), eq(emails.status, "queued")));
+      .where(and(eq(emails.batchId, batchId), eq((emails as any).teamId, (req as any).teamId), eq(emails.status, "queued")));
 
     return reply.send({ success: true, data: { message: "Batch cancelled successfully" } });
   });
@@ -582,7 +889,7 @@ export async function emailRoutes(app: FastifyInstance) {
   // ─── Excel Bulk Upload ────────────────────────────────────────────────────────
 
   // POST /v1/bulk-preview — parse Excel and return rows without sending
-  app.post("/bulk-preview", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/bulk-preview", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const parts = req.parts();
     let listId = "";
@@ -594,7 +901,7 @@ export async function emailRoutes(app: FastifyInstance) {
     if (!listId) return reply.code(400).send({ success: false, error: "listId is required." });
 
     const list = await db.query.contactLists.findFirst({
-      where: and(eq(contactLists.id, listId), eq(contactLists.userId, user.sub)),
+      where: and(eq(contactLists.id, listId), eq(contactLists.teamId, (req as any).teamId as string)),
     });
 
     if (!list) return reply.code(404).send({ success: false, error: "List not found." });
@@ -653,7 +960,7 @@ export async function emailRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/bulk-upload — parse Excel, compose and send all emails
-  app.post("/bulk-upload", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/bulk-upload", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
     const user = req.user as { sub: string };
 
     const parts = req.parts();
@@ -691,7 +998,7 @@ export async function emailRoutes(app: FastifyInstance) {
     if (!htmlBody && !textBody) return reply.code(400).send({ success: false, error: "Email body (HTML or text) is required." });
 
     const list = await db.query.contactLists.findFirst({
-      where: and(eq(contactLists.id, listId), eq(contactLists.userId, user.sub)),
+      where: and(eq(contactLists.id, listId), eq(contactLists.teamId, (req as any).teamId as string)),
     });
 
     if (!list) return reply.code(404).send({ success: false, error: "List not found." });
@@ -715,7 +1022,7 @@ export async function emailRoutes(app: FastifyInstance) {
     if (rows.length > 50000) return reply.code(400).send({ success: false, error: "Maximum 50,000 rows per upload." });
 
     try {
-      await checkAndConsumeQuota(user.sub, rows.length);
+      await checkAndConsumeQuota((req as any).teamId, rows.length);
     } catch (error: any) {
       return reply.code(403).send({ success: false, error: error.message });
     }
@@ -727,7 +1034,7 @@ export async function emailRoutes(app: FastifyInstance) {
 
     let senderDetails;
     try {
-      senderDetails = await resolveSenderDomain(user.sub, from || undefined, fromName || undefined);
+      senderDetails = await resolveSenderDomain((req as any).teamId, from || undefined, fromName || undefined);
     } catch (err: any) {
       return reply.code(400).send({ success: false, error: err.message });
     }
@@ -823,7 +1130,7 @@ export async function emailRoutes(app: FastifyInstance) {
         const personalisedText = textBody.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? `{{${k}}}`);
 
         insertPayloads.push({
-          userId: user.sub,
+          teamId: (req as any).teamId,
           batchId,
           fromEmail: senderDetails.fromEmail,
           fromName: senderDetails.fromName,
@@ -836,7 +1143,7 @@ export async function emailRoutes(app: FastifyInstance) {
           scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
           status: "queued" as any,
           tags: ["bulk-upload"],
-          metadata: { ...baseMetadata, ...vars } as any,
+          metadata: { ...(req as any).baseMetadata, ...vars } as any,
         });
       }
 
@@ -847,7 +1154,7 @@ export async function emailRoutes(app: FastifyInstance) {
         
         const jobs = insertedRows.map(row => ({
           name: "send",
-          data: { emailId: row.id, userId: user.sub },
+          data: { emailId: row.id, teamId: (req as any).teamId },
           opts: { delay: delay > 0 ? delay : 0 }
         }));
         

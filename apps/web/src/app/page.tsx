@@ -329,7 +329,7 @@ export default function LandingPage() {
         style={{ borderColor: "var(--border-subtle)" }}
       >
         {" "}
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between relative">
           {" "}
           <Link
             href="/"
@@ -343,7 +343,7 @@ export default function LandingPage() {
             </div>
             <span className="text-black tracking-tight">Qwik Mailer</span>
           </Link>{" "}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
             {["Home", "Features", "Pricing", "Docs", "Blog"].map((item) => (
               <Link
                 key={item}
@@ -402,9 +402,9 @@ export default function LandingPage() {
             style={{ color: "var(--text-secondary)", animationDelay: "100ms" }}
           >
             {" "}
-            Developer-first email infrastructure with intelligent
-            deliverability, AI spam protection, and a 10-minute setup. Built for
-            students, startups, and hackathon builders.{" "}
+            Email infrastructure made easy. Perfect for developers, startup founders, 
+            creators, and anyone running a hackathon. Get intelligent deliverability 
+            and AI spam protection with just a 10-minute setup.{" "}
           </p>{" "}
           <div
             className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fade-up"

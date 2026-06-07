@@ -1,4 +1,5 @@
 "use client";
+import { formatIST } from "@/lib/dateUtils";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
@@ -11,6 +12,9 @@ import {
   Zap,
   Globe,
   ArrowUpRight,
+  Users,
+  FileText,
+  Webhook
 } from "lucide-react";
 import {
   AreaChart,
@@ -31,6 +35,12 @@ interface Stats {
   deliveryRate: number;
   openRate: number;
   bounceRate: number;
+  trends?: {
+    sent: number;
+    deliveryRate: number;
+    openRate: number;
+    bounceRate: number;
+  };
 }
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 function StatCard({
@@ -40,13 +50,15 @@ function StatCard({
   icon,
   color,
   trend,
+  inverseTrend,
 }: {
   label: string;
   value: string | number;
   sub?: string;
   icon: React.ReactNode;
   color: string;
-  trend?: { value: string; up: boolean };
+  trend?: number;
+  inverseTrend?: boolean;
 }) {
   return (
     <div className="stat-card animate-fade-up">
@@ -57,17 +69,18 @@ function StatCard({
           {" "}
           {icon}{" "}
         </div>{" "}
-        {trend && (
+        {trend !== undefined && (
           <span
-            className={`flex items-center gap-0.5 text-xs font-semibold ${trend.up ? "text-emerald-600" : "text-red-600"}`}
+            className={`flex items-center gap-0.5 text-xs font-semibold ${(inverseTrend ? trend <= 0 : trend >= 0) ? "text-emerald-600" : "text-red-600"
+              }`}
           >
             {" "}
-            {trend.up ? (
+            {trend >= 0 ? (
               <TrendingUp size={12} />
             ) : (
               <TrendingDown size={12} />
             )}{" "}
-            {trend.value}{" "}
+            {trend > 0 ? "+" : ""}{trend}%{" "}
           </span>
         )}{" "}
       </div>{" "}
@@ -122,7 +135,35 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [daily, setDaily] = useState<any[]>([]);
   const [recent, setRecent] = useState<any[]>([]);
+  const [activeJobs, setActiveJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Poll for active jobs every 5 seconds
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
+    async function fetchActiveJobs() {
+      try {
+        const token = localStorage.getItem("mf_access_token");
+        if (!token) return;
+        const res = await fetch(`${API}/v1/analytics/active-jobs`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await res.json();
+        if (json.success) {
+          setActiveJobs(json.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch active jobs:", err);
+      }
+    }
+
+    fetchActiveJobs();
+    intervalId = setInterval(fetchActiveJobs, 5000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -150,20 +191,14 @@ export default function DashboardPage() {
         if (dailyData.success) {
           const dataMap = new Map();
           dailyData.data.forEach((d: any) => {
-            const dateStr = new Date(d.date).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            });
+            const dateStr = formatIST(d.date, false);
             dataMap.set(dateStr, d);
           });
           const formatted = [];
           for (let i = 6; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
-            const dateStr = d.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            });
+            const dateStr = formatIST(d, false);
             if (dataMap.has(dateStr)) {
               formatted.push({ ...dataMap.get(dateStr), date: dateStr });
             } else {
@@ -205,15 +240,15 @@ export default function DashboardPage() {
   }
   const maxVolume = daily.length
     ? Math.max(
-        ...daily.map((d: any) =>
-          Math.max(
-            d.sent || 0,
-            d.delivered || 0,
-            d.failed || 0,
-            d.bounced || 0,
-          ),
+      ...daily.map((d: any) =>
+        Math.max(
+          d.sent || 0,
+          d.delivered || 0,
+          d.failed || 0,
+          d.bounced || 0,
         ),
-      )
+      ),
+    )
     : 0;
   const yMax = Math.max(5, Math.ceil(maxVolume * 1.2));
   return (
@@ -247,6 +282,80 @@ export default function DashboardPage() {
           <Send size={14} /> Send Email{" "}
         </Link>{" "}
       </div>{" "}
+
+      {/* Active Sending Jobs */}{" "}
+      {activeJobs.length > 0 && (
+        <div className="glass-card p-6 overflow-hidden relative animate-fade-up border-indigo-200" style={{ borderLeft: "4px solid #6366f1" }}>
+          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <Zap size={18} className="text-indigo-500" /> Active Sending Queue
+          </h3>
+          <div className="space-y-5">
+            {activeJobs.map((job: any) => {
+              const total = Number(job.total || 0);
+              const delivered = Number(job.delivered || 0);
+              const failed = Number(job.failed || 0);
+              const pending = Number(job.pending || 0);
+              const processed = delivered + failed;
+              const percent = total > 0 ? Math.round((processed / total) * 100) : 0;
+              
+              return (
+                <div key={job.batch_id || job.subject} className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{job.subject || "Campaign"}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {pending > 0 ? "Sending in progress..." : "Finalizing..."}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-indigo-600">{percent}%</p>
+                      <p className="text-xs text-gray-500">{processed} / {total} processed</p>
+                    </div>
+                  </div>
+                  
+                  {/* Progress Bar Track */}
+                  <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden flex">
+                    {/* Delivered (Green) */}
+                    <div 
+                      className="h-full bg-emerald-500 transition-all duration-500" 
+                      style={{ width: `${total > 0 ? (delivered / total) * 100 : 0}%` }}
+                    />
+                    {/* Failed (Red) */}
+                    <div 
+                      className="h-full bg-rose-500 transition-all duration-500" 
+                      style={{ width: `${total > 0 ? (failed / total) * 100 : 0}%` }}
+                    />
+                    {/* Pending / Sending (Animated Striped Indigo) */}
+                    {pending > 0 && (
+                      <div 
+                        className="h-full bg-indigo-500 opacity-60 relative overflow-hidden" 
+                        style={{ 
+                          width: `${total > 0 ? (pending / total) * 100 : 0}%`,
+                          backgroundImage: "linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)",
+                          backgroundSize: "1rem 1rem",
+                          animation: "progress-stripes 1s linear infinite"
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="flex justify-between text-[10px] text-gray-400 font-medium px-1">
+                    <span>{delivered} Delivered</span>
+                    {failed > 0 && <span className="text-rose-500">{failed} Failed</span>}
+                    <span>{pending} Queued/Sending</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes progress-stripes {
+              from { background-position: 1rem 0; }
+              to { background-position: 0 0; }
+            }
+          `}} />
+        </div>
+      )}
+
       {/* Stat cards */}{" "}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
         {" "}
@@ -256,7 +365,7 @@ export default function DashboardPage() {
           sub="This month"
           icon={<Mail size={18} />}
           color="#6366f1"
-          trend={{ value: "+12%", up: true }}
+          trend={stats!.trends?.sent ?? 0}
         />{" "}
         <StatCard
           label="Delivery Rate"
@@ -264,7 +373,7 @@ export default function DashboardPage() {
           sub={`${stats!.delivered.toLocaleString()} delivered`}
           icon={<CheckCircle2 size={18} />}
           color="#10b981"
-          trend={{ value: "+1.1%", up: true }}
+          trend={stats!.trends?.deliveryRate ?? 0}
         />{" "}
         <StatCard
           label="Open Rate"
@@ -272,7 +381,7 @@ export default function DashboardPage() {
           sub={`${stats!.opened.toLocaleString()} opens`}
           icon={<BarChart3 size={18} />}
           color="#8b5cf6"
-          trend={{ value: "+3.4%", up: true }}
+          trend={stats!.trends?.openRate ?? 0}
         />{" "}
         <StatCard
           label="Bounce Rate"
@@ -280,7 +389,8 @@ export default function DashboardPage() {
           sub={`${stats!.bounced} bounced`}
           icon={<AlertCircle size={18} />}
           color="#f59e0b"
-          trend={{ value: "-0.3%", up: false }}
+          trend={stats!.trends?.bounceRate ?? 0}
+          inverseTrend={true}
         />{" "}
       </div>{" "}
       {/* Chart + Recent */}{" "}
@@ -408,9 +518,9 @@ export default function DashboardPage() {
               {" "}
               {[
                 {
-                  label: "Add Domain",
-                  href: "/dashboard/domains",
-                  icon: <Globe size={15} />,
+                  label: "Create Identity",
+                  href: "/dashboard/senders",
+                  icon: <Mail size={15} />,
                 },
                 {
                   label: "Create Key",
@@ -418,14 +528,24 @@ export default function DashboardPage() {
                   icon: <Zap size={15} />,
                 },
                 {
-                  label: "New Template",
+                  label: "Templates",
                   href: "/dashboard/templates",
-                  icon: <BarChart3 size={15} />,
+                  icon: <FileText size={15} />,
                 },
                 {
                   label: "Analytics",
                   href: "/dashboard/analytics",
                   icon: <BarChart3 size={15} />,
+                },
+                {
+                  label: "Webhooks",
+                  href: "/dashboard/webhooks",
+                  icon: <Webhook size={15} />,
+                },
+                {
+                  label: "Team Members",
+                  href: "/dashboard/team",
+                  icon: <Users size={15} />,
                 },
               ].map(({ label, href, icon }) => (
                 <Link
@@ -494,7 +614,7 @@ export default function DashboardPage() {
                       style={{ color: "var(--text-muted)" }}
                     >
                       {" "}
-                      {new Date(email.createdAt).toLocaleDateString()}{" "}
+                      {formatIST(email.createdAt, false)}{" "}
                     </span>{" "}
                   </div>{" "}
                 </div>

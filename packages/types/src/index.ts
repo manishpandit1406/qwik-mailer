@@ -138,18 +138,18 @@ export interface WebhookPayload {
 
 export interface SendEmailJobData {
   emailId: string;
-  userId: string;
+  teamId: string;
 }
 
 export interface WebhookDispatchJobData {
   webhookId: string;
-  userId: string;
+  teamId: string;
   payload: WebhookPayload;
 }
 
 export interface AnalyticsIngestJobData {
   emailId: string;
-  userId: string;
+  teamId: string;
   type: EmailEventType;
   ip?: string;
   userAgent?: string;
@@ -160,14 +160,14 @@ export interface AnalyticsIngestJobData {
 export interface WorkflowRunnerJobData {
   workflowRunId: string;
   workflowId: string;
-  userId: string;
+  teamId: string;
 }
 
 // ─── Reputation Types ─────────────────────────────────────────────────────────
 
 export interface ReputationLog {
   id: string;
-  userId: string;
+  teamId: string;
   points: number;
   reason: string;
   createdAt: string;

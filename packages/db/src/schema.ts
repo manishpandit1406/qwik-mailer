@@ -17,6 +17,8 @@ import { relations } from "drizzle-orm";
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
+export const formStatusEnum = pgEnum("form_status", ["active", "draft", "inactive"]);
+
 export const userPlanEnum = pgEnum("user_plan", [
   "free",
   "event_level",
@@ -102,6 +104,7 @@ export const users = pgTable(
     dailyEmailCount: integer("daily_email_count").default(0).notNull(),
     dailyPeriodStart: timestamp("daily_period_start").defaultNow().notNull(),
     totpSecret: text("totp_secret"),
+    tempTotpSecret: text("temp_totp_secret"),
     totpEnabled: boolean("totp_enabled").default(false).notNull(),
     passwordResetToken: text("password_reset_token"),
     passwordResetExpires: timestamp("password_reset_expires"),
@@ -117,6 +120,10 @@ export const users = pgTable(
     country: varchar("country", { length: 100 }),
     onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
     webauthnCurrentChallenge: text("webauthn_current_challenge"),
+    termsAccepted: boolean("terms_accepted").default(false).notNull(),
+    termsAcceptedAt: timestamp("terms_accepted_at"),
+    termsVersion: varchar("terms_version", { length: 50 }),
+    registrationIpAddress: varchar("registration_ip_address", { length: 64 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -151,14 +158,14 @@ export const userPasskeys = pgTable(
     lastUsedAt: timestamp("last_used_at").defaultNow().notNull(),
   },
   (t) => [
-    index("passkeys_user_id_idx").on(t.userId),
+    index("passkeys_user_id_idx").on((t as any).teamId || (t as any).userId),
     uniqueIndex("passkeys_credential_id_idx").on(t.credentialId),
   ]
 );
 
 export const userPasskeysRelations = relations(userPasskeys, ({ one }) => ({
   user: one(users, {
-    fields: [userPasskeys.userId],
+    fields: [(userPasskeys as any).teamId || (userPasskeys as any).userId],
     references: [users.id],
   }),
 }));
@@ -169,9 +176,7 @@ export const apiKeys = pgTable(
   "api_keys",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 100 }).notNull(),
     keyHash: text("key_hash").notNull().unique(),
     keyPrefix: varchar("key_prefix", { length: 20 }).notNull(),
@@ -182,7 +187,7 @@ export const apiKeys = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [
-    index("api_keys_user_idx").on(t.userId),
+    index("api_keys_user_idx").on(t.teamId),
     index("api_keys_prefix_idx").on(t.keyPrefix),
   ]
 );
@@ -193,23 +198,19 @@ export const ipPools = pgTable(
   "ip_pools",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 100 }).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [index("ip_pools_user_idx").on(t.userId)]
+  (t) => [index("ip_pools_user_idx").on(t.teamId)]
 );
 
 export const dedicatedIps = pgTable(
   "dedicated_ips",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
     ipAddress: varchar("ip_address", { length: 45 }).notNull().unique(),
     poolId: uuid("pool_id").references(() => ipPools.id, { onDelete: "set null" }),
     domainId: uuid("domain_id"), // Optional assignment to specific domain
@@ -219,7 +220,7 @@ export const dedicatedIps = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (t) => [
-    index("dedicated_ips_user_idx").on(t.userId),
+    index("dedicated_ips_user_idx").on(t.teamId),
     index("dedicated_ips_pool_idx").on(t.poolId),
   ]
 );
@@ -230,9 +231,8 @@ export const domains = pgTable(
   "domains",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
     domain: varchar("domain", { length: 255 }).notNull(),
     status: domainStatusEnum("status").default("pending").notNull(),
     spfRecord: text("spf_record"),
@@ -254,7 +254,7 @@ export const domains = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("domains_user_domain_idx").on(t.userId, t.domain),
+    uniqueIndex("domains_user_domain_idx").on(t.teamId, t.userId, t.domain),
     index("domains_status_idx").on(t.status),
   ]
 );
@@ -265,9 +265,8 @@ export const domainSenders = pgTable(
   "domain_senders",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
     domainId: uuid("domain_id")
       .notNull()
       .references(() => domains.id, { onDelete: "cascade" }),
@@ -297,9 +296,7 @@ export const inboundParse = pgTable(
   "inbound_parse",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
     domainId: uuid("domain_id")
       .notNull()
       .references(() => domains.id, { onDelete: "cascade" }),
@@ -311,7 +308,7 @@ export const inboundParse = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (t) => [
-    index("inbound_parse_user_idx").on(t.userId),
+    index("inbound_parse_user_idx").on(t.teamId),
     uniqueIndex("inbound_parse_domain_idx").on(t.domainId),
     uniqueIndex("inbound_parse_subdomain_idx").on(t.subdomain),
   ]
@@ -333,7 +330,7 @@ export const certificates = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [index("certificates_user_idx").on(t.userId)]
+  (t) => [index("certificates_user_idx").on((t as any).teamId || (t as any).userId)]
 );
 
 // ─── Contact Lists ────────────────────────────────────────────────────────────
@@ -342,9 +339,7 @@ export const contactLists = pgTable(
   "contact_lists",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 255 }).notNull(),
     fileUrl: varchar("file_url", { length: 1024 }).notNull(), // path to the uploaded file
     totalRows: integer("total_rows").default(0).notNull(),
@@ -352,7 +347,82 @@ export const contactLists = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [index("contact_lists_user_idx").on(t.userId)]
+  (t) => [index("contact_lists_user_idx").on(t.teamId)]
+);
+
+// ─── Contacts ─────────────────────────────────────────────────────────────────
+
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+    email: varchar("email", { length: 255 }).notNull(),
+    firstName: varchar("first_name", { length: 255 }),
+    lastName: varchar("last_name", { length: 255 }),
+    phone: varchar("phone", { length: 50 }),
+    customFields: jsonb("custom_fields").$type<Record<string, any>>().default({}),
+    tags: jsonb("tags").$type<string[]>().default([]),
+    unsubscribedAt: timestamp("unsubscribed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("contacts_team_idx").on(t.teamId),
+    uniqueIndex("contacts_team_email_idx").on(t.teamId, t.email),
+  ]
+);
+
+export const contactListMembers = pgTable(
+  "contact_list_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listId: uuid("list_id").notNull().references(() => contactLists.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+    addedAt: timestamp("added_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("clm_list_idx").on(t.listId),
+    uniqueIndex("clm_list_contact_idx").on(t.listId, t.contactId),
+  ]
+);
+
+// ─── Forms ────────────────────────────────────────────────────────────────────
+
+export const forms = pgTable(
+  "forms",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    status: formStatusEnum("status").default("draft").notNull(),
+    schema: jsonb("schema").$type<any[]>().default([]).notNull(), // Array of field definitions
+    design: jsonb("design").$type<Record<string, any>>().default({}).notNull(),
+    settings: jsonb("settings").$type<Record<string, any>>().default({}).notNull(),
+    views: integer("views").default(0).notNull(),
+    submissions: integer("submissions").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [index("forms_team_idx").on(t.teamId)]
+);
+
+export const formSubmissions = pgTable(
+  "form_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    formId: uuid("form_id").notNull().references(() => forms.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    data: jsonb("data").$type<Record<string, any>>().notNull(),
+    ip: varchar("ip", { length: 45 }),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("form_submissions_form_idx").on(t.formId),
+    index("form_submissions_team_idx").on(t.teamId),
+  ]
 );
 
 // ─── Emails ───────────────────────────────────────────────────────────────────
@@ -362,9 +432,7 @@ export const emails = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     batchId: varchar("batch_id", { length: 50 }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
     domainId: uuid("domain_id").references(() => domains.id),
     messageId: text("message_id").unique(),
     fromEmail: varchar("from_email", { length: 255 }).notNull(),
@@ -389,7 +457,7 @@ export const emails = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (t) => [
-    index("emails_user_idx").on(t.userId),
+    index("emails_user_idx").on(t.teamId),
     index("emails_status_idx").on(t.status),
     index("emails_created_at_idx").on(t.createdAt),
     index("emails_to_email_idx").on(t.toEmail),
@@ -405,9 +473,7 @@ export const emailEvents = pgTable(
     emailId: uuid("email_id")
       .notNull()
       .references(() => emails.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
     type: emailEventTypeEnum("type").notNull(),
     ip: varchar("ip", { length: 45 }),
     userAgent: text("user_agent"),
@@ -419,7 +485,7 @@ export const emailEvents = pgTable(
   },
   (t) => [
     index("email_events_email_idx").on(t.emailId),
-    index("email_events_user_idx").on(t.userId),
+    index("email_events_user_idx").on(t.teamId),
     index("email_events_type_idx").on(t.type),
     index("email_events_occurred_at_idx").on(t.occurredAt),
   ]
@@ -431,9 +497,7 @@ export const templates = pgTable(
   "templates",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 255 }).notNull(),
     subject: text("subject").notNull(),
     htmlBody: text("html_body").notNull(),
@@ -443,7 +507,7 @@ export const templates = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [index("templates_user_idx").on(t.userId)]
+  (t) => [index("templates_user_idx").on(t.teamId)]
 );
 
 // ─── Reputation Logs ──────────────────────────────────────────────────────────
@@ -460,7 +524,7 @@ export const reputationLogs = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [
-    index("reputation_logs_user_idx").on(t.userId),
+    index("reputation_logs_user_idx").on((t as any).teamId || (t as any).userId),
     index("reputation_logs_created_at_idx").on(t.createdAt),
   ]
 );
@@ -471,9 +535,7 @@ export const webhooks = pgTable(
   "webhooks",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
     secret: text("secret").notNull(),
     events: jsonb("events").$type<string[]>().default([]),
@@ -483,7 +545,7 @@ export const webhooks = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [index("webhooks_user_idx").on(t.userId)]
+  (t) => [index("webhooks_user_idx").on(t.teamId)]
 );
 
 // ─── Webhook Logs ─────────────────────────────────────────────────────────────
@@ -509,17 +571,15 @@ export const suppressionList = pgTable(
   "suppression_list",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
     email: varchar("email", { length: 255 }).notNull(),
     type: varchar("type", { length: 50 }).notNull().default("unsubscribe"), // bounce, spam_report, unsubscribe, invalid
     reason: text("reason"),
     addedAt: timestamp("added_at").defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("suppression_user_email_idx").on(t.userId, t.email),
-    index("suppression_user_type_idx").on(t.userId, t.type),
+    uniqueIndex("suppression_user_email_idx").on((t as any).teamId || (t as any).userId, t.email),
+    index("suppression_user_type_idx").on((t as any).teamId || (t as any).userId, t.type),
   ]
 );
 
@@ -538,7 +598,7 @@ export const refreshTokens = pgTable(
     userAgent: varchar("user_agent", { length: 255 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (t) => [index("refresh_tokens_user_idx").on(t.userId)]
+  (t) => [index("refresh_tokens_user_idx").on((t as any).teamId || (t as any).userId)]
 );
 
 // ─── Workflows ───────────────────────────────────────────────────────────────
@@ -559,7 +619,7 @@ export const workflows = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [index("workflows_user_idx").on(t.userId)]
+  (t) => [index("workflows_user_idx").on((t as any).teamId || (t as any).userId)]
 );
 
 export const workflowRuns = pgTable(
@@ -667,11 +727,13 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   owner: one(users, { fields: [teams.ownerId], references: [users.id] }),
   members: many(teamMembers),
   invites: many(teamInvites),
+  forms: many(forms),
+  contacts: many(contacts),
 }));
 
 export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
   team: one(teams, { fields: [teamMembers.teamId], references: [teams.id] }),
-  user: one(users, { fields: [teamMembers.userId], references: [users.id] }),
+  user: one(users, { fields: [(teamMembers as any).teamId || (teamMembers as any).userId], references: [users.id] }),
 }));
 
 export const teamInvitesRelations = relations(teamInvites, ({ one }) => ({
@@ -681,7 +743,7 @@ export const teamInvitesRelations = relations(teamInvites, ({ one }) => ({
 
 export const webhooksRelations = relations(webhooks, ({ one, many }) => ({
   user: one(users, {
-    fields: [webhooks.userId],
+    fields: [(webhooks as any).teamId || (webhooks as any).userId],
     references: [users.id],
   }),
   logs: many(webhookLogs),
@@ -695,37 +757,37 @@ export const webhookLogsRelations = relations(webhookLogs, ({ one }) => ({
 }));
 
 export const emailsRelations = relations(emails, ({ one, many }) => ({
-  user: one(users, { fields: [emails.userId], references: [users.id] }),
+  user: one(users, { fields: [(emails as any).teamId || (emails as any).userId], references: [users.id] }),
   domain: one(domains, { fields: [emails.domainId], references: [domains.id] }),
   events: many(emailEvents),
 }));
 
 export const emailEventsRelations = relations(emailEvents, ({ one }) => ({
   email: one(emails, { fields: [emailEvents.emailId], references: [emails.id] }),
-  user: one(users, { fields: [emailEvents.userId], references: [users.id] }),
+  user: one(users, { fields: [(emailEvents as any).teamId || (emailEvents as any).userId], references: [users.id] }),
 }));
 
 export const domainsRelations = relations(domains, ({ one, many }) => ({
-  user: one(users, { fields: [domains.userId], references: [users.id] }),
+  user: one(users, { fields: [(domains as any).teamId || (domains as any).userId], references: [users.id] }),
   emails: many(emails),
   senders: many(domainSenders),
 }));
 
 export const domainSendersRelations = relations(domainSenders, ({ one }) => ({
-  user: one(users, { fields: [domainSenders.userId], references: [users.id] }),
+  user: one(users, { fields: [(domainSenders as any).teamId || (domainSenders as any).userId], references: [users.id] }),
   domain: one(domains, { fields: [domainSenders.domainId], references: [domains.id] }),
 }));
 
 export const reputationLogsRelations = relations(reputationLogs, ({ one }) => ({
-  user: one(users, { fields: [reputationLogs.userId], references: [users.id] }),
+  user: one(users, { fields: [(reputationLogs as any).teamId || (reputationLogs as any).userId], references: [users.id] }),
 }));
 
 export const certificatesRelations = relations(certificates, ({ one }) => ({
-  user: one(users, { fields: [certificates.userId], references: [users.id] }),
+  user: one(users, { fields: [(certificates as any).teamId || (certificates as any).userId], references: [users.id] }),
 }));
 
 export const workflowsRelations = relations(workflows, ({ one, many }) => ({
-  user: one(users, { fields: [workflows.userId], references: [users.id] }),
+  user: one(users, { fields: [(workflows as any).teamId || (workflows as any).userId], references: [users.id] }),
   runs: many(workflowRuns),
 }));
 
@@ -772,8 +834,34 @@ export const supportTickets = pgTable("support_tickets", {
 
 export const supportTicketsRelations = relations(supportTickets, ({ one }) => ({
   user: one(users, {
-    fields: [supportTickets.userId],
+    fields: [(supportTickets as any).teamId || (supportTickets as any).userId],
     references: [users.id],
   }),
 }));
 
+export const formsRelations = relations(forms, ({ one, many }) => ({
+  team: one(teams, { fields: [forms.teamId], references: [teams.id] }),
+  submissions: many(formSubmissions),
+}));
+
+export const formSubmissionsRelations = relations(formSubmissions, ({ one }) => ({
+  form: one(forms, { fields: [formSubmissions.formId], references: [forms.id] }),
+  contact: one(contacts, { fields: [formSubmissions.contactId], references: [contacts.id] }),
+  team: one(teams, { fields: [formSubmissions.teamId], references: [teams.id] }),
+}));
+
+export const contactsRelations = relations(contacts, ({ one, many }) => ({
+  team: one(teams, { fields: [contacts.teamId], references: [teams.id] }),
+  listMemberships: many(contactListMembers),
+  formSubmissions: many(formSubmissions),
+}));
+
+export const contactListsRelations = relations(contactLists, ({ one, many }) => ({
+  team: one(teams, { fields: [contactLists.teamId], references: [teams.id] }),
+  members: many(contactListMembers),
+}));
+
+export const contactListMembersRelations = relations(contactListMembers, ({ one }) => ({
+  list: one(contactLists, { fields: [contactListMembers.listId], references: [contactLists.id] }),
+  contact: one(contacts, { fields: [contactListMembers.contactId], references: [contacts.id] }),
+}));

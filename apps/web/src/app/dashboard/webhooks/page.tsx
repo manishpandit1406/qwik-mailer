@@ -1,4 +1,5 @@
 "use client";
+import { formatIST } from "@/lib/dateUtils";
 import { useState, useEffect } from "react";
 import {
   Plus,
@@ -151,7 +152,7 @@ export default function WebhooksPage() {
     setTimeout(() => setCopied(false), 2000);
   }
   return (
-    <div className="space-y-5 ">
+    <div className="max-w-5xl mx-auto w-full space-y-5 pb-10">
       {" "}
       <div className="flex items-center justify-between">
         {" "}
@@ -298,7 +299,7 @@ export default function WebhooksPage() {
                   >
                     {" "}
                     <span>
-                      Created {new Date(wh.createdAt).toLocaleDateString()}
+                      Created {formatIST(wh.createdAt, false)}
                     </span>{" "}
                     {wh.lastFiredAt && (
                       <span>Last fired: {wh.lastFiredAt}</span>
@@ -569,7 +570,7 @@ export default function WebhooksPage() {
                             {log.responseStatus || "Error"}{" "}
                           </span>{" "}
                           <span className="text-xs font-medium text-gray-600">
-                            {new Date(log.createdAt).toLocaleString()}
+                            {formatIST(log.createdAt, false)}
                           </span>{" "}
                         </div>{" "}
                         <span className="badge-info text-[10px]">
