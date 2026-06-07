@@ -13,7 +13,7 @@ function getToken() {
   return typeof window !== "undefined" ? (localStorage.getItem("mf_access_token") ?? "") : "";
 }
 
-function SortableField({ field, onUpdate, onRemove }: any) {
+function SortableField({ field, onUpdate, onRemove, schema }: any) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id });
   
   const style = {
@@ -543,7 +543,7 @@ func main() {
               <SortableContext items={schema.map(f => f.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-4 pb-20">
                   {schema.map(field => (
-                    <SortableField key={field.id} field={field} onUpdate={updateField} onRemove={removeField} />
+                    <SortableField key={field.id} field={field} onUpdate={updateField} onRemove={removeField} schema={schema} />
                   ))}
                 </div>
               </SortableContext>
