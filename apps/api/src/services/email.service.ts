@@ -74,7 +74,7 @@ export async function sendVerificationEmail(
   name: string,
   token: string
 ): Promise<void> {
-  const verifyUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/verify-email?token=${token}`;
+  const verifyUrl = `${process.env.NEXTAUTH_URL ?? "https://qwikmailer.in"}/verify-email?token=${token}`;
 
   const content = `
     <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">Verify your email</h1>
@@ -114,7 +114,7 @@ export async function sendPasswordResetEmail(
   name: string,
   token: string
 ): Promise<void> {
-  const resetUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/reset-password?token=${token}`;
+  const resetUrl = `${process.env.NEXTAUTH_URL ?? "https://qwikmailer.in"}/reset-password?token=${token}`;
 
   const content = `
     <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">Reset your password</h1>
@@ -180,7 +180,7 @@ export async function sendWelcomeEmail(
   email: string,
   name: string
 ): Promise<void> {
-  const dashboardUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/dashboard`;
+  const dashboardUrl = `${process.env.NEXTAUTH_URL ?? "https://qwikmailer.in"}/dashboard`;
 
   const content = `
     <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">You're in! 🎉</h1>

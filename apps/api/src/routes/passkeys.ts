@@ -21,7 +21,7 @@ import { authenticator } from "otplib";
 // We'll rely on RP ID for WebAuthn. In dev it's "localhost", in prod it's the domain.
 const rpName = "Qwik Mailer";
 const rpID = process.env.NODE_ENV === "production" ? "qwikmailer.in" : "localhost";
-const origin = process.env.NEXT_PUBLIC_API_URL?.replace("4000", "3000") ?? "http://localhost:3000";
+const origin = process.env.NEXTAUTH_URL ?? "https://qwikmailer.in";
 
 const generateRegistrationOptionsSchema = z.object({});
 

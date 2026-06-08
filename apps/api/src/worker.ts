@@ -210,7 +210,7 @@ async function dispatchWebhooks(teamId: string, emailId: string, event: string, 
 // ─── Tracking Helpers ────────────────────────────────────────────────────────
 function prepareHtmlBody(html: string, emailId: string, plan: string = "free"): string {
   const apiRoot = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-  const publicUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const publicUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://qwikmailer.in";
 
   // 1. Rewrite Links for Click Tracking
   const clickUrlPrefix = `${apiRoot}/v1/track/click/${emailId}?url=`;
@@ -226,7 +226,7 @@ function prepareHtmlBody(html: string, emailId: string, plan: string = "free"): 
   const pixelHtml = `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:none;" />`;
 
   // 3. Inject Unsubscribe Link
-  // const publicUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  // const publicUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://qwikmailer.in";
   const unsubscribeUrl = `${publicUrl}/unsubscribe?id=${emailId}`;
 
   let usedCustomUnsubscribe = false;
@@ -328,7 +328,7 @@ const worker = new Worker<SendEmailJobData>(
         ? prepareHtmlBody(baseHtml, emailId, userPlan)
         : undefined;
 
-      const publicUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      const publicUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://qwikmailer.in";
       const unsubscribeUrl = `${publicUrl}/unsubscribe?id=${emailId}`;
 
       const renderedSubject = renderTemplate(email.subject, email.metadata as Record<string, string>);

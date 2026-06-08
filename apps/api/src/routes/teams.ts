@@ -201,7 +201,7 @@ export async function teamRoutes(app: FastifyInstance) {
          ON CONFLICT (token) DO NOTHING`
       );
 
-      const inviteLink = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/invite/${token}`;
+      const inviteLink = `${process.env.NEXTAUTH_URL ?? "https://qwikmailer.in"}/invite/${token}`;
 
       // Fetch team and user names for the email
       const teamQuery = await db.execute(sql`SELECT name FROM teams WHERE id = ${id}`);

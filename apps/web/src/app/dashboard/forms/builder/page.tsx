@@ -8,7 +8,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { CSS } from '@dnd-kit/utilities';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const FRONTEND = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const FRONTEND = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || "https://qwikmailer.in");
 function getToken() {
   return typeof window !== "undefined" ? (localStorage.getItem("mf_access_token") ?? "") : "";
 }
