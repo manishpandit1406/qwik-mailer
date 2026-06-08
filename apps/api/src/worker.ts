@@ -476,7 +476,10 @@ const worker = new Worker<SendEmailJobData>(
       let configurationSetName: string | undefined = undefined;
 
       const info = await transporter.sendMail({
-        from: `"${email.fromName?.trim() ? email.fromName.trim() : "Qwik Mailer"}" <${email.fromEmail}>`,
+        from: {
+          name: email.fromName?.trim() ? email.fromName.trim() : "Qwik Mailer",
+          address: email.fromEmail
+        },
         to: email.toName ? { name: email.toName, address: email.toEmail } : email.toEmail,
         replyTo: email.replyTo ?? undefined,
         subject: renderedSubject,
