@@ -67,7 +67,7 @@ async function resolveSenderDomain(teamId: string, requestedFrom?: string, reque
 }
 
 export function startSmtpServer() {
-  const port = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 2525;
+  const port = process.env.CUSTOM_SMTP_PORT ? parseInt(process.env.CUSTOM_SMTP_PORT) : 2525;
   const server = new SMTPServer({
     secure: false, 
     allowInsecureAuth: true,
