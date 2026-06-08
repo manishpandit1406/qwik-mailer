@@ -1,0 +1,56 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/api/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          # Go to project directory or clone if it doesn't exist
+          if [ ! -d "/home/ubuntu/qwikmailer" ]; then
+            git clone https://github.com/manishpandit1406/qwik-mailer.git /home/ubuntu/qwikmailer
+          fi
+          
+          cd /home/ubuntu/qwikmailer
+          
+          # Discard any local changes (like .env) to avoid merge conflicts
+          git stash
+          
+          # Pull latest code from main
+          git pull origin main
+          
+          # Load NVM and install dependencies
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          
+          # Start Database and Redis via Docker Compose
+          sudo docker-compose up -d postgres redis
+          
+          # Install Node dependencies
+          pnpm install
+          
+          # Build the Backend API
+          pnpm run build --filter=api
+          
+          # Restart the API using PM2
+          cd apps/api
+          pm2 restart api || pm2 start dist/index.js --name api
+          pm2 save
