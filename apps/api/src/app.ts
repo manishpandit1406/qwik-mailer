@@ -35,9 +35,6 @@ import { formRoutes } from "./routes/forms.js";
 import { contactRoutes } from "./routes/contacts.js";
 import { errorHandler } from "./middleware/error-handler.js";
 
-// @ts-ignore
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // ─── Redis Connection (Resilient) ─────────────────────────────────────────────
 

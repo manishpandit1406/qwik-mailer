@@ -9,9 +9,6 @@ import { pipeline } from "stream/promises";
 import crypto from "crypto";
 import * as XLSX from "xlsx";
 
-// @ts-ignore
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const UPLOADS_DIR = path.join(__dirname, "..", "..", "uploads", "lists");
 
 export async function listRoutes(app: FastifyInstance) {

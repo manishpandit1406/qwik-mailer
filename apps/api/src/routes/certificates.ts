@@ -9,9 +9,6 @@ import { fileURLToPath } from "url";
 import { pipeline } from "stream/promises";
 import crypto from "crypto";
 
-// @ts-ignore
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const UPLOADS_DIR = path.join(__dirname, "..", "..", "uploads", "certificates");
 
 export async function certificateRoutes(app: FastifyInstance) {
