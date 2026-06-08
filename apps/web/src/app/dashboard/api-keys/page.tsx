@@ -12,6 +12,8 @@ const CODE_EXAMPLES: Record<Lang, string> = {
   -H "X-API-Key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
+    "from": "hello@example.com",
+    "fromName": "My App",
     "to": "user@example.com",
     "subject": "Hello!",
     "html": "<h1>Hi there!</h1><p>Welcome aboard.</p>"
@@ -23,6 +25,8 @@ const CODE_EXAMPLES: Record<Lang, string> = {
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
+    from: 'hello@example.com',
+    fromName: 'My App',
     to: 'user@example.com',
     subject: 'Hello!',
     html: '<h1>Hi there!</h1><p>Welcome aboard.</p>',
@@ -40,6 +44,8 @@ response = requests.post(
         'Content-Type': 'application/json',
     },
     json={
+        'from': 'hello@example.com',
+        'fromName': 'My App',
         'to': 'user@example.com',
         'subject': 'Hello!',
         'html': '<h1>Hi there!</h1><p>Welcome aboard.</p>',
@@ -57,6 +63,8 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json',
 ]);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+    'from' => 'hello@example.com',
+    'fromName' => 'My App',
     'to' => 'user@example.com',
     'subject' => 'Hello!',
     'html' => '<h1>Hi there!</h1><p>Welcome aboard.</p>',
@@ -73,6 +81,8 @@ HttpClient client = HttpClient.newHttpClient();
 
 String body = """
     {
+      "from": "hello@example.com",
+      "fromName": "My App",
       "to": "user@example.com",
       "subject": "Hello!",
       "html": "<h1>Hi!</h1>"
@@ -100,9 +110,11 @@ import (
 
 func main() {
 	payload, _ := json.Marshal(map[string]string{
-		"to":      "user@example.com",
-		"subject": "Hello!",
-		"html":    "<h1>Hi there!</h1>",
+		"from":     "hello@example.com",
+		"fromName": "My App",
+		"to":       "user@example.com",
+		"subject":  "Hello!",
+		"html":     "<h1>Hi there!</h1>",
 	})
 
 	req, _ := http.NewRequest("POST", "https://api.qwikmailer.in/v1/send", bytes.NewBuffer(payload))
@@ -113,7 +125,7 @@ func main() {
 	defer resp.Body.Close()
 
 	fmt.Println("Status:", resp.Status)
-}`,
+}`
 };
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 interface ApiKey {
