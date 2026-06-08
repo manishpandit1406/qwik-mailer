@@ -52,5 +52,6 @@ jobs:
           
           # Restart the API using PM2
           cd apps/api
-          pm2 restart api || pm2 start dist/index.js --name api
+          pm2 restart api || pm2 start dist/server.js --name api --node-args="--import tsx --env-file=../../.env"
+          pm2 restart worker || pm2 start dist/worker.js --name worker --node-args="--import tsx --env-file=../../.env"
           pm2 save
