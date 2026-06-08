@@ -1,7 +1,8 @@
 import { Worker } from "bullmq";
 import nodemailer from "nodemailer";
 import { eq, sql } from "drizzle-orm";
-import { db, domains, emails, emailEvents, suppressionList, users, webhooks, webhookLogs, reputationLogs, certificates, workflows, workflowRuns, dedicatedIps, ipPools } from "@qwikmailer/db";
+import crypto from "crypto";
+import { db, domains, emails, emailEvents, suppressionList, users, webhooks, webhookLogs, reputationLogs, certificates, workflows, workflowRuns, dedicatedIps, ipPools, teams } from "@qwikmailer/db";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import QRCode from "qrcode";
 import fs from "fs";
@@ -163,7 +164,7 @@ function renderTemplate(html: string, variables: Record<string, string> = {}): s
 // ─── Anti-Abuse: Bounce Rate Check ───────────────────────────────────────────
 
 async function checkBounceRate(teamId: string): Promise<boolean> {
-  const { teams } = await import("@qwikmailer/db");
+  // teams is statically imported
   const team = await db.query.teams.findFirst({ where: eq(teams.id, teamId) });
   if (!team) return false;
   
@@ -305,7 +306,7 @@ const worker = new Worker<SendEmailJobData>(
     console.log(`[Worker] Processing email ${emailId}. Metadata:`, email.metadata);
 
     try {
-      const { teams } = await import("@qwikmailer/db");
+      // teams is statically imported
       const team = await db.query.teams.findFirst({ where: eq(teams.id, teamId) });
       if (!team) throw new Error("Team not found");
       const user = await db.query.users.findFirst({ where: eq(users.id, team.ownerId) });
@@ -611,7 +612,7 @@ const webhookWorker = new Worker(
     const webhook = await db.query.webhooks.findFirst({ where: eq(webhooks.id, webhookId) });
     if (!webhook || !webhook.isActive) return;
 
-    const crypto = await import("crypto");
+    // crypto is statically imported
     const signature = crypto
       .createHmac("sha256", webhook.secret)
       .update(JSON.stringify(payload))

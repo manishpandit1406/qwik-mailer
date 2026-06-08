@@ -5,8 +5,9 @@ import { db, domains, domainSenders, users } from "@qwikmailer/db";
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { generateDkimKeys, checkDnsRecord } from "../services/dns.service.js";
 import { isRelatedToCompany } from "../utils/validation.js";
-import { sendSharedSenderOtpEmail } from "../services/email.service.js";
+import { sendSharedSenderOtpEmail, sendDomainVerifiedEmail } from "../services/email.service.js";
 import crypto from "crypto";
+import { addDomainToSes, getDomainSesStatus, removeDomainFromSes } from "../services/aws.service.js";
 
 export async function domainRoutes(app: FastifyInstance) {
   // GET /v1/domains
@@ -44,7 +45,7 @@ export async function domainRoutes(app: FastifyInstance) {
     });
     if (existing) return reply.code(409).send({ success: false, error: "Domain already added." });
 
-    const { addDomainToSes } = await import("../services/aws.service.js");
+    // using static import
     let sesDkimTokens: string[] = [];
     try {
       sesDkimTokens = await addDomainToSes(domain);
@@ -149,7 +150,7 @@ export async function domainRoutes(app: FastifyInstance) {
     });
     if (!domain) return reply.code(404).send({ success: false, error: "Domain not found" });
 
-    const { getDomainSesStatus } = await import("../services/aws.service.js");
+    // using static import
 
     const { dkimVerified: dkimOk, mailFromVerified: mailFromOk } = await getDomainSesStatus(domain.domain);
     const dmarcOk = await checkDnsRecord(`_dmarc.${domain.domain}`, "TXT", "v=DMARC1");
@@ -185,7 +186,7 @@ export async function domainRoutes(app: FastifyInstance) {
     if (allOk && domain.status !== "verified") {
       const userDb = await db.query.users.findFirst({ where: eq(users.id, user.sub) });
       if (userDb) {
-        const { sendDomainVerifiedEmail } = await import("../services/email.service.js");
+        // using static import
         sendDomainVerifiedEmail(userDb.email, userDb.name ?? "", domain.domain).catch((err) => {
           console.error(`[Domains] Failed to send domain verification email:`, err.message);
         });
@@ -220,7 +221,7 @@ export async function domainRoutes(app: FastifyInstance) {
       return reply.code(400).send({ success: false, error: "Cannot delete the shared domain." });
     }
 
-    const { removeDomainFromSes } = await import("../services/aws.service.js");
+    // using static import
     await removeDomainFromSes(domain.domain);
 
     await db.delete(domains).where(eq(domains.id, id));

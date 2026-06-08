@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { eq } from "drizzle-orm";
-import { db, apiKeys, users } from "@qwikmailer/db";
+import { db, apiKeys, users, teams } from "@qwikmailer/db";
 
 export async function validateApiKey(rawKey: string, reqIp?: string) {
   if (!rawKey.startsWith("mf_live_")) return null;
@@ -26,7 +26,7 @@ export async function validateApiKey(rawKey: string, reqIp?: string) {
   // Update last used
   await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, key.id));
 
-  const { teams } = await import("@qwikmailer/db");
+  // teams is statically imported at the top
   const team = await db.query.teams.findFirst({ where: eq(teams.id, key.teamId!) });
   if (!team) return null;
   const user = await db.query.users.findFirst({ where: eq(users.id, team.ownerId) });

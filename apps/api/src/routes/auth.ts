@@ -7,6 +7,8 @@ import { nanoid } from "nanoid";
 import UAParser from "ua-parser-js";
 import { sendNewLoginAlertEmail, send2FAEnabledEmail, send2FADisabledEmail } from "../services/email.service.js";
 import crypto from "crypto";
+import { authenticator } from "otplib";
+import qrcode from "qrcode";
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -176,7 +178,7 @@ export async function authRoutes(app: FastifyInstance) {
       if (!body.totpCode) {
         return reply.code(200).send({ success: true, data: { requires2FA: true } });
       }
-      const { authenticator } = await import("otplib");
+      // using top-level import
       const isValid = authenticator.verify({ token: body.totpCode, secret: user.totpSecret! });
       if (!isValid) {
         return reply.code(401).send({ success: false, error: "Invalid 2FA code." });
@@ -467,8 +469,7 @@ export async function authRoutes(app: FastifyInstance) {
   // GET /v1/auth/totp/setup
   app.get("/totp/setup", { preHandler: authenticate }, async (req, reply) => {
     const user = req.user as { sub: string, email: string };
-    const { authenticator } = await import("otplib");
-    const qrcode = await import("qrcode");
+    // using top-level imports
 
     const secret = authenticator.generateSecret();
     
@@ -491,7 +492,7 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.code(400).send({ success: false, error: "TOTP setup not initialized." });
     }
 
-    const { authenticator } = await import("otplib");
+    // using top-level import
     const isValid = authenticator.verify({ token, secret: dbUser.tempTotpSecret });
 
     if (!isValid) {
@@ -527,7 +528,7 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.code(400).send({ success: false, error: "2FA is not enabled." });
     }
 
-    const { authenticator } = await import("otplib");
+    // using top-level import
     const isValid = authenticator.verify({ token, secret: dbUser.totpSecret! });
 
     if (!isValid) {

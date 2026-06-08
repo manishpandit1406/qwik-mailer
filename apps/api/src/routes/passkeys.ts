@@ -11,6 +11,12 @@ import {
 import { authenticate } from "../middleware/auth.js";
 import { nanoid } from "nanoid";
 import UAParser from "ua-parser-js";
+import { sendPasskeyAddedEmail, sendNewLoginAlertEmail, sendPasskeyDeletedEmail } from "../services/email.service.js";
+import crypto from "crypto";
+import { refreshTokens } from "@qwikmailer/db";
+import bcrypt from "bcryptjs";
+import { authenticator } from "otplib";
+
 
 // We'll rely on RP ID for WebAuthn. In dev it's "localhost", in prod it's the domain.
 const rpName = "Qwik Mailer";
@@ -146,10 +152,8 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
           .set({ webauthnCurrentChallenge: null })
           .where(eq(users.id, user.id));
 
-        import("../services/email.service.js").then(({ sendPasskeyAddedEmail }) => {
-          sendPasskeyAddedEmail(user.email, user.name || "", deviceName, deviceOs, browserName).catch((err) => {
-            console.error(`[Passkeys] Failed to send passkey added email:`, err.message);
-          });
+        sendPasskeyAddedEmail(user.email, user.name || "", deviceName, deviceOs, browserName).catch((err) => {
+          console.error(`[Passkeys] Failed to send passkey added email:`, err.message);
         });
 
         return reply.send({ verified: true, passkey: newPasskey[0] });
@@ -273,7 +277,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
           { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d" }
         );
         
-        const crypto = await import("crypto");
+        // crypto is statically imported
         const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
         const userAgent = request.headers["user-agent"] || "";
@@ -288,7 +292,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
         const deviceOs = os.name ? `${os.name} ${os.version || ""}`.trim() : "Unknown OS";
         const browserName = browser.name ? `${browser.name} ${browser.version || ""}`.trim() : "Unknown Browser";
 
-        const { refreshTokens } = await import("@qwikmailer/db");
+        // refreshTokens is statically imported
 
         // @ts-ignore
         const existingSession = await db.query.refreshTokens.findFirst({
@@ -296,9 +300,7 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
         });
 
         if (!existingSession) {
-          import("../services/email.service.js").then(({ sendNewLoginAlertEmail }) => {
-            sendNewLoginAlertEmail(user.email, user.name || "", deviceName, deviceOs, browserName, ipAddress, new Date().toLocaleString()).catch(err => console.error("Failed to send login alert", err));
-          });
+          sendNewLoginAlertEmail(user.email, user.name || "", deviceName, deviceOs, browserName, ipAddress, new Date().toLocaleString()).catch(err => console.error("Failed to send login alert", err));
         }
 
         await db.insert(refreshTokens).values({
@@ -433,12 +435,12 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
         await db.update(users).set({ webauthnCurrentChallenge: null }).where(eq(users.id, user.id));
       } else if (body?.password) {
         // @ts-ignore
-        const bcrypt = await import("bcrypt");
+        // bcrypt statically imported
         if (!(await bcrypt.compare(body.password, user.passwordHash))) {
           return reply.status(401).send({ error: "Invalid password" });
         }
       } else if (body?.totpCode && user.totpEnabled && user.totpSecret) {
-        const { authenticator } = await import("otplib");
+        // authenticator statically imported
         const isValid = authenticator.verify({ token: body.totpCode, secret: user.totpSecret });
         if (!isValid) {
           return reply.status(401).send({ error: "Invalid 2FA code" });
@@ -459,10 +461,8 @@ export default async function passkeysRoutes(fastify: FastifyInstance) {
       const deviceOs = os.name ? `${os.name} ${os.version || ""}`.trim() : "Unknown OS";
       const browserName = browser.name ? `${browser.name} ${browser.version || ""}`.trim() : "Unknown Browser";
 
-      import("../services/email.service.js").then(({ sendPasskeyDeletedEmail }) => {
-        sendPasskeyDeletedEmail(user.email, user.name || "", deviceName, deviceOs, browserName).catch((err) => {
-          console.error(`[Passkeys] Failed to send passkey deleted email:`, err.message);
-        });
+      sendPasskeyDeletedEmail(user.email, user.name || "", deviceName, deviceOs, browserName).catch((err) => {
+        console.error(`[Passkeys] Failed to send passkey deleted email:`, err.message);
       });
 
       return reply.send({ success: true, message: "Passkey deleted" });

@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { db } from "@qwikmailer/db";
 import { teamMembers } from "@qwikmailer/db";
 import { eq, and } from "drizzle-orm";
+import { validateApiKey } from "../services/api-key.service.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -16,7 +17,7 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
     const apiKey = req.headers["x-api-key"] as string;
 
     if (apiKey) {
-      const { validateApiKey } = await import("../services/api-key.service.js");
+      // statically imported
       const user = await validateApiKey(apiKey, req.ip);
       if (!user) {
         return reply.code(401).send({ success: false, error: "Invalid API key" });
