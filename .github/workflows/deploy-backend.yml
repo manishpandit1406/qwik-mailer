@@ -48,7 +48,7 @@ jobs:
           pnpm install
           
           # Build the Backend API
-          pnpm run build --filter=api
+          pnpm run build --filter=@qwikmailer/api
           
           # Restart the API using PM2
           cd apps/api
