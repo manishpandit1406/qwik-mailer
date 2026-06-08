@@ -72,7 +72,7 @@ export async function certificateRoutes(app: FastifyInstance) {
                return reply.code(400).send({ success: false, error: "File exceeds maximum allowed size of 5MB" });
            }
            if (!writeStream.write(chunk)) {
-               await new Promise((resolve) => writeStream.once('drain', resolve));
+               await new Promise<void>((resolve) => writeStream.once('drain', () => resolve()));
            }
         }
         writeStream.end();
