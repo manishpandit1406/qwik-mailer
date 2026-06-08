@@ -44,7 +44,9 @@ if (typeof window !== "undefined" && !(window as any)._fetchPatched) {
       response.status === 401 && 
       urlString && 
       urlString.includes("/v1/") && 
-      !urlString.includes("/v1/auth/")
+      !urlString.includes("/v1/auth/login") &&
+      !urlString.includes("/v1/auth/register") &&
+      !urlString.includes("/v1/auth/refresh")
     ) {
       const refreshToken = localStorage.getItem("mf_refresh_token");
       if (refreshToken) {
