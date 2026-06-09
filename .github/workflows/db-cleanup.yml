@@ -1,0 +1,46 @@
+name: DB Cleanup — Remove Test Data
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Cleanup test data via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          echo "=== Cleaning sandbox_emails (loadtest data) ==="
+          sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
+            DELETE FROM sandbox_emails
+            WHERE to_email LIKE 'lt%@example.com'
+               OR to_email LIKE 'loadtest.%@example.com';
+          " && echo "✅ sandbox_emails cleaned"
+
+          echo "=== Cleaning email_logs (loadtest data) ==="
+          sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
+            DELETE FROM email_logs
+            WHERE to_email LIKE 'lt%@example.com'
+               OR to_email LIKE 'loadtest.%@example.com';
+          " && echo "✅ email_logs cleaned"
+
+          echo "=== Cleaning email_recipients (loadtest data) ==="
+          sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
+            DELETE FROM email_recipients
+            WHERE email LIKE 'lt%@example.com'
+               OR email LIKE 'loadtest.%@example.com';
+          " && echo "✅ email_recipients cleaned"
+
+          echo "=== Row counts after cleanup ==="
+          sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
+            SELECT 'sandbox_emails' AS table_name, COUNT(*) FROM sandbox_emails
+            UNION ALL
+            SELECT 'email_logs', COUNT(*) FROM email_logs
+            UNION ALL
+            SELECT 'email_recipients', COUNT(*) FROM email_recipients;
+          "
+          echo "=== DONE ==="
