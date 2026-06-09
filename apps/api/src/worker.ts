@@ -2,7 +2,7 @@ import { Worker } from "bullmq";
 import nodemailer from "nodemailer";
 import { eq, sql } from "drizzle-orm";
 import crypto from "crypto";
-import { db, domains, emails, emailEvents, suppressionList, users, webhooks, webhookLogs, reputationLogs, certificates, workflows, workflowRuns, dedicatedIps, ipPools, teams } from "@qwikmailer/db";
+import { db, domains, emails, emailEvents, suppressionList, users, webhooks, webhookLogs, reputationLogs, certificates, workflows, workflowRuns, dedicatedIps, ipPools, teams, sandboxEmails } from "@qwikmailer/db";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import QRCode from "qrcode";
 import fs from "fs";
@@ -471,6 +471,48 @@ const worker = new Worker<SendEmailJobData>(
           };
         }
       }
+
+      // ─── Sandbox Intercept Gate ───────────────────────────────────────────
+      // If sandbox mode is ON: store email in sandbox_emails, skip SES entirely
+      if (team?.sandboxMode) {
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+        // Serialize attachments for sandbox storage (base64 inline)
+        const sandboxAttachments = attachments.map((att) => ({
+          filename: (att as any).filename ?? "attachment",
+          contentType: (att as any).contentType ?? "application/octet-stream",
+          size: att.content ? (att.content as Buffer).length : 0,
+          content: att.content ? (att.content as Buffer).toString("base64") : "",
+        }));
+
+        await db.insert(sandboxEmails).values({
+          teamId,
+          fromEmail: email.fromEmail,
+          fromName: email.fromName?.trim() || "Qwik Mailer",
+          toEmail: email.toEmail,
+          toName: email.toName ?? undefined,
+          replyTo: email.replyTo ?? undefined,
+          subject: renderedSubject,
+          htmlBody: htmlBody ?? undefined,
+          textBody: renderedTextBody ?? undefined,
+          rawHeaders: {
+            "Message-ID": `${emailId}@qwikmailer.in`,
+            "List-Unsubscribe": `<${process.env.APP_URL ?? "https://qwikmailer.in"}/unsubscribe?id=${emailId}>`,
+          },
+          attachments: sandboxAttachments as any,
+          metadata: (email.metadata as Record<string, string>) ?? {},
+          expiresAt,
+        });
+
+        // Mark the email as delivered (sandbox) in the emails table
+        await db.update(emails)
+          .set({ status: "delivered", deliveredAt: new Date(), updatedAt: new Date() })
+          .where(eq(emails.id, emailId));
+
+        console.log(`[Worker] 🧪 Sandbox mode — email ${emailId} captured, NOT sent to ${email.toEmail}`);
+        return; // Skip actual SES delivery
+      }
+      // ─────────────────────────────────────────────────────────────────────
 
       // Configuration set is no longer used for dedicated IPs as we use shared pool
       let configurationSetName: string | undefined = undefined;

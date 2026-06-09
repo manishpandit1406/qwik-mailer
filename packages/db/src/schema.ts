@@ -654,12 +654,44 @@ export const teams = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull().unique(),
+    sandboxMode: boolean("sandbox_mode").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (t) => [
     index("teams_owner_idx").on(t.ownerId),
     uniqueIndex("teams_slug_idx").on(t.slug),
+  ]
+);
+
+// ─── Sandbox Emails ───────────────────────────────────────────────────────────
+
+export const sandboxEmails = pgTable(
+  "sandbox_emails",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    fromEmail: varchar("from_email", { length: 255 }).notNull(),
+    fromName: varchar("from_name", { length: 255 }),
+    toEmail: varchar("to_email", { length: 255 }).notNull(),
+    toName: varchar("to_name", { length: 255 }),
+    replyTo: varchar("reply_to", { length: 255 }),
+    subject: text("subject").notNull(),
+    htmlBody: text("html_body"),
+    textBody: text("text_body"),
+    rawHeaders: jsonb("raw_headers").$type<Record<string, string>>().default({}),
+    attachments: jsonb("attachments").$type<Array<{ filename: string; contentType: string; size: number; content: string }>>().default([]),
+    metadata: jsonb("metadata").$type<Record<string, string>>().default({}),
+    isRead: boolean("is_read").default(false).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("sandbox_emails_team_idx").on(t.teamId),
+    index("sandbox_emails_expires_at_idx").on(t.expiresAt),
+    index("sandbox_emails_created_at_idx").on(t.createdAt),
   ]
 );
 
@@ -729,6 +761,11 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   invites: many(teamInvites),
   forms: many(forms),
   contacts: many(contacts),
+  sandboxEmails: many(sandboxEmails),
+}));
+
+export const sandboxEmailsRelations = relations(sandboxEmails, ({ one }) => ({
+  team: one(teams, { fields: [sandboxEmails.teamId], references: [teams.id] }),
 }));
 
 export const teamMembersRelations = relations(teamMembers, ({ one }) => ({

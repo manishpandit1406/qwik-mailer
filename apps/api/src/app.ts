@@ -33,6 +33,7 @@ import { supportRoutes } from "./routes/support.js";
 import { sesWebhookRoutes } from "./routes/ses-webhooks.js";
 import { formRoutes } from "./routes/forms.js";
 import { contactRoutes } from "./routes/contacts.js";
+import { sandboxRoutes } from "./routes/sandbox.js";
 import { errorHandler } from "./middleware/error-handler.js";
 
 
@@ -168,6 +169,7 @@ export async function buildApp() {
   await app.register(sesWebhookRoutes, { prefix: "/v1/webhooks" });
   await app.register(formRoutes, { prefix: "/v1/forms" });
   await app.register(contactRoutes, { prefix: "/v1/contacts" });
+  await app.register(sandboxRoutes, { prefix: "/v1/sandbox" });
 
   return app;
 }

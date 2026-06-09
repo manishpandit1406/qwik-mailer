@@ -35,6 +35,7 @@ import {
   ShieldAlert,
   ClipboardList,
   BookUser,
+  FlaskConical,
 } from "lucide-react";
 import { Select } from "@/components/Select";
 import { useRole } from "@/lib/useRole";
@@ -58,6 +59,7 @@ const navItems: NavItem[] = [
     icon: <SendHorizonal size={16} />,
   },
   { label: "Email Logs", href: "/dashboard/logs", icon: <Mail size={16} /> },
+  { label: "Test Inbox", href: "/dashboard/sandbox", icon: <FlaskConical size={16} /> },
   {
     label: "Scheduled",
     href: "/dashboard/scheduled",

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { eq, and, desc, sql, inArray, or } from "drizzle-orm";
-import { db, emails, emailEvents, users, templates, domains, domainSenders, certificates, suppressionList, contactLists, contacts, contactListMembers } from "@qwikmailer/db";
+import { db, emails, emailEvents, users, templates, domains, domainSenders, certificates, suppressionList, contactLists, contacts, contactListMembers, teams } from "@qwikmailer/db";
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { getOwnerTeamIds, getTeamOwnerId } from "../utils/team-owner.js";
 import {
@@ -131,10 +131,16 @@ export async function emailRoutes(app: FastifyInstance) {
       ? [{ email: body.to }]
       : [body.to];
 
-    try {
-      await checkAndConsumeQuota((req as any).teamId, toList.length);
-    } catch (error: any) {
-      return reply.code(403).send({ success: false, error: error.message });
+    // Check sandbox mode — skip quota if sandbox is ON
+    const teamRec = await db.query.teams.findFirst({ where: eq(teams.id, (req as any).teamId) });
+    const isSandbox = teamRec?.sandboxMode === true;
+
+    if (!isSandbox) {
+      try {
+        await checkAndConsumeQuota((req as any).teamId, toList.length);
+      } catch (error: any) {
+        return reply.code(403).send({ success: false, error: error.message });
+      }
     }
 
     const results = [];
