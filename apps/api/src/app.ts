@@ -159,7 +159,7 @@ export async function buildApp() {
   // Rate limiting — uses Redis if available, otherwise in-memory store
   await app.register(rateLimit, {
     global: true,
-    max: 1000,
+    max: 100000,   // Temporarily raised for load test — revert to 1000 after
     timeWindow: "1 minute",
     ...(redis ? { redis } : {}),
     keyGenerator: (req) => {
