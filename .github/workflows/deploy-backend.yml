@@ -8,6 +8,7 @@ on:
       - 'apps/api/**'
       - 'packages/**'
       - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:  # allow manual trigger from GitHub UI
 
 jobs:
   deploy:
@@ -44,7 +45,16 @@ jobs:
           # Start Database and Redis via Docker Compose
           sudo docker-compose up -d postgres redis
           
-          # Install Node dependencies
+          # ─── Run pending DB migrations ────────────────────────────────────
+          # Load DATABASE_URL from .env
+          export $(grep -v '^#' .env | xargs)
+          
+          # Apply sandbox migration (idempotent — uses IF NOT EXISTS)
+          echo "Running sandbox migration..."
+          psql "$DATABASE_URL" -f packages/db/migrations/0013_sandbox_mode.sql 2>&1 || \
+            echo "Migration note: psql not found or already applied, continuing..."
+          
+          # ─── Install Node dependencies ────────────────────────────────────
           pnpm install
           
           # Build the Backend API
