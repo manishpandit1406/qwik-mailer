@@ -7,40 +7,68 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-    - name: Cleanup test data via SSH
+    - name: Permanently delete all loadtest data
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          echo "=== Cleaning sandbox_emails (loadtest data) ==="
+          echo "=== STEP 1: Stop worker to pause processing ==="
+          pm2 stop worker || true
+
+          echo "=== STEP 2: Flush Redis queue completely ==="
+          sudo docker exec qwikmailer_redis redis-cli FLUSHDB
+          echo "✅ Redis flushed"
+
+          echo "=== STEP 3: Delete from sandbox_emails ==="
           sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
             DELETE FROM sandbox_emails
-            WHERE to_email LIKE 'lt%@example.com'
-               OR to_email LIKE 'loadtest.%@example.com';
+            WHERE to_email LIKE '%@example.com'
+               OR to_email LIKE 'lt%'
+               OR to_email LIKE 'loadtest%'
+               OR subject LIKE 'Load Test%'
+               OR subject LIKE 'LT #%';
           " && echo "✅ sandbox_emails cleaned"
 
-          echo "=== Cleaning email_logs (loadtest data) ==="
+          echo "=== STEP 4: Delete from email_logs ==="
           sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
             DELETE FROM email_logs
-            WHERE to_email LIKE 'lt%@example.com'
-               OR to_email LIKE 'loadtest.%@example.com';
+            WHERE to_email LIKE '%@example.com'
+               OR to_email LIKE 'lt%'
+               OR to_email LIKE 'loadtest%'
+               OR subject LIKE 'Load Test%'
+               OR subject LIKE 'LT #%';
           " && echo "✅ email_logs cleaned"
 
-          echo "=== Cleaning email_recipients (loadtest data) ==="
+          echo "=== STEP 5: Delete from email_recipients ==="
           sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
             DELETE FROM email_recipients
-            WHERE email LIKE 'lt%@example.com'
-               OR email LIKE 'loadtest.%@example.com';
+            WHERE email LIKE '%@example.com'
+               OR email LIKE 'lt%'
+               OR email LIKE 'loadtest%';
           " && echo "✅ email_recipients cleaned"
 
-          echo "=== Row counts after cleanup ==="
+          echo "=== STEP 6: Delete batch jobs created during load test ==="
           sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
-            SELECT 'sandbox_emails' AS table_name, COUNT(*) FROM sandbox_emails
+            DELETE FROM batch_jobs
+            WHERE subject LIKE 'Load Test%'
+               OR subject LIKE 'LT #%'
+               OR subject = 'x';
+          " && echo "✅ batch_jobs cleaned"
+
+          echo "=== STEP 7: Restart worker with clean state ==="
+          pm2 start worker || true
+          pm2 save
+
+          echo ""
+          echo "=== Final row counts ==="
+          sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
+            SELECT 'sandbox_emails'    AS tbl, COUNT(*) FROM sandbox_emails
             UNION ALL
-            SELECT 'email_logs', COUNT(*) FROM email_logs
+            SELECT 'email_logs',              COUNT(*) FROM email_logs
             UNION ALL
-            SELECT 'email_recipients', COUNT(*) FROM email_recipients;
+            SELECT 'email_recipients',        COUNT(*) FROM email_recipients;
           "
-          echo "=== DONE ==="
+          echo "=== ✅ ALL DONE ==="
+
