@@ -549,7 +549,7 @@ export default function DashboardLayout({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 lg:p-6 relative bg-[#fafafa]">
+        <main className="flex-1 overflow-auto p-4 lg:p-6 relative bg-[#fafafa] flex flex-col">
           {children}
           <SecurityReminderPopup />
         </main>

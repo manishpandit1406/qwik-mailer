@@ -168,9 +168,10 @@ export default function SandboxPage() {
     : emails;
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-4rem)] space-y-4">
+    // h-screen minus topbar (64px) minus page padding (48px top+bottom on lg = p-6*2)
+    <div className="flex flex-col overflow-hidden" style={{ height: "calc(100vh - 64px - 48px)" }}>
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0">
+      <div className="flex items-center justify-between shrink-0 pb-3">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
@@ -227,7 +228,7 @@ export default function SandboxPage() {
 
       {/* Sandbox Mode Banner */}
       {sandboxMode && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium flex-shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium shrink-0">
           <FlaskConical size={16} className="text-amber-600 shrink-0" />
           <span>
             <strong>Sandbox Mode is Active</strong> — Emails are being captured here instead of delivered to recipients. No SES credits are consumed.
@@ -238,7 +239,7 @@ export default function SandboxPage() {
       {/* Split Pane */}
       <div className="flex flex-1 gap-4 min-h-0 overflow-hidden">
         {/* Left: Email List */}
-        <div className="flex flex-col w-full max-w-sm shrink-0 glass-card overflow-hidden">
+        <div className="flex flex-col w-80 shrink-0 glass-card overflow-hidden">
           {/* Search */}
           <div className="p-3 border-b border-gray-100">
             <div className="relative">
