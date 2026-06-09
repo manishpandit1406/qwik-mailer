@@ -36,11 +36,10 @@ import {
   ClipboardList,
   BookUser,
   FlaskConical,
-  ToggleLeft,
-  ToggleRight,
 } from "lucide-react";
 import { Select } from "@/components/Select";
 import { useRole } from "@/lib/useRole";
+import { SandboxProvider } from "@/lib/sandboxContext";
 
 interface NavItem {
   label: string;
@@ -241,42 +240,6 @@ export default function DashboardLayout({
   const [activeTeamId, setActiveTeamId] = useState("");
   const { role, isViewer, canAdmin } = useRole();
 
-  // Sandbox state
-  const [sandboxMode, setSandboxMode] = useState(false);
-  const [sandboxToggling, setSandboxToggling] = useState(false);
-  const [sandboxUnread, setSandboxUnread] = useState(0);
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
-  const fetchSandboxSettings = useCallback(async (teamId: string) => {
-    try {
-      const token = localStorage.getItem("mf_access_token") ?? "";
-      const res = await fetch(`${API}/v1/sandbox/settings`, {
-        headers: { Authorization: `Bearer ${token}`, "X-Team-ID": teamId },
-      });
-      const json = await res.json();
-      if (json.success) {
-        setSandboxMode(json.data.sandboxMode);
-        setSandboxUnread(json.data.unreadCount);
-      }
-    } catch {}
-  }, [API]);
-
-  async function toggleSandbox() {
-    setSandboxToggling(true);
-    try {
-      const token = localStorage.getItem("mf_access_token") ?? "";
-      const teamId = localStorage.getItem("mf_active_team") ?? "";
-      const newVal = !sandboxMode;
-      const res = await fetch(`${API}/v1/sandbox/settings`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "X-Team-ID": teamId, "Content-Type": "application/json" },
-        body: JSON.stringify({ sandboxMode: newVal }),
-      });
-      const json = await res.json();
-      if (json.success) setSandboxMode(json.data.sandboxMode);
-    } catch {}
-    setSandboxToggling(false);
-  }
 
   useEffect(() => {
     const userStr = localStorage.getItem("mf_user");
@@ -331,10 +294,6 @@ export default function DashboardLayout({
     fetchTeams();
   }, [router]);
 
-  useEffect(() => {
-    if (activeTeamId) fetchSandboxSettings(activeTeamId);
-  }, [activeTeamId, fetchSandboxSettings]);
-
   function handleTeamChange(id: string) {
     setActiveTeamId(id);
     localStorage.setItem("mf_active_team", id);
@@ -354,6 +313,7 @@ export default function DashboardLayout({
   }
 
   return (
+    <SandboxProvider>
     <div className="flex flex-col h-screen bg-[#fafafa] font-sans text-gray-900 overflow-hidden">
       {/* Top Full-Width Header */}
       <header className="h-16 shrink-0 flex items-center justify-between px-4 lg:px-6 bg-white border-b border-gray-200 z-50">
@@ -497,37 +457,6 @@ export default function DashboardLayout({
               </nav>
             </div>
 
-            {/* Sandbox Toggle — above logout */}
-            <div className="px-3 pb-2">
-              <button
-                onClick={toggleSandbox}
-                disabled={sandboxToggling}
-                title={sandboxMode ? "Sandbox ON — click to disable" : "Sandbox OFF — click to enable"}
-                className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                  sandboxMode
-                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
-                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
-                }`}
-              >
-                <div className="w-6 shrink-0 flex justify-center">
-                  <FlaskConical size={14} className={sandboxMode ? "text-amber-600" : "text-gray-400"} />
-                </div>
-                <div className={`flex items-center gap-2 flex-1 ml-2 transition-opacity duration-300 ${isCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
-                  <span>Sandbox {sandboxMode ? "ON" : "OFF"}</span>
-                  {sandboxUnread > 0 && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-600 text-white">
-                      {sandboxUnread}
-                    </span>
-                  )}
-                </div>
-                {!isCollapsed && (sandboxMode ? (
-                  <ToggleRight size={16} className="text-amber-500 shrink-0 ml-auto" />
-                ) : (
-                  <ToggleLeft size={16} className="text-gray-400 shrink-0 ml-auto" />
-                ))}
-              </button>
-            </div>
-
             <div className="py-3 border-t border-gray-100 overflow-x-hidden shrink-0">
               <button
                 onClick={handleLogout}
@@ -555,6 +484,7 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
+    </SandboxProvider>
   );
 }
 

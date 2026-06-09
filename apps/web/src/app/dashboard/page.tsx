@@ -14,7 +14,10 @@ import {
   ArrowUpRight,
   Users,
   FileText,
-  Webhook
+  Webhook,
+  FlaskConical,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import {
   AreaChart,
@@ -26,6 +29,8 @@ import {
   CartesianGrid,
 } from "recharts";
 import Link from "next/link";
+import { useSandbox } from "@/lib/sandboxContext";
+
 interface Stats {
   sent: number;
   delivered: number;
@@ -137,6 +142,7 @@ export default function DashboardPage() {
   const [recent, setRecent] = useState<any[]>([]);
   const [activeJobs, setActiveJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { sandboxMode, sandboxToggling, toggleSandbox } = useSandbox();
 
   // Poll for active jobs every 5 seconds
   useEffect(() => {
@@ -274,13 +280,38 @@ export default function DashboardPage() {
             this month. You're doing great!{" "}
           </p>{" "}
         </div>{" "}
-        <Link
-          href="/dashboard/send"
-          className="btn-primary flex items-center gap-2 shrink-0 relative"
-        >
-          {" "}
-          <Send size={14} /> Send Email{" "}
-        </Link>{" "}
+        <div className="flex items-center gap-3 shrink-0 relative">
+          {/* Sandbox Toggle */}
+          <button
+            onClick={toggleSandbox}
+            disabled={sandboxToggling}
+            title={sandboxMode ? "Sandbox ON — click to disable" : "Sandbox OFF — click to enable"}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 border ${
+              sandboxMode
+                ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
+                : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+            }`}
+          >
+            {sandboxToggling ? (
+              <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <FlaskConical size={14} className={sandboxMode ? "text-amber-600" : "text-gray-400"} />
+            )}
+            <span>{sandboxMode ? "Sandbox ON" : "Sandbox OFF"}</span>
+            {sandboxMode ? (
+              <ToggleRight size={16} className="text-amber-500" />
+            ) : (
+              <ToggleLeft size={16} className="text-gray-400" />
+            )}
+          </button>
+          <Link
+            href="/dashboard/send"
+            className="btn-primary flex items-center gap-2 shrink-0 relative"
+          >
+            {" "}
+            <Send size={14} /> Send Email{" "}
+          </Link>
+        </div>{" "}
       </div>{" "}
 
       {/* Active Sending Jobs */}{" "}

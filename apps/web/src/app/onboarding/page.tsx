@@ -144,42 +144,8 @@ export default function OnboardingPage() {
         if (!data.success) throw new Error(data.error);
         router.push("/projects");
       } else if (domainStrategy === "shared") {
-        if (!isAwaitingOtp) {
-            if (!sharedPrefix) throw new Error("Please enter a sender username.");
-            if (!sharedDisplayName) throw new Error("Please enter a display name.");
-            if (!sharedReplyTo) throw new Error("Reply-To email is required for the shared domain.");
-            
-            // 1. Create Sender Identity & Send OTP
-            const senderRes = await fetch(`${API}/v1/domains/shared/setup`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({
-                username: sharedPrefix.trim(),
-                displayName: sharedDisplayName.trim(),
-                replyTo: sharedReplyTo.trim(),
-              })
-            });
-            const senderData = await senderRes.json();
-            if (!senderData.success) throw new Error(senderData.error);
-            
-            setIsAwaitingOtp(true);
-            setMsg({ text: "OTP sent to your Reply-To email!", type: "success" });
-            setLoading(false);
-            return;
-        } else {
-            if (!sharedOtp) throw new Error("Please enter the OTP.");
-            
-            // 2. Verify OTP
-            const verifyRes = await fetch(`${API}/v1/domains/shared/verify`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ otp: sharedOtp, replyTo: sharedReplyTo.trim(), nickname: sharedNickname.trim() })
-            });
-            const verifyData = await verifyRes.json();
-            if (!verifyData.success) throw new Error(verifyData.error);
-            
-            router.push("/dashboard");
-        }
+        // Skip sender identity setup — user will create senders inside their project
+        router.push("/projects");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to setup domain.");
@@ -431,7 +397,7 @@ export default function OnboardingPage() {
                     >
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-bold text-gray-900">Custom Domain</h3>
-                        {domainStrategy === 'custom' && <CheckCircle2 size={18} className="text-white" />}
+                        {domainStrategy === 'custom' && <CheckCircle2 size={18} className="text-blue-500" />}
                       </div>
                       <p className="text-xs text-gray-500">I have my own domain name (e.g. acme.com) and access to its DNS settings.</p>
                     </div>
@@ -442,7 +408,7 @@ export default function OnboardingPage() {
                     >
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-bold text-gray-900">Shared Domain</h3>
-                        {domainStrategy === 'shared' && <CheckCircle2 size={18} className="text-white" />}
+                        {domainStrategy === 'shared' && <CheckCircle2 size={18} className="text-blue-500" />}
                       </div>
                       <p className="text-xs text-gray-500">I don't have a domain. Use the Qwik Mailer shared domain to start sending immediately.</p>
                     </div>
@@ -466,82 +432,11 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {domainStrategy === "shared" && !isAwaitingOtp && (
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 animate-fade-in space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Sender Username *</label>
-                        <div className="flex items-center border border-gray-300 rounded-md overflow-hidden bg-white shadow-sm focus-within:ring-1 focus-within:ring-black focus-within:border-black">
-                          <input
-                            type="text" required
-                            className="w-full px-3 py-2 focus:outline-none sm:text-sm text-gray-900 placeholder:text-gray-500"
-                            placeholder="yourcompany"
-                            value={sharedPrefix}
-                            onChange={(e) => setSharedPrefix(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                          />
-                          <div className="px-3 bg-gray-50 text-gray-500 border-l border-gray-300 text-sm whitespace-nowrap">@mail.qwikmailer.in</div>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">From Name *</label>
-                        <input
-                          type="text" required
-                          className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
-                          placeholder="Acme Corp"
-                          value={sharedDisplayName}
-                          onChange={(e) => setSharedDisplayName(e.target.value)}
-                        />
-                      </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Reply-To Address *</label>
-                      <input
-                        type="email" required
-                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
-                        placeholder="you@gmail.com"
-                        value={sharedReplyTo}
-                        onChange={(e) => setSharedReplyTo(e.target.value)}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Required. Replies to your emails will be sent here.</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Nickname <span className="text-gray-500 font-normal">(Optional)</span></label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900 placeholder:text-gray-500"
-                        placeholder="E.g. Support Team"
-                        value={sharedNickname}
-                        onChange={(e) => setSharedNickname(e.target.value)}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Internal name to help you identify this sender.</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {domainStrategy === "shared" && isAwaitingOtp && (
-                <div className="bg-white p-6 rounded-2xl border shadow-sm text-center animate-fade-in">
-                  <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
-                    <Mail size={32} />
-                  </div>
-                  <h3 className="text-lg font-bold mb-1">Verify your email</h3>
-                  <p className="text-gray-500 text-sm mb-6">
-                    We sent a 6-digit verification code to<br/>
-                    <span className="font-semibold text-gray-900">{sharedReplyTo}</span>
-                  </p>
-                  
-                  <div className="max-w-[240px] mx-auto">
-                    <input
-                      type="text"
-                      className="w-full px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-gray-900"
-                      placeholder="------"
-                      maxLength={6}
-                      value={sharedOtp}
-                      onChange={(e) => setSharedOtp(e.target.value.replace(/\D/g, ""))}
-                    />
-                  </div>
+              {/* Shared domain: no extra fields — user sets up sender inside their project */}
+              {domainStrategy === "shared" && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 animate-fade-in">
+                  <p className="font-medium mb-1">✅ You're all set!</p>
+                  <p className="text-blue-700">You can create your sender identity from inside your project after setup.</p>
                 </div>
               )}
 
@@ -560,13 +455,13 @@ export default function OnboardingPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !domainStrategy || (isAwaitingOtp && sharedOtp.length !== 6)}
+                  disabled={loading || !domainStrategy}
                   className="px-6 py-2.5 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 shadow-sm"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-gray-300 border-t-white rounded-full animate-spin" />
                   ) : (
-                    <>{isAwaitingOtp ? "Verify & Finish" : "Complete Setup"} <ChevronRight size={16} /></>
+                    <>{domainStrategy === "shared" ? "Continue to Projects" : "Complete Setup"} <ChevronRight size={16} /></>
                   )}
                 </button>
               </div>

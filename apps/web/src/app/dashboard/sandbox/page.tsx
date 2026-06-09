@@ -184,7 +184,7 @@ export default function SandboxPage() {
             )}
           </div>
           <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
-            Capture emails without delivering them — like Mailtrap
+            Capture emails without delivering them to real recipients
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -231,7 +231,7 @@ export default function SandboxPage() {
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium shrink-0">
           <FlaskConical size={16} className="text-amber-600 shrink-0" />
           <span>
-            <strong>Sandbox Mode is Active</strong> — Emails are being captured here instead of delivered to recipients. No SES credits are consumed.
+            <strong>Sandbox Mode is Active</strong> — Emails are being captured here.
           </span>
         </div>
       )}
