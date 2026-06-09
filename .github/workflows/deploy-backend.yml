@@ -45,17 +45,12 @@ jobs:
           # Start Database and Redis via Docker Compose
           sudo docker-compose up -d postgres redis
           
-          # ─── Run pending DB migrations ────────────────────────────────────
-          # Load DATABASE_URL from .env
-          export $(grep -v '^#' .env | xargs)
-          
-          # Apply sandbox migration (idempotent — uses IF NOT EXISTS)
-          echo "Running sandbox migration..."
-          psql "$DATABASE_URL" -f packages/db/migrations/0013_sandbox_mode.sql 2>&1 || \
-            echo "Migration note: psql not found or already applied, continuing..."
-          
           # ─── Install Node dependencies ────────────────────────────────────
           pnpm install
+          
+          # ─── Run pending DB migrations ────────────────────────────────────
+          echo "Running sandbox migration via TS script..."
+          pnpm tsx packages/db/apply_sandbox.ts || echo "Migration failed, continuing..."
           
           # Build the Backend API
           pnpm run build --filter=@qwikmailer/api
