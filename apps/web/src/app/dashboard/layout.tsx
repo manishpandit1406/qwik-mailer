@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard,
   SendHorizonal,
@@ -36,6 +36,8 @@ import {
   ClipboardList,
   BookUser,
   FlaskConical,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { Select } from "@/components/Select";
 import { useRole } from "@/lib/useRole";
@@ -239,6 +241,43 @@ export default function DashboardLayout({
   const [activeTeamId, setActiveTeamId] = useState("");
   const { role, isViewer, canAdmin } = useRole();
 
+  // Sandbox state
+  const [sandboxMode, setSandboxMode] = useState(false);
+  const [sandboxToggling, setSandboxToggling] = useState(false);
+  const [sandboxUnread, setSandboxUnread] = useState(0);
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+  const fetchSandboxSettings = useCallback(async (teamId: string) => {
+    try {
+      const token = localStorage.getItem("mf_access_token") ?? "";
+      const res = await fetch(`${API}/v1/sandbox/settings`, {
+        headers: { Authorization: `Bearer ${token}`, "X-Team-ID": teamId },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSandboxMode(json.data.sandboxMode);
+        setSandboxUnread(json.data.unreadCount);
+      }
+    } catch {}
+  }, [API]);
+
+  async function toggleSandbox() {
+    setSandboxToggling(true);
+    try {
+      const token = localStorage.getItem("mf_access_token") ?? "";
+      const teamId = localStorage.getItem("mf_active_team") ?? "";
+      const newVal = !sandboxMode;
+      const res = await fetch(`${API}/v1/sandbox/settings`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "X-Team-ID": teamId, "Content-Type": "application/json" },
+        body: JSON.stringify({ sandboxMode: newVal }),
+      });
+      const json = await res.json();
+      if (json.success) setSandboxMode(json.data.sandboxMode);
+    } catch {}
+    setSandboxToggling(false);
+  }
+
   useEffect(() => {
     const userStr = localStorage.getItem("mf_user");
     if (userStr) {
@@ -292,6 +331,10 @@ export default function DashboardLayout({
     fetchTeams();
   }, [router]);
 
+  useEffect(() => {
+    if (activeTeamId) fetchSandboxSettings(activeTeamId);
+  }, [activeTeamId, fetchSandboxSettings]);
+
   function handleTeamChange(id: string) {
     setActiveTeamId(id);
     localStorage.setItem("mf_active_team", id);
@@ -334,6 +377,11 @@ export default function DashboardLayout({
         </div>
 
         <div className="ml-auto flex items-center gap-4">
+          {/* Plan badge in navbar */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
+            <Zap size={11} className="text-gray-500" />
+            <span className="text-xs font-semibold text-gray-600 capitalize">{user.plan} Plan</span>
+          </div>
           <button className="p-2 relative rounded-full hover:bg-gray-100 transition-colors text-gray-600">
             <Bell size={18} />
             <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-red-500" />
@@ -384,7 +432,7 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex flex-col h-full overflow-hidden">
-            {/* Team Switcher & Plan Badge (only visible when expanded on desktop, or mobile) */}
+            {/* Team Switcher only (plan removed from sidebar) */}
             <div className={`shrink-0 transition-opacity duration-300 ${isCollapsed ? "opacity-0 h-0 overflow-hidden" : "opacity-100 h-auto"}`}>
               <div className="px-4 py-3">
                 <div className="flex flex-col gap-1 whitespace-nowrap">
@@ -394,22 +442,6 @@ export default function DashboardLayout({
                     options={teams.length === 0 ? [] : teams.map(t => ({ label: t.name, value: t.id }))}
                     placeholder={teams.length === 0 ? "Loading..." : "Select Project"}
                   />
-                </div>
-              </div>
-              <div className="px-4 pb-3">
-                <div className="flex items-center justify-between px-3 py-2 rounded-md bg-gray-50 border border-gray-200 whitespace-nowrap">
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <Zap size={13} />
-                    <span className="text-xs font-semibold capitalize">
-                      {user.plan} Plan
-                    </span>
-                  </div>
-                  <Link
-                    href="/dashboard/team"
-                    className="text-xs font-medium text-gray-500 hover:text-gray-700 ml-2"
-                  >
-                    Upgrade
-                  </Link>
                 </div>
               </div>
             </div>
@@ -463,6 +495,34 @@ export default function DashboardLayout({
                   );
                 })}
               </nav>
+            </div>
+
+            {/* Sandbox Toggle — above logout */}
+            <div className={`px-3 pb-2 transition-opacity duration-300 ${isCollapsed ? "opacity-0 h-0 overflow-hidden" : "opacity-100"}`}>
+              <button
+                onClick={toggleSandbox}
+                disabled={sandboxToggling}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
+                  sandboxMode
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <FlaskConical size={13} className={sandboxMode ? "text-amber-600" : "text-gray-400"} />
+                  <span>Sandbox {sandboxMode ? "ON" : "OFF"}</span>
+                  {sandboxUnread > 0 && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-600 text-white">
+                      {sandboxUnread}
+                    </span>
+                  )}
+                </div>
+                {sandboxMode ? (
+                  <ToggleRight size={16} className="text-amber-500 shrink-0" />
+                ) : (
+                  <ToggleLeft size={16} className="text-gray-400 shrink-0" />
+                )}
+              </button>
             </div>
 
             <div className="py-3 border-t border-gray-100 overflow-x-hidden shrink-0">

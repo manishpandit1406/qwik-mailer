@@ -22,11 +22,14 @@ import { formatIST } from "@/lib/dateUtils";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-function getToken() {
-  return typeof window !== "undefined" ? (localStorage.getItem("mf_access_token") ?? "") : "";
-}
-function getTeamId() {
-  return typeof window !== "undefined" ? (localStorage.getItem("mf_active_team") ?? "") : "";
+function getHeaders() {
+  const token = typeof window !== "undefined" ? (localStorage.getItem("mf_access_token") ?? "") : "";
+  const teamId = typeof window !== "undefined" ? (localStorage.getItem("mf_active_team") ?? "") : "";
+  return {
+    Authorization: `Bearer ${token}`,
+    "X-Team-ID": teamId,
+    "Content-Type": "application/json",
+  };
 }
 
 interface SandboxEmail {
@@ -65,9 +68,7 @@ export default function SandboxPage() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/v1/sandbox/settings`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
+      const res = await fetch(`${API}/v1/sandbox/settings`, { headers: getHeaders() });
       const json = await res.json();
       if (json.success) {
         setSandboxMode(json.data.sandboxMode);
@@ -82,9 +83,7 @@ export default function SandboxPage() {
       const url = new URL(`${API}/v1/sandbox/emails`);
       url.searchParams.set("page", page.toString());
       url.searchParams.set("limit", limit.toString());
-      const res = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
+      const res = await fetch(url.toString(), { headers: getHeaders() });
       const json = await res.json();
       if (json.success) {
         setEmails(json.data.items);
@@ -102,14 +101,22 @@ export default function SandboxPage() {
   async function toggleSandbox() {
     setToggling(true);
     try {
+      const newVal = !sandboxMode;
       const res = await fetch(`${API}/v1/sandbox/settings`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ sandboxMode: !sandboxMode }),
+        headers: getHeaders(),
+        body: JSON.stringify({ sandboxMode: newVal }),
       });
       const json = await res.json();
-      if (json.success) setSandboxMode(json.data.sandboxMode);
-    } catch {}
+      if (json.success) {
+        setSandboxMode(json.data.sandboxMode);
+      } else {
+        console.error("Sandbox toggle failed:", json);
+        alert(json.error ?? "Failed to toggle sandbox mode");
+      }
+    } catch (e) {
+      console.error("Toggle sandbox error:", e);
+    }
     setToggling(false);
   }
 
@@ -117,15 +124,12 @@ export default function SandboxPage() {
     if (!email.isRead) {
       await fetch(`${API}/v1/sandbox/emails/${email.id}/read`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: getHeaders(),
       });
       setEmails((prev) => prev.map((e) => (e.id === email.id ? { ...e, isRead: true } : e)));
       setUnreadCount((c) => Math.max(0, c - 1));
     }
-    // Fetch full email
-    const res = await fetch(`${API}/v1/sandbox/emails/${email.id}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
+    const res = await fetch(`${API}/v1/sandbox/emails/${email.id}`, { headers: getHeaders() });
     const json = await res.json();
     if (json.success) {
       setSelectedEmail(json.data);
@@ -135,10 +139,7 @@ export default function SandboxPage() {
 
   async function deleteEmail(id: string, e?: React.MouseEvent) {
     e?.stopPropagation();
-    await fetch(`${API}/v1/sandbox/emails/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
+    await fetch(`${API}/v1/sandbox/emails/${id}`, { method: "DELETE", headers: getHeaders() });
     setEmails((prev) => prev.filter((em) => em.id !== id));
     setTotal((t) => t - 1);
     if (selectedEmail?.id === id) setSelectedEmail(null);
@@ -147,10 +148,7 @@ export default function SandboxPage() {
   async function clearInbox() {
     if (!confirm("Clear all sandbox emails? This cannot be undone.")) return;
     setClearing(true);
-    await fetch(`${API}/v1/sandbox/emails`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
+    await fetch(`${API}/v1/sandbox/emails`, { method: "DELETE", headers: getHeaders() });
     setEmails([]);
     setTotal(0);
     setSelectedEmail(null);
@@ -205,19 +203,6 @@ export default function SandboxPage() {
               <Trash2 size={13} /> Clear Inbox
             </button>
           )}
-          {/* Sandbox Toggle */}
-          <button
-            onClick={toggleSandbox}
-            disabled={toggling}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-              sandboxMode
-                ? "bg-amber-500 text-white shadow-md shadow-amber-200 hover:bg-amber-600"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {sandboxMode ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-            {sandboxMode ? "Sandbox ON" : "Sandbox OFF"}
-          </button>
         </div>
       </div>
 
@@ -265,7 +250,7 @@ export default function SandboxPage() {
                 <p className="text-xs text-gray-400 mt-1">
                   {sandboxMode
                     ? "Send an email via API or SMTP to capture it here"
-                    : "Toggle Sandbox ON to start capturing emails"}
+                    : "Toggle Sandbox ON from the sidebar"}
                 </p>
               </div>
             ) : (
@@ -298,7 +283,7 @@ export default function SandboxPage() {
                       </span>
                       <button
                         onClick={(e) => deleteEmail(email.id, e)}
-                        className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                        className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
                         title="Delete"
                       >
                         <Trash2 size={12} />
@@ -315,18 +300,10 @@ export default function SandboxPage() {
             <div className="p-3 border-t border-gray-100 flex items-center justify-between">
               <span className="text-xs text-gray-500">{total} emails</span>
               <div className="flex gap-1">
-                <button
-                  className="btn-ghost p-1.5"
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
+                <button className="btn-ghost p-1.5" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
                   <ChevronLeft size={14} />
                 </button>
-                <button
-                  className="btn-ghost p-1.5"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
+                <button className="btn-ghost p-1.5" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
                   <ChevronRight size={14} />
                 </button>
               </div>
