@@ -498,18 +498,21 @@ export default function DashboardLayout({
             </div>
 
             {/* Sandbox Toggle — above logout */}
-            <div className={`px-3 pb-2 transition-opacity duration-300 ${isCollapsed ? "opacity-0 h-0 overflow-hidden" : "opacity-100"}`}>
+            <div className="px-3 pb-2">
               <button
                 onClick={toggleSandbox}
                 disabled={sandboxToggling}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
+                title={sandboxMode ? "Sandbox ON — click to disable" : "Sandbox OFF — click to enable"}
+                className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
                   sandboxMode
                     ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
                     : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <FlaskConical size={13} className={sandboxMode ? "text-amber-600" : "text-gray-400"} />
+                <div className="w-6 shrink-0 flex justify-center">
+                  <FlaskConical size={14} className={sandboxMode ? "text-amber-600" : "text-gray-400"} />
+                </div>
+                <div className={`flex items-center gap-2 flex-1 ml-2 transition-opacity duration-300 ${isCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
                   <span>Sandbox {sandboxMode ? "ON" : "OFF"}</span>
                   {sandboxUnread > 0 && (
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-600 text-white">
@@ -517,11 +520,11 @@ export default function DashboardLayout({
                     </span>
                   )}
                 </div>
-                {sandboxMode ? (
-                  <ToggleRight size={16} className="text-amber-500 shrink-0" />
+                {!isCollapsed && (sandboxMode ? (
+                  <ToggleRight size={16} className="text-amber-500 shrink-0 ml-auto" />
                 ) : (
-                  <ToggleLeft size={16} className="text-gray-400 shrink-0" />
-                )}
+                  <ToggleLeft size={16} className="text-gray-400 shrink-0 ml-auto" />
+                ))}
               </button>
             </div>
 

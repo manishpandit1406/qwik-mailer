@@ -203,6 +203,25 @@ export default function SandboxPage() {
               <Trash2 size={13} /> Clear Inbox
             </button>
           )}
+          {/* Sandbox Toggle on page */}
+          <button
+            onClick={toggleSandbox}
+            disabled={toggling}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              sandboxMode
+                ? "bg-amber-500 text-white shadow-md shadow-amber-200 hover:bg-amber-600"
+                : "bg-gray-900 text-white hover:bg-gray-700"
+            }`}
+          >
+            {toggling ? (
+              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : sandboxMode ? (
+              <ToggleRight size={18} />
+            ) : (
+              <ToggleLeft size={18} />
+            )}
+            {sandboxMode ? "Sandbox ON" : "Sandbox OFF"}
+          </button>
         </div>
       </div>
 
