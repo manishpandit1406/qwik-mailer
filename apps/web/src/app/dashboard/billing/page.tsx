@@ -143,39 +143,10 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Add-on Store (Only for paid plans conceptually, but we can allow everyone) */}
-      <div className="glass-card p-6">
-        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
-          <Zap size={20} className="text-amber-500" /> Need more capacity?
-        </h3>
-        <p className="text-sm text-gray-600 mb-6">
-          If you are reaching your monthly limit, you can buy a one-time add-on quota. These extra emails never expire and are automatically used if your monthly limit runs out.
-        </p>
-
-        <div className="grid sm:grid-cols-3 gap-4">
-          {[
-            { amount: 5000, price: 199 },
-            { amount: 25000, price: 799 },
-            { amount: 100000, price: 2499 }
-          ].map((addon) => (
-            <div key={addon.amount} className="border border-gray-200 rounded-xl p-5 hover:border-indigo-300 transition-colors bg-white">
-              <h4 className="text-xl font-black text-gray-900 mb-1">{addon.amount.toLocaleString()} <span className="text-sm font-medium text-gray-500">emails</span></h4>
-              <p className="text-indigo-600 font-bold mb-4">₹{addon.price}</p>
-              <button
-                onClick={() => buyAddon(addon.amount, addon.price)}
-                className="w-full btn-secondary text-sm"
-              >
-                Buy Add-on
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Available Plans */}
       <div>
         <h3 className="text-lg font-bold text-gray-900 mb-6">Available Plans</h3>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {[
             {
               id: "free",
@@ -249,7 +220,7 @@ export default function BillingPage() {
             {
               id: "business",
               name: "Business",
-              price: "₹3,999",
+              price: "₹5,599",
               features: [
                 { text: "Emails: 250,000/month", included: true },
                 { text: "Speed: 20 emails/sec", included: true },
@@ -268,13 +239,39 @@ export default function BillingPage() {
                 { text: "Scheduling", included: true },
                 { text: "Ticket Support: Premium & SLA", included: true },
               ]
+            },
+            {
+              id: "custom",
+              name: "Custom",
+              price: "Custom",
+              features: [
+                { text: "Emails: Unlimited/Custom", included: true },
+                { text: "Speed: Dedicated Throughput", included: true },
+                { text: "Analytics: Advanced", included: true },
+                { text: "Projects: Unlimited", included: true },
+                { text: "Forms", included: true },
+                { text: "Contacts: Unlimited", included: true },
+                { text: "API Access", included: true },
+                { text: "SMTP Access", included: true },
+                { text: "Testing Inbox: Unlimited", included: true },
+                { text: "Sender Identity: Dedicated IPs", included: true },
+                { text: "Email Validation: Custom volume", included: true },
+                { text: "Email Templates", included: true },
+                { text: "Ticket Support: Dedicated Manager", included: true },
+                { text: "Team Members: Unlimited", included: true },
+                { text: "Webhooks", included: true },
+                { text: "Scheduling", included: true },
+              ]
             }
           ].map((planObj) => (
-            <div key={planObj.id} className={`glass-card p-6 relative flex flex-col ${data.plan === planObj.id ? 'ring-2 ring-indigo-500' : ''}`}>
+            <div key={planObj.id} className={`glass-card p-6 relative flex flex-col hover:shadow-xl transition-all duration-300 border bg-white ${data.plan === planObj.id ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/20' : 'border-gray-100 hover:border-indigo-300'}`}>
               {data.plan === planObj.id && <div className="absolute top-4 right-4"><CheckCircle2 className="text-indigo-500" /></div>}
-              <h3 className="text-xl font-bold mb-1">{planObj.name}</h3>
-              <div className="text-3xl font-black mb-4">{planObj.price}<span className="text-sm text-gray-500 font-medium">/mo</span></div>
-              <ul className="space-y-2 mb-6 flex-1 text-sm">
+              <h3 className="text-xl font-bold mb-1 text-gray-900">{planObj.name}</h3>
+              <div className="text-3xl font-black mb-4 text-gray-900">
+                {planObj.price}
+                {planObj.price !== "Custom" && <span className="text-sm text-gray-500 font-medium">/mo</span>}
+              </div>
+              <ul className="space-y-3 mb-6 flex-1 text-sm">
                 {planObj.features.map((f, i) => (
                   <li key={i} className={`flex items-start gap-2 ${f.included ? 'text-gray-700' : 'text-gray-400'}`}>
                     {f.included ? (
@@ -288,10 +285,12 @@ export default function BillingPage() {
               </ul>
               {data.plan === planObj.id ? (
                 <button disabled className="w-full btn-secondary opacity-50 cursor-not-allowed">Current Plan</button>
+              ) : planObj.id === 'custom' ? (
+                <a href="mailto:sales@qwikmailer.com" className="w-full btn-secondary text-center block">Contact Sales</a>
               ) : (
                 <button 
                   onClick={() => simulateUpgrade(planObj.id)} 
-                  className={`w-full ${planObj.id === 'pro' || planObj.id === 'business' ? 'btn-primary' : 'btn-secondary'}`}
+                  className={`w-full ${planObj.id === 'pro' || planObj.id === 'business' ? 'bg-gray-900 hover:bg-gray-800 text-white shadow-md' : 'btn-secondary border-gray-200 hover:border-indigo-300 bg-gray-50 hover:bg-indigo-50 text-gray-900'} font-semibold rounded-lg px-4 py-2 text-sm transition-all`}
                 >
                   Upgrade to {planObj.name}
                 </button>

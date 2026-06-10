@@ -351,7 +351,7 @@ export default function LandingPage() {
     },
     {
       name: "Business",
-      price: "₹3,999",
+      price: "₹5,599",
       period: "month",
       description: "For enterprises sending massive volume",
       features: [
@@ -373,6 +373,31 @@ export default function LandingPage() {
         { text: "Ticket Support: Premium & SLA", included: true },
       ],
       cta: "Upgrade to Business",
+    },
+    {
+      name: "Custom",
+      price: "Custom",
+      period: "",
+      description: "For highly unique enterprise needs",
+      features: [
+        { text: "Emails: Unlimited/Custom", included: true },
+        { text: "Speed: Dedicated Throughput", included: true },
+        { text: "Analytics: Advanced", included: true },
+        { text: "Projects: Unlimited", included: true },
+        { text: "Forms", included: true },
+        { text: "Contacts: Unlimited", included: true },
+        { text: "API Access", included: true },
+        { text: "SMTP Access", included: true },
+        { text: "Testing Inbox: Unlimited", included: true },
+        { text: "Sender Identity: Dedicated IPs", included: true },
+        { text: "Email Validation: Custom volume", included: true },
+        { text: "Email Templates", included: true },
+        { text: "Ticket Support: Dedicated Manager", included: true },
+        { text: "Team Members: Unlimited", included: true },
+        { text: "Webhooks", included: true },
+        { text: "Scheduling", included: true },
+      ],
+      cta: "Contact Sales",
     },
   ];
   return (
