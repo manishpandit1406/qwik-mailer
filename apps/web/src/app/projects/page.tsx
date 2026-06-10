@@ -26,6 +26,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [userInitial, setUserInitial] = useState("U");
+  const [userPlan, setUserPlan] = useState("free");
   
   const [showCreate, setShowCreate] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -36,6 +37,7 @@ export default function ProjectsPage() {
     try {
       const u = JSON.parse(localStorage.getItem("mf_user") || "{}");
       if (u.name) setUserInitial(u.name[0]);
+      if (u.plan) setUserPlan(u.plan);
     } catch(e) {}
   }, []);
 
@@ -101,7 +103,17 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Projects</h1>
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setShowCreate(true)}
+              onClick={() => {
+                if (userPlan === "free" && projects.length >= 1) {
+                  setError("Free plan is limited to 1 project. Please upgrade to add more.");
+                } else if (userPlan === "standard" && projects.length >= 2) {
+                  setError("Standard plan is limited to 2 projects. Please upgrade to add more.");
+                } else if (userPlan === "pro" && projects.length >= 5) {
+                  setError("Pro plan is limited to 5 projects. Please upgrade to add more.");
+                } else {
+                  setShowCreate(true);
+                }
+              }}
               className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
             >
               <Plus size={16} /> New project

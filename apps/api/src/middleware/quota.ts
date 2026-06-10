@@ -56,10 +56,12 @@ export async function checkProjectLimit(req: FastifyRequest, reply: FastifyReply
 
   const plan = (user.plan || "free") as PlanType;
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
-  const userTeams = await db.query.teams.findMany({ where: eq(teams.ownerId, user.id), columns: { id: true } });
+  const res = await db.execute(sql`SELECT COUNT(*) as count FROM teams WHERE owner_id = ${user.id}`);
+  const rows = (res as any).rows || res;
+  const teamCount = Number(rows[0]?.count || 0);
 
-  if (userTeams.length >= limits.maxProjects) {
-    return reply.code(402).send({ success: false, error: `You have reached the maximum number of projects (${limits.maxProjects}) for the ${plan} plan.` });
+  if (teamCount >= limits.maxProjects) {
+    return reply.code(402).send({ success: false, error: `You have reached the maximum number of projects (${limits.maxProjects}) for the ${plan} plan. Please upgrade to add more.` });
   }
 }
 
