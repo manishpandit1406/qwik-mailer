@@ -47,11 +47,12 @@ export default function SendEmailPage() {
   const [certificates, setCertificates] = useState<{ id: string; name: string }[]>([]);
   const [selectedCertificateId, setSelectedCertificateId] = useState("");
   const { isViewer } = useRole();
-  
+  const [userPlan, setUserPlan] = useState<string>("free");
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
-    
+
     if (attachments.length + files.length > 5) {
       alert("Maximum 5 attachments allowed.");
       return;
@@ -88,14 +89,21 @@ export default function SendEmailPage() {
   useEffect(() => {
     async function loadData() {
       try {
+        const userStr = localStorage.getItem("mf_user");
+        if (userStr) {
+          try {
+            const parsed = JSON.parse(userStr);
+            if (parsed.plan) setUserPlan(parsed.plan);
+          } catch (e) { }
+        }
         const token = localStorage.getItem("mf_access_token");
         const teamId = localStorage.getItem("mf_active_team") || "";
-        
+
         // Load templates
         fetch(`${API}/v1/templates`, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
-            "x-team-id": teamId 
+            "x-team-id": teamId
           },
         })
           .then((res) => res.json())
@@ -103,10 +111,10 @@ export default function SendEmailPage() {
             if (json.success) setTemplates(json.data);
           })
           .catch(console.error);
-        
+
         // Load senders
         fetch(`${API}/v1/senders`, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             "x-team-id": teamId
           },
@@ -127,7 +135,7 @@ export default function SendEmailPage() {
           });
         // Load certificates
         fetch(`${API}/v1/certificates`, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             "x-team-id": teamId
           },
@@ -171,10 +179,10 @@ export default function SendEmailPage() {
     try {
       const token = localStorage.getItem("mf_access_token");
       const teamId = localStorage.getItem("mf_active_team") || "";
-      
+
       const endpoint = sendMode === "bulk_upload" ? "/v1/bulk-send" : "/v1/send";
       let payload: any = {};
-      
+
       const commonData = {
         from: form.from || undefined,
         fromName: form.fromName || undefined,
@@ -192,10 +200,10 @@ export default function SendEmailPage() {
         const tags = bulkTags.split(",").map(t => t.trim()).filter(t => t);
         payload = {
           emails: parsedContacts.map((contact: any) => ({
-             ...commonData,
-             to: contact.email,
-             tags,
-             variables: contact
+            ...commonData,
+            to: contact.email,
+            tags,
+            variables: contact
           }))
         };
       } else {
@@ -259,7 +267,7 @@ export default function SendEmailPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setBulkFileName(file.name);
-    
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
@@ -267,7 +275,7 @@ export default function SendEmailPage() {
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
       const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
-      
+
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       const validContacts = data.filter((row: any) => {
         const email = (row["email"] || row["Email"] || row["EMAIL"] || row["e-mail"] || "").toString().trim();
@@ -277,7 +285,7 @@ export default function SendEmailPage() {
         email: (row["email"] || row["Email"] || row["EMAIL"] || row["e-mail"] || "").toString().trim(),
         name: (row["first_name"] || row["firstName"] || row["Name"] || row["name"] || row["FullName"] || "").toString().trim()
       }));
-      
+
       setParsedContacts(validContacts);
     };
     reader.readAsBinaryString(file);
@@ -300,7 +308,7 @@ export default function SendEmailPage() {
           Send a single transactional email, or a bulk campaign to your audience.
         </p>
       </div>
-      
+
       <div className="flex bg-gray-100 p-1 rounded-xl w-full max-w-sm">
         <button
           className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-lg transition-all bg-white text-gray-900 shadow-sm`}
@@ -459,7 +467,7 @@ export default function SendEmailPage() {
                 </button>
               ))}
             </div>
-            
+
             {templates.length > 0 && (
               <select
                 className="bg-transparent border-none outline-none text-xs text-gray-900 font-medium cursor-pointer"
@@ -498,7 +506,7 @@ export default function SendEmailPage() {
                 <Upload size={16} /> Attach Files
                 <input type="file" multiple className="hidden" onChange={handleFileChange} />
               </label>
-              
+
               {certificates.length > 0 && (
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Award size={16} />
@@ -531,14 +539,18 @@ export default function SendEmailPage() {
         {/* Schedule & Submit Footer */}
         <div className="flex items-center justify-between pt-4">
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            <label className={`flex items-center gap-2 text-sm transition-colors ${["free", "standard"].includes(userPlan) ? "text-gray-400 cursor-not-allowed" : "cursor-pointer text-gray-600 hover:text-gray-900"}`} title={["free", "standard"].includes(userPlan) ? "Upgrade to Pro to schedule emails" : ""}>
               <input
                 type="checkbox"
-                className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                className="rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 checked={isScheduled}
+                disabled={["free", "standard"].includes(userPlan)}
                 onChange={(e) => setIsScheduled(e.target.checked)}
               />
               Schedule for later
+              {["free", "standard"].includes(userPlan) && (
+                <span className="text-[9px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded ml-1">Pro</span>
+              )}
             </label>
             {isScheduled && (
               <input
@@ -550,7 +562,7 @@ export default function SendEmailPage() {
               />
             )}
           </div>
-          
+
           <div className="flex items-center gap-3">
             <button
               type="button"

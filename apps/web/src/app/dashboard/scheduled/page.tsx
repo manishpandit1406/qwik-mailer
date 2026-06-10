@@ -7,7 +7,9 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  ChevronRight,
   Ban,
+  Clock,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 interface BatchLog {
@@ -53,6 +55,7 @@ export default function ScheduledPage() {
   const [selected, setSelected] = useState<EmailLog | null>(null);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [userPlan, setUserPlan] = useState<string>("free");
   const fetchBatches = async () => {
     setLoading(true);
     setError("");
@@ -79,6 +82,13 @@ export default function ScheduledPage() {
     }
   };
   useEffect(() => {
+    const userStr = localStorage.getItem("mf_user");
+    if (userStr) {
+      try {
+        const parsed = JSON.parse(userStr);
+        if (parsed.plan) setUserPlan(parsed.plan);
+      } catch (e) {}
+    }
     fetchBatches();
   }, [page]);
   async function handleCancelBatch(batchId: string) {
@@ -132,8 +142,29 @@ export default function ScheduledPage() {
       console.error(err);
     }
   }
+  }
   const pageSize = 10;
   const paginated = batches;
+
+  if (["free", "standard"].includes(userPlan)) {
+    return (
+      <div className="max-w-3xl mx-auto w-full py-16 text-center">
+        <div className="bg-white rounded-2xl border border-gray-200 p-10 shadow-sm">
+          <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Clock size={32} className="text-indigo-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Scheduled Emails</h2>
+          <p className="text-gray-500 mb-8 max-w-md mx-auto">
+            Schedule emails to be sent at a specific date and time in the future. This feature requires the Pro plan.
+          </p>
+          <a href="/dashboard/billing" className="btn-primary inline-flex">
+            Upgrade to Pro
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 animate-fade-in">
       {" "}

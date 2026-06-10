@@ -58,6 +58,8 @@ export default function WebhooksPage() {
   );
   const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [userPlan, setUserPlan] = useState<string>("free");
+  
   function toggleEvent(event: string) {
     setSelectedEvents((prev) =>
       prev.includes(event) ? prev.filter((e) => e !== event) : [...prev, event],
@@ -82,6 +84,13 @@ export default function WebhooksPage() {
     }
   }
   useEffect(() => {
+    const userStr = localStorage.getItem("mf_user");
+    if (userStr) {
+      try {
+        const parsed = JSON.parse(userStr);
+        if (parsed.plan) setUserPlan(parsed.plan);
+      } catch (e) {}
+    }
     fetchWebhooks();
   }, []);
   async function createWebhook() {
@@ -151,6 +160,26 @@ export default function WebhooksPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
+
+  if (userPlan === "free") {
+    return (
+      <div className="max-w-3xl mx-auto w-full py-16 text-center">
+        <div className="bg-white rounded-2xl border border-gray-200 p-10 shadow-sm">
+          <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Webhook size={32} className="text-indigo-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Webhooks</h2>
+          <p className="text-gray-500 mb-8 max-w-md mx-auto">
+            Receive real-time HTTP events when emails are delivered, opened, clicked, or bounced. This feature is not available on your current plan.
+          </p>
+          <a href="/dashboard/billing" className="btn-primary inline-flex">
+            Upgrade to Standard or Pro
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto w-full space-y-5 pb-10">
       {" "}

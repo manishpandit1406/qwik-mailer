@@ -429,6 +429,14 @@ export default function DashboardLayout({
                     if (!canAdmin) {
                       return item.label !== "Project Settings";
                     }
+                    // Filter based on Plan
+                    const currentPlan = user.plan || "free";
+                    if (item.label === "Webhooks") {
+                      return ["standard", "pro", "business", "custom"].includes(currentPlan);
+                    }
+                    if (item.label === "Scheduled") {
+                      return ["pro", "business", "custom"].includes(currentPlan);
+                    }
                     return true;
                   })
                   .map((item) => {

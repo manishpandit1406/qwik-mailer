@@ -87,7 +87,7 @@ export default function BillingPage() {
   const validationsPercent = validationLimit > 0 ? Math.min(100, Math.round((validationsUsed / validationLimit) * 100)) : 0;
 
   return (
-    <div className="space-y-8 w-full xl:max-w-[1600px]">
+    <div className="space-y-8 w-full max-w-7xl mx-auto pb-12">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <CreditCard size={24} className="text-indigo-600" /> Billing & Plans
@@ -144,9 +144,12 @@ export default function BillingPage() {
       </div>
 
       {/* Available Plans */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-6">Available Plans</h3>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="pt-8">
+        <div className="text-center mb-10">
+          <h3 className="text-2xl font-black text-gray-900 mb-2">Available Plans</h3>
+          <p className="text-gray-500">Choose the perfect plan for your business needs.</p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-8">
           {[
             {
               id: "free",
@@ -264,7 +267,7 @@ export default function BillingPage() {
               ]
             }
           ].map((planObj) => (
-            <div key={planObj.id} className={`glass-card p-6 relative flex flex-col hover:shadow-xl transition-all duration-300 border bg-white ${data.plan === planObj.id ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/20' : 'border-gray-100 hover:border-indigo-300'}`}>
+            <div key={planObj.id} className={`glass-card p-8 w-full md:w-[calc(50%-2rem)] lg:w-[calc(33.333%-2rem)] max-w-md relative flex flex-col hover:shadow-2xl transition-all duration-300 bg-white ${data.plan === planObj.id ? 'border-2 border-indigo-600 shadow-xl lg:scale-105 z-10' : 'border border-gray-200 hover:border-indigo-300'}`}>
               {data.plan === planObj.id && <div className="absolute top-4 right-4"><CheckCircle2 className="text-indigo-500" /></div>}
               <h3 className="text-xl font-bold mb-1 text-gray-900">{planObj.name}</h3>
               <div className="text-3xl font-black mb-4 text-gray-900">
