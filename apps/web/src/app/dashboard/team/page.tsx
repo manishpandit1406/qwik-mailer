@@ -61,6 +61,7 @@ export default function TeamPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [error, setError] = useState("");
+  const [userPlan, setUserPlan] = useState("free");
 
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -70,6 +71,13 @@ export default function TeamPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    const userStr = localStorage.getItem("mf_user");
+    if (userStr) {
+      try {
+        const parsed = JSON.parse(userStr);
+        if (parsed.plan) setUserPlan(parsed.plan);
+      } catch (e) {}
+    }
     fetchActiveTeam();
   }, []);
 
@@ -174,13 +182,22 @@ export default function TeamPage() {
             Invite teammates and manage roles for this project.
           </p>
         </div>
-        {(activeTeam?.role === "owner" || activeTeam?.role === "admin") && (
+        {(activeTeam?.role === "owner" || activeTeam?.role === "admin") && userPlan !== "free" && (
           <button
             className="btn-primary flex items-center gap-2"
             onClick={() => setShowInvite(!showInvite)}
           >
             <Mail size={14} /> Invite Member
           </button>
+        )}
+        {(activeTeam?.role === "owner" || activeTeam?.role === "admin") && userPlan === "free" && (
+          <a
+            href="/dashboard/billing"
+            className="btn-secondary flex items-center gap-2 text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"
+            title="Upgrade to Standard or Pro to invite team members"
+          >
+            <Crown size={14} /> Upgrade to Invite
+          </a>
         )}
       </div>
 

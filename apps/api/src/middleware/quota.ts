@@ -111,12 +111,15 @@ export async function checkTeamMemberLimit(req: FastifyRequest, reply: FastifyRe
   const rows = (res as any).rows || res;
   const currentMembers = Number(rows[0]?.count || 0);
 
-  const resInv = await db.execute(sql`SELECT COUNT(*) as count FROM team_invites WHERE team_id = ${teamId}`);
+  const resInv = await db.execute(sql`SELECT COUNT(*) as count FROM team_invites WHERE team_id = ${teamId} AND status = 'pending'`);
   const rowsInv = (resInv as any).rows || resInv;
   const pendingInvites = Number(rowsInv[0]?.count || 0);
 
-  if (currentMembers + pendingInvites >= limits.maxTeamMembers) {
-    return reply.code(402).send({ success: false, error: `Team member limit exceeded. Maximum ${limits.maxTeamMembers} members allowed per team on the ${plan} plan.` });
+  // maxTeamMembers includes the owner. So allowed invites/members = maxTeamMembers - 1
+  const allowedExtraMembers = Math.max(0, limits.maxTeamMembers - 1);
+
+  if (currentMembers + pendingInvites >= allowedExtraMembers) {
+    return reply.code(402).send({ success: false, error: `Team member limit exceeded. Your plan (${plan}) only allows ${limits.maxTeamMembers} total members (including the owner). Please upgrade.` });
   }
 }
 
