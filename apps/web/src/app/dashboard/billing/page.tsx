@@ -87,7 +87,7 @@ export default function BillingPage() {
   const validationsPercent = validationLimit > 0 ? Math.min(100, Math.round((validationsUsed / validationLimit) * 100)) : 0;
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-8 w-full xl:max-w-[1600px]">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <CreditCard size={24} className="text-indigo-600" /> Billing & Plans
