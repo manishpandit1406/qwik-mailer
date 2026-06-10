@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { CreditCard, Zap, CheckCircle2, AlertCircle, TrendingUp, Lock } from "lucide-react";
+import { CreditCard, Zap, CheckCircle2, XCircle, AlertCircle, TrendingUp, Lock } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -175,60 +175,129 @@ export default function BillingPage() {
       {/* Available Plans */}
       <div>
         <h3 className="text-lg font-bold text-gray-900 mb-6">Available Plans</h3>
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Standard */}
-          <div className={`glass-card p-6 relative ${data.plan === 'standard' ? 'ring-2 ring-indigo-500' : ''}`}>
-            {data.plan === 'standard' && <div className="absolute top-4 right-4"><CheckCircle2 className="text-indigo-500" /></div>}
-            <h3 className="text-xl font-bold mb-1">Standard</h3>
-            <div className="text-3xl font-black mb-4">₹199<span className="text-sm text-gray-500 font-medium">/mo</span></div>
-            <ul className="space-y-3 mb-6 flex-1 text-sm text-gray-600">
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> 5,000 emails/month</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> Webhooks enabled</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> 2,500 Validations</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> 3 Team Members</li>
-            </ul>
-            {data.plan === 'standard' ? (
-              <button disabled className="w-full btn-secondary opacity-50 cursor-not-allowed">Current Plan</button>
-            ) : (
-              <button onClick={() => simulateUpgrade('standard')} className="w-full btn-primary">Upgrade to Standard</button>
-            )}
-          </div>
-
-          {/* Pro */}
-          <div className={`glass-card p-6 relative ${data.plan === 'pro' ? 'ring-2 ring-indigo-500' : ''}`}>
-            {data.plan === 'pro' && <div className="absolute top-4 right-4"><CheckCircle2 className="text-indigo-500" /></div>}
-            <h3 className="text-xl font-bold mb-1">Pro</h3>
-            <div className="text-3xl font-black mb-4">₹1,599<span className="text-sm text-gray-500 font-medium">/mo</span></div>
-            <ul className="space-y-3 mb-6 flex-1 text-sm text-gray-600">
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> 50,000 emails/month</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> Email Scheduling</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> 25,000 Validations</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> 5 Team Members</li>
-            </ul>
-            {data.plan === 'pro' ? (
-              <button disabled className="w-full btn-secondary opacity-50 cursor-not-allowed">Current Plan</button>
-            ) : (
-              <button onClick={() => simulateUpgrade('pro')} className="w-full btn-primary bg-indigo-600 hover:bg-indigo-700 text-white border-0">Upgrade to Pro</button>
-            )}
-          </div>
-
-          {/* Business */}
-          <div className={`glass-card p-6 relative ${data.plan === 'business' ? 'ring-2 ring-indigo-500' : ''}`}>
-            {data.plan === 'business' && <div className="absolute top-4 right-4"><CheckCircle2 className="text-indigo-500" /></div>}
-            <h3 className="text-xl font-bold mb-1">Business</h3>
-            <div className="text-3xl font-black mb-4">₹3,999<span className="text-sm text-gray-500 font-medium">/mo</span></div>
-            <ul className="space-y-3 mb-6 flex-1 text-sm text-gray-600">
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> 250,000 emails/month</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> Priority Support SLA</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> 100,000 Validations</li>
-              <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> Unlimited Team Members</li>
-            </ul>
-            {data.plan === 'business' ? (
-              <button disabled className="w-full btn-secondary opacity-50 cursor-not-allowed">Current Plan</button>
-            ) : (
-              <button onClick={() => simulateUpgrade('business')} className="w-full bg-gray-900 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-gray-800 transition-colors">Upgrade to Business</button>
-            )}
-          </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            {
+              id: "free",
+              name: "Free",
+              price: "₹0",
+              features: [
+                { text: "Emails: 100/day (≈3,000/month)", included: true },
+                { text: "Speed: 1 email/sec", included: true },
+                { text: "Analytics", included: true },
+                { text: "Team Members", included: false },
+                { text: "Projects: 1", included: true },
+                { text: "Forms", included: true },
+                { text: "Contacts: 250", included: true },
+                { text: "API Access", included: true },
+                { text: "SMTP Access", included: true },
+                { text: "Webhooks", included: false },
+                { text: "Testing Inbox: 100 emails/day", included: true },
+                { text: "Sender Identity: 1 Shared, 1 Custom Domain", included: true },
+                { text: "Email Validation", included: true },
+                { text: "Email Templates", included: true },
+                { text: "Scheduling", included: false },
+                { text: "Ticket Support", included: true },
+              ]
+            },
+            {
+              id: "standard",
+              name: "Standard",
+              price: "₹199",
+              features: [
+                { text: "Emails: 5,000/month", included: true },
+                { text: "Speed: 3 emails/sec", included: true },
+                { text: "Analytics", included: true },
+                { text: "Team Members: 3", included: true },
+                { text: "Projects: 2", included: true },
+                { text: "Forms", included: true },
+                { text: "Contacts: 2,000", included: true },
+                { text: "API Access", included: true },
+                { text: "SMTP Access", included: true },
+                { text: "Webhooks", included: true },
+                { text: "Testing Inbox: Same as Free", included: true },
+                { text: "Sender Identity: 1 Shared, 5 Custom Domains", included: true },
+                { text: "Email Validation", included: true },
+                { text: "Email Templates", included: true },
+                { text: "Scheduling", included: false },
+                { text: "Ticket Support", included: true },
+              ]
+            },
+            {
+              id: "pro",
+              name: "Pro",
+              price: "₹1,599",
+              features: [
+                { text: "Emails: 50,000/month", included: true },
+                { text: "Speed: 5 emails/sec", included: true },
+                { text: "Analytics", included: true },
+                { text: "Team Members: 5", included: true },
+                { text: "Projects: 5", included: true },
+                { text: "Forms", included: true },
+                { text: "Contacts: 20,000", included: true },
+                { text: "API Access", included: true },
+                { text: "SMTP Access", included: true },
+                { text: "Webhooks", included: true },
+                { text: "Testing Inbox: Same as Free", included: true },
+                { text: "Sender Identity: 1 Shared, 10 Custom Domains", included: true },
+                { text: "Email Validation", included: true },
+                { text: "Email Templates", included: true },
+                { text: "Scheduling", included: true },
+                { text: "Ticket Support: Priority", included: true },
+              ]
+            },
+            {
+              id: "business",
+              name: "Business",
+              price: "₹3,999",
+              features: [
+                { text: "Emails: 250,000/month", included: true },
+                { text: "Speed: 20 emails/sec", included: true },
+                { text: "Analytics", included: true },
+                { text: "Team Members: Unlimited", included: true },
+                { text: "Projects: Unlimited", included: true },
+                { text: "Forms", included: true },
+                { text: "Contacts: Unlimited", included: true },
+                { text: "API Access", included: true },
+                { text: "SMTP Access", included: true },
+                { text: "Webhooks", included: true },
+                { text: "Testing Inbox: Unlimited", included: true },
+                { text: "Sender Identity: Unlimited Domains", included: true },
+                { text: "Email Validation: 100k/mo", included: true },
+                { text: "Email Templates", included: true },
+                { text: "Scheduling", included: true },
+                { text: "Ticket Support: Premium & SLA", included: true },
+              ]
+            }
+          ].map((planObj) => (
+            <div key={planObj.id} className={`glass-card p-6 relative flex flex-col ${data.plan === planObj.id ? 'ring-2 ring-indigo-500' : ''}`}>
+              {data.plan === planObj.id && <div className="absolute top-4 right-4"><CheckCircle2 className="text-indigo-500" /></div>}
+              <h3 className="text-xl font-bold mb-1">{planObj.name}</h3>
+              <div className="text-3xl font-black mb-4">{planObj.price}<span className="text-sm text-gray-500 font-medium">/mo</span></div>
+              <ul className="space-y-2 mb-6 flex-1 text-sm">
+                {planObj.features.map((f, i) => (
+                  <li key={i} className={`flex items-start gap-2 ${f.included ? 'text-gray-700' : 'text-gray-400'}`}>
+                    {f.included ? (
+                      <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                    ) : (
+                      <XCircle size={16} className="text-gray-300 shrink-0 mt-0.5" />
+                    )}
+                    <span>{f.text}</span>
+                  </li>
+                ))}
+              </ul>
+              {data.plan === planObj.id ? (
+                <button disabled className="w-full btn-secondary opacity-50 cursor-not-allowed">Current Plan</button>
+              ) : (
+                <button 
+                  onClick={() => simulateUpgrade(planObj.id)} 
+                  className={`w-full ${planObj.id === 'pro' || planObj.id === 'business' ? 'btn-primary' : 'btn-secondary'}`}
+                >
+                  Upgrade to {planObj.name}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>
