@@ -7,7 +7,6 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  ChevronRight,
   Ban,
   Clock,
 } from "lucide-react";
@@ -141,7 +140,6 @@ export default function ScheduledPage() {
     } catch (err) {
       console.error(err);
     }
-  }
   }
   const pageSize = 10;
   const paginated = batches;
