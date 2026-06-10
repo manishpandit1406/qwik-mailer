@@ -77,8 +77,14 @@ export default function BillingPage() {
   }
 
   const isFree = data.plan === "free";
-  const usedPercent = data.planLimit > 0 ? Math.min(100, Math.round((data.monthlyEmailCount / data.planLimit) * 100)) : 0;
-  const validationsPercent = data.validationLimit > 0 ? Math.min(100, Math.round((data.monthlyValidationCount / data.validationLimit) * 100)) : 0;
+  const monthlyEmail = data.monthlyEmailCount || 0;
+  const planLimit = data.planLimit || 0;
+  const extraQuota = data.extraEmailQuota || 0;
+  const validationsUsed = data.monthlyValidationCount || 0;
+  const validationLimit = data.validationLimit || 0;
+
+  const usedPercent = planLimit > 0 ? Math.min(100, Math.round((monthlyEmail / planLimit) * 100)) : 0;
+  const validationsPercent = validationLimit > 0 ? Math.min(100, Math.round((validationsUsed / validationLimit) * 100)) : 0;
 
   return (
     <div className="space-y-8 max-w-5xl">
@@ -96,10 +102,10 @@ export default function BillingPage() {
             <div className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-1">Current Plan</div>
             <h2 className="text-3xl font-black text-gray-900 capitalize">{data.plan}</h2>
           </div>
-          {data.extraEmailQuota > 0 && (
+          {extraQuota > 0 && (
             <div className="text-right">
               <div className="text-xs font-bold uppercase tracking-widest text-emerald-500 mb-1">Extra Quota Balance</div>
-              <h2 className="text-2xl font-black text-emerald-600">{data.extraEmailQuota.toLocaleString()}</h2>
+              <h2 className="text-2xl font-black text-emerald-600">{extraQuota.toLocaleString()}</h2>
             </div>
           )}
         </div>
@@ -109,7 +115,7 @@ export default function BillingPage() {
           <div>
             <div className="flex justify-between text-sm mb-2 font-medium">
               <span className="text-gray-700">Monthly Emails Sent</span>
-              <span className="text-gray-900">{data.monthlyEmailCount.toLocaleString()} / {data.planLimit.toLocaleString()}</span>
+              <span className="text-gray-900">{monthlyEmail.toLocaleString()} / {planLimit.toLocaleString()}</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-3">
               <div
@@ -124,7 +130,7 @@ export default function BillingPage() {
           <div>
             <div className="flex justify-between text-sm mb-2 font-medium">
               <span className="text-gray-700">Email Validations Used</span>
-              <span className="text-gray-900">{data.monthlyValidationCount.toLocaleString()} / {data.validationLimit.toLocaleString()}</span>
+              <span className="text-gray-900">{validationsUsed.toLocaleString()} / {validationLimit.toLocaleString()}</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-3">
               <div
