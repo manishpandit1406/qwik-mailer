@@ -193,7 +193,7 @@ export async function contactRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/contacts/import
-  app.post("/import", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"]), checkContactQuota] }, async (req, reply) => {
+  app.post("/import", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
     const teamId = req.teamId!;
     const parts = req.parts();
     
@@ -215,6 +215,36 @@ export async function contactRoutes(app: FastifyInstance) {
 
     if (rows.length === 0) return reply.code(400).send({ success: false, error: "File is empty" });
     if (rows.length > 50000) return reply.code(400).send({ success: false, error: "Maximum 50,000 rows allowed" });
+
+    // Check Quota Manually
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, (req.user as any).sub),
+      columns: { plan: true, id: true }
+    });
+    
+    // If not found, try to find owner of the team
+    let ownerId = user?.id;
+    let plan = user?.plan || "free";
+    
+    if (!user) {
+      const team = await db.query.teams.findFirst({ where: eq(teams.id, teamId) });
+      if (team) {
+        ownerId = team.ownerId;
+        const owner = await db.query.users.findFirst({ where: eq(users.id, team.ownerId) });
+        plan = owner?.plan || "free";
+      }
+    }
+
+    const limits = (await import("../config/plans.js")).PLAN_LIMITS[plan as PlanType] || (await import("../config/plans.js")).PLAN_LIMITS.free;
+    const userTeams = await db.query.teams.findMany({ where: eq(teams.ownerId, ownerId!), columns: { id: true } });
+    
+    const resCount = await db.execute(sql`SELECT COUNT(*) as count FROM contacts WHERE team_id IN (${sql.raw(userTeams.map(t => `'${t.id}'`).join(',') || "''")})`);
+    const rowsCount = (resCount as any).rows || resCount;
+    const currentContacts = Number(rowsCount[0]?.count || 0);
+
+    if (currentContacts + rows.length > limits.maxContacts) {
+      return reply.code(402).send({ success: false, error: `Contact limit exceeded. Maximum ${limits.maxContacts} contacts allowed on the ${plan} plan. You are trying to add ${rows.length} contacts.` });
+    }
 
     const listTag = `List: ${filename}`;
     let addedCount = 0;
