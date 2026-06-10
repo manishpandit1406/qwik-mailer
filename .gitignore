@@ -35,11 +35,12 @@ lerna-debug.log*
 .idea/
 .vscode/
 
-# Security risks / Large Test Data / Binaries
+# Security risks / Large Test Data / Binaries / Keys
 *.csv
 *.json.gz
 50k.json
 redis-server
+*.pem
 
 # Temporary Test/Scratch Scripts (Contains hardcoded API Keys/Tests)
 test-*.ts
