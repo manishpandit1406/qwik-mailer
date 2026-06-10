@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db, domains, domainSenders, users } from "@qwikmailer/db";
+import { PLAN_LIMITS, PlanType } from "../config/plans.js";
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { generateDkimKeys, checkDnsRecord } from "../services/dns.service.js";
 import { isRelatedToCompany } from "../utils/validation.js";
@@ -44,6 +45,18 @@ export async function domainRoutes(app: FastifyInstance) {
       where: and(eq(domains.userId, user.sub), eq(domains.domain, domain)),
     });
     if (existing) return reply.code(409).send({ success: false, error: "Domain already added." });
+
+    const userDb = await db.query.users.findFirst({ where: eq(users.id, user.sub), columns: { plan: true } });
+    const plan = (userDb?.plan || "free") as PlanType;
+    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+    const currentDomains = await db.execute(sql`SELECT COUNT(*) as count FROM domains WHERE user_id = ${user.sub} AND domain != 'mail.qwikmailer.in'`);
+    const domainRows = (currentDomains as any).rows || currentDomains;
+    const domainCount = Number(domainRows[0]?.count || 0);
+
+    if (domainCount >= limits.maxCustomDomains) {
+      return reply.code(402).send({ success: false, error: `Domain limit exceeded. Maximum ${limits.maxCustomDomains} custom domains allowed on the ${plan} plan.` });
+    }
 
     // using static import
     let sesDkimTokens: string[] = [];

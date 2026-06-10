@@ -16,7 +16,8 @@ import {
   sendPasswordResetSuccessEmail,
 } from "../services/email.service.js";
 import { authenticate } from "../middleware/auth.js";
-import { PLAN_LIMITS, getUserLimits } from "../utils/quota.js";
+import { getUserLimits } from "../utils/quota.js";
+import { PLAN_LIMITS } from "../config/plans.js";
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 

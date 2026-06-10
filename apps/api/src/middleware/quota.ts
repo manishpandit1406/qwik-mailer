@@ -83,7 +83,8 @@ export async function checkContactQuota(req: FastifyRequest, reply: FastifyReply
   const userTeams = await db.query.teams.findMany({ where: eq(teams.ownerId, user.id), columns: { id: true } });
   
   const res = await db.execute(`SELECT COUNT(*) as count FROM contacts WHERE team_id IN (${userTeams.map(t => `'${t.id}'`).join(',') || "''"})`);
-  const currentContacts = Number(res[0]?.count || 0);
+  const rows = (res as any).rows || res;
+  const currentContacts = Number(rows[0]?.count || 0);
 
   const requestedCount = Array.isArray((req.body as any)?.contacts) ? ((req.body as any).contacts).length : 1;
 
@@ -102,7 +103,8 @@ export async function checkTeamMemberLimit(req: FastifyRequest, reply: FastifyRe
   if (!teamId) return;
 
   const res = await db.execute(`SELECT COUNT(*) as count FROM team_members WHERE team_id = '${teamId}'`);
-  const currentMembers = Number(res[0]?.count || 0);
+  const rows = (res as any).rows || res;
+  const currentMembers = Number(rows[0]?.count || 0);
 
   if (currentMembers >= limits.maxTeamMembers) {
     return reply.code(402).send({ success: false, error: `Team member limit exceeded. Maximum ${limits.maxTeamMembers} members allowed per team on the ${user.plan} plan.` });
