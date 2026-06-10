@@ -185,19 +185,19 @@ export default function BillingPage() {
                 { text: "Emails: 100/day (≈3,000/month)", included: true },
                 { text: "Speed: 1 email/sec", included: true },
                 { text: "Analytics", included: true },
-                { text: "Team Members", included: false },
                 { text: "Projects: 1", included: true },
                 { text: "Forms", included: true },
                 { text: "Contacts: 250", included: true },
                 { text: "API Access", included: true },
                 { text: "SMTP Access", included: true },
-                { text: "Webhooks", included: false },
                 { text: "Testing Inbox: 100 emails/day", included: true },
                 { text: "Sender Identity: 1 Shared, 1 Custom Domain", included: true },
                 { text: "Email Validation", included: true },
                 { text: "Email Templates", included: true },
-                { text: "Scheduling", included: false },
                 { text: "Ticket Support", included: true },
+                { text: "Team Members", included: false },
+                { text: "Webhooks", included: false },
+                { text: "Scheduling", included: false },
               ]
             },
             {
@@ -219,8 +219,8 @@ export default function BillingPage() {
                 { text: "Sender Identity: 1 Shared, 5 Custom Domains", included: true },
                 { text: "Email Validation", included: true },
                 { text: "Email Templates", included: true },
-                { text: "Scheduling", included: false },
                 { text: "Ticket Support", included: true },
+                { text: "Scheduling", included: false },
               ]
             },
             {

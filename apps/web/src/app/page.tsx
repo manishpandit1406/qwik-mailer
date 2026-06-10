@@ -22,6 +22,7 @@ import {
   Send,
   Activity,
   User,
+  XCircle,
 } from "lucide-react"; // ─── Animated Counter ─────────────────────────────────────────────────────────
 function Counter({
   end,
@@ -100,7 +101,7 @@ interface PricingCardProps {
   price: string;
   period?: string;
   description: string;
-  features: string[];
+  features: { text: string; included: boolean }[];
   cta: string;
   highlighted?: boolean;
 }
@@ -157,16 +158,25 @@ function PricingCard({
         {features.map((f, i) => (
           <li
             key={i}
-            className="flex items-start gap-2 text-sm"
-            style={{ color: "var(--text-secondary)" }}
+            className={`flex items-start gap-2 text-sm`}
+            style={{ color: f.included ? "var(--text-secondary)" : "#9ca3af" }}
           >
             {" "}
-            <CheckCircle2
-              size={15}
-              className="mt-0.5 shrink-0"
-              style={{ color: "#000000" }}
-            />{" "}
-            {f}{" "}
+            {f.included ? (
+              <CheckCircle2
+                size={15}
+                className="mt-0.5 shrink-0"
+                style={{ color: "#000000" }}
+              />
+            ) : (
+              <XCircle
+                size={15}
+                className="mt-0.5 shrink-0"
+                style={{ color: "#d1d5db" }}
+              />
+            )}
+            {" "}
+            {f.text}{" "}
           </li>
         ))}{" "}
       </ul>{" "}
@@ -269,13 +279,22 @@ export default function LandingPage() {
       price: "₹0",
       description: "Perfect for side projects and learning",
       features: [
-        "3,000 emails/month",
-        "REST API + SMTP access",
-        "Basic analytics",
-        "1 custom domain",
-        "Community support",
-        "Email templates",
-        "Email validation (100/mo)"
+        { text: "Emails: 100/day (≈3,000/month)", included: true },
+        { text: "Speed: 1 email/sec", included: true },
+        { text: "Analytics", included: true },
+        { text: "Projects: 1", included: true },
+        { text: "Forms", included: true },
+        { text: "Contacts: 250", included: true },
+        { text: "API Access", included: true },
+        { text: "SMTP Access", included: true },
+        { text: "Testing Inbox: 100 emails/day", included: true },
+        { text: "Sender Identity: 1 Shared, 1 Custom Domain", included: true },
+        { text: "Email Validation", included: true },
+        { text: "Email Templates", included: true },
+        { text: "Ticket Support", included: true },
+        { text: "Team Members", included: false },
+        { text: "Webhooks", included: false },
+        { text: "Scheduling", included: false },
       ],
       cta: "Start for Free",
     },
@@ -285,13 +304,22 @@ export default function LandingPage() {
       period: "month",
       description: "For growing products and startups",
       features: [
-        "5,000 emails/month",
-        "Advanced analytics",
-        "Webhooks enabled",
-        "5 custom domains",
-        "Email support",
-        "Email validation (2.5k/mo)",
-        "3 Team members",
+        { text: "Emails: 5,000/month", included: true },
+        { text: "Speed: 3 emails/sec", included: true },
+        { text: "Analytics", included: true },
+        { text: "Team Members: 3", included: true },
+        { text: "Projects: 2", included: true },
+        { text: "Forms", included: true },
+        { text: "Contacts: 2,000", included: true },
+        { text: "API Access", included: true },
+        { text: "SMTP Access", included: true },
+        { text: "Webhooks", included: true },
+        { text: "Testing Inbox: Same as Free", included: true },
+        { text: "Sender Identity: 1 Shared, 5 Custom Domains", included: true },
+        { text: "Email Validation", included: true },
+        { text: "Email Templates", included: true },
+        { text: "Ticket Support", included: true },
+        { text: "Scheduling", included: false },
       ],
       cta: "Start Standard",
       highlighted: true,
@@ -302,13 +330,22 @@ export default function LandingPage() {
       period: "month",
       description: "For scaling teams with serious volume",
       features: [
-        "50,000 emails/month",
-        "Unlimited custom domains",
-        "Email scheduling",
-        "Priority support",
-        "Email validation (25k/mo)",
-        "5 Team members",
-        "Webhooks enabled",
+        { text: "Emails: 50,000/month", included: true },
+        { text: "Speed: 5 emails/sec", included: true },
+        { text: "Analytics", included: true },
+        { text: "Team Members: 5", included: true },
+        { text: "Projects: 5", included: true },
+        { text: "Forms", included: true },
+        { text: "Contacts: 20,000", included: true },
+        { text: "API Access", included: true },
+        { text: "SMTP Access", included: true },
+        { text: "Webhooks", included: true },
+        { text: "Testing Inbox: Same as Free", included: true },
+        { text: "Sender Identity: 1 Shared, 10 Custom Domains", included: true },
+        { text: "Email Validation", included: true },
+        { text: "Email Templates", included: true },
+        { text: "Scheduling", included: true },
+        { text: "Ticket Support: Priority", included: true },
       ],
       cta: "Upgrade to Pro",
     },
@@ -318,13 +355,22 @@ export default function LandingPage() {
       period: "month",
       description: "For enterprises sending massive volume",
       features: [
-        "250,000 emails/month",
-        "Unlimited custom domains",
-        "Premium support & SLA",
-        "Email validation (100k/mo)",
-        "Unlimited Team members",
-        "20 emails/sec throughput",
-        "Advanced API access",
+        { text: "Emails: 250,000/month", included: true },
+        { text: "Speed: 20 emails/sec", included: true },
+        { text: "Analytics", included: true },
+        { text: "Team Members: Unlimited", included: true },
+        { text: "Projects: Unlimited", included: true },
+        { text: "Forms", included: true },
+        { text: "Contacts: Unlimited", included: true },
+        { text: "API Access", included: true },
+        { text: "SMTP Access", included: true },
+        { text: "Webhooks", included: true },
+        { text: "Testing Inbox: Unlimited", included: true },
+        { text: "Sender Identity: Unlimited Domains", included: true },
+        { text: "Email Validation: 100k/mo", included: true },
+        { text: "Email Templates", included: true },
+        { text: "Scheduling", included: true },
+        { text: "Ticket Support: Premium & SLA", included: true },
       ],
       cta: "Upgrade to Business",
     },
