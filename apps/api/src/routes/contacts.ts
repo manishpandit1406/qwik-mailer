@@ -2,8 +2,10 @@ import type { FastifyInstance } from "fastify";
 import { eq, and, desc, ilike, or, sql, inArray } from "drizzle-orm";
 import { db, contacts, contactListMembers } from "@qwikmailer/db";
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
+import { checkContactQuota } from "../middleware/quota.js";
 import * as XLSX from "xlsx";
 import { z } from "zod";
+import { ValidationService } from "../services/validation.service.js";
 
 export async function contactRoutes(app: FastifyInstance) {
   // GET /v1/contacts (Paginated & Searchable)
@@ -136,7 +138,7 @@ export async function contactRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/contacts
-  app.post("/", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
+  app.post("/", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"]), checkContactQuota] }, async (req, reply) => {
     const teamId = req.teamId!;
     const schema = z.object({
       email: z.string().email(),
@@ -158,6 +160,9 @@ export async function contactRoutes(app: FastifyInstance) {
       }
     }
 
+    // Validate email
+    const validation = await ValidationService.validate(body.email);
+
     const [contact] = await db.insert(contacts).values({
       teamId,
       email: body.email,
@@ -165,7 +170,10 @@ export async function contactRoutes(app: FastifyInstance) {
       lastName: body.lastName,
       phone: body.phone,
       customFields: body.customFields || {},
-      tags: apiTags
+      tags: apiTags,
+      validationStatus: validation.status,
+      validationScore: validation.score,
+      lastValidatedAt: validation.validatedAt,
     }).onConflictDoUpdate({
       target: [contacts.teamId, contacts.email],
       set: {
@@ -174,6 +182,9 @@ export async function contactRoutes(app: FastifyInstance) {
         phone: body.phone ?? sql`${contacts.phone}`,
         customFields: body.customFields ? sql`${contacts.customFields} || ${JSON.stringify(body.customFields)}::jsonb` : sql`${contacts.customFields}`,
         tags: apiTags.length > 0 ? tagsSql : sql`${contacts.tags}`,
+        validationStatus: validation.status,
+        validationScore: validation.score,
+        lastValidatedAt: validation.validatedAt,
         updatedAt: new Date()
       }
     }).returning();
@@ -182,7 +193,7 @@ export async function contactRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/contacts/import
-  app.post("/import", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
+  app.post("/import", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"]), checkContactQuota] }, async (req, reply) => {
     const teamId = req.teamId!;
     const parts = req.parts();
     

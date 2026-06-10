@@ -1,7 +1,7 @@
 "use client";
 import { formatIST } from "@/lib/dateUtils";
 import { useState, useEffect } from "react";
-import { RefreshCw, BookUser, Mail, Phone, Trash2, Download, X, Eye, Search, ChevronLeft, ChevronRight, Tag, ListFilter, Upload } from "lucide-react";
+import { RefreshCw, BookUser, Mail, Phone, Trash2, Download, X, Eye, Search, ChevronLeft, ChevronRight, Tag, ListFilter, Upload, ShieldCheck, AlertTriangle, XCircle, ShieldAlert } from "lucide-react";
 import { format } from "date-fns";
 import { useRole } from "@/lib/useRole";
 
@@ -243,6 +243,7 @@ export default function ContactsPage() {
                 <tr>
                   <th className="px-6 py-4">Name</th>
                   <th className="px-6 py-4">Contact Info</th>
+                  <th className="px-6 py-4">Health</th>
                   <th className="px-6 py-4">Data</th>
                   <th className="px-6 py-4">Added</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -295,6 +296,17 @@ export default function ContactsPage() {
                             <Phone size={14} className="text-gray-400" /> {contact.phone}
                           </div>
                         )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {(() => {
+                          const status = contact.validationStatus || "unknown";
+                          const score = contact.validationScore;
+                          if (status === "valid") return <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"><ShieldCheck size={14} /> Valid {score ? `(${score})` : ''}</div>;
+                          if (status === "invalid") return <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200"><XCircle size={14} /> Invalid</div>;
+                          if (status === "disposable") return <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"><ShieldAlert size={14} /> Disposable</div>;
+                          if (status === "role_based") return <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"><AlertTriangle size={14} /> Role-Based</div>;
+                          return <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200">Unknown</div>;
+                        })()}
                       </td>
                       <td className="px-6 py-4">
                         <button 

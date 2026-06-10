@@ -1,24 +1,6 @@
 import { db, users } from "@qwikmailer/db";
 import { eq } from "drizzle-orm";
-
-export const PLAN_LIMITS: Record<string, number> = {
-  free: 3000,         // Default for Month 1 (dynamic check later)
-  event_level: 10000,
-  starter: 50000,
-  growth: 100000,
-  premium: 1000000,
-  enterprise: 10000000,
-};
-
-export const SENDER_IDENTITY_LIMITS: Record<string, number> = {
-  free: 1,
-  event_level: 2,
-  starter: 5,
-  growth: 15,
-  premium: 50,
-  enterprise: 99999,
-};
-
+import { PLAN_LIMITS, PlanType } from "../config/plans.js";
 import { getTeamOwnerId } from "./team-owner.js";
 
 export async function checkAndConsumeQuota(teamId: string, requestedEmailsCount: number): Promise<void> {
@@ -60,9 +42,10 @@ export async function checkAndConsumeQuota(teamId: string, requestedEmailsCount:
   }
 
   // 2. Determine limits based on plan and account age
-  const plan = user.plan || "free";
-  let monthlyLimit = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
-  let dailyLimit: number | null = null; // null means no daily limit
+  const plan = (user.plan || "free") as PlanType;
+  let limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+  let monthlyLimit = limits.emailsPerMonth;
+  let dailyLimit: number | null = limits.emailsPerDay ?? null;
 
   if (plan === "free") {
     // Check account age
@@ -99,11 +82,12 @@ export async function checkAndConsumeQuota(teamId: string, requestedEmailsCount:
 }
 
 export function getUserLimits(user: any) {
-  const plan = user.plan || "free";
+  const plan = (user.plan || "free") as PlanType;
   const now = new Date();
   
-  let monthlyLimit = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
-  let dailyLimit: number | null = null;
+  let limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+  let monthlyLimit = limits.emailsPerMonth;
+  let dailyLimit: number | null = limits.emailsPerDay ?? null;
 
   if (plan === "free") {
     const accountAgeMs = now.getTime() - new Date(user.createdAt).getTime();
@@ -117,5 +101,11 @@ export function getUserLimits(user: any) {
     }
   }
 
-  return { monthlyLimit, dailyLimit };
+  return { 
+    monthlyLimit, 
+    dailyLimit, 
+    speedPerSecond: limits.speedPerSecond, 
+    features: limits.features,
+    validationsPerMonth: limits.validationsPerMonth 
+  };
 }

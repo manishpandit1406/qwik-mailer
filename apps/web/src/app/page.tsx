@@ -269,48 +269,64 @@ export default function LandingPage() {
       price: "₹0",
       description: "Perfect for side projects and learning",
       features: [
-        "500 emails/month",
+        "3,000 emails/month",
         "REST API + SMTP access",
         "Basic analytics",
         "1 custom domain",
         "Community support",
         "Email templates",
+        "Email validation (100/mo)"
       ],
       cta: "Start for Free",
     },
     {
-      name: "Starter",
-      price: "₹499",
+      name: "Standard",
+      price: "₹199",
       period: "month",
       description: "For growing products and startups",
       features: [
-        "10,000 emails/month",
+        "5,000 emails/month",
         "Advanced analytics",
-        "Webhooks",
-        "3 custom domains",
-        "Priority email support",
-        "AI spam checker",
-        "Email scheduling",
+        "Webhooks enabled",
+        "5 custom domains",
+        "Email support",
+        "Email validation (2.5k/mo)",
+        "3 Team members",
       ],
-      cta: "Start Free Trial",
+      cta: "Start Standard",
       highlighted: true,
     },
     {
-      name: "Growth",
-      price: "₹2,999",
+      name: "Pro",
+      price: "₹1,599",
       period: "month",
-      description: "For scaling teams with dedicated infra",
+      description: "For scaling teams with serious volume",
       features: [
-        "100,000 emails/month",
-        "Dedicated IP warmup",
-        "Geo analytics + device stats",
-        "Unlimited domains",
-        "Slack support",
-        "Custom tracking domain",
-        "Team members",
-        "SLA guarantee",
+        "50,000 emails/month",
+        "Unlimited custom domains",
+        "Email scheduling",
+        "Priority support",
+        "Email validation (25k/mo)",
+        "5 Team members",
+        "Webhooks enabled",
       ],
-      cta: "Upgrade Now",
+      cta: "Upgrade to Pro",
+    },
+    {
+      name: "Business",
+      price: "₹3,999",
+      period: "month",
+      description: "For enterprises sending massive volume",
+      features: [
+        "250,000 emails/month",
+        "Unlimited custom domains",
+        "Premium support & SLA",
+        "Email validation (100k/mo)",
+        "Unlimited Team members",
+        "20 emails/sec throughput",
+        "Advanced API access",
+      ],
+      cta: "Upgrade to Business",
     },
   ];
   return (
@@ -683,7 +699,7 @@ export default function LandingPage() {
               No hidden fees. No sending limits on paid plans*. Cancel anytime.
             </p>{" "}
           </div>{" "}
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-4 gap-6">
             {" "}
             {plans.map((plan) => (
               <PricingCard key={plan.name} {...plan} />

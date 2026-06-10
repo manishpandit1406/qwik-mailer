@@ -8,6 +8,8 @@ import QRCode from "qrcode";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { PLAN_LIMITS, PlanType } from "./config/plans.js";
+import { ValidationService } from "./services/validation.service.js";
 
 const API_ROOT = path.join(__dirname, "..");
 import {
@@ -181,6 +183,46 @@ async function checkBounceRate(teamId: string): Promise<boolean> {
   return true;
 }
 
+// ─── Sending Quota Check ─────────────────────────────────────────────────────
+async function checkSendingQuota(teamId: string): Promise<{ allowed: boolean; speed: number; userId: string }> {
+  const team = await db.query.teams.findFirst({ where: eq(teams.id, teamId) });
+  if (!team) return { allowed: false, speed: 0, userId: "" };
+
+  const user = await db.query.users.findFirst({ where: eq(users.id, team.ownerId) });
+  if (!user) return { allowed: false, speed: 0, userId: "" };
+
+  const limits = PLAN_LIMITS[user.plan as PlanType];
+  if (!limits) return { allowed: false, speed: 0, userId: "" };
+
+  if (user.monthlyEmailCount >= limits.emailsPerMonth) {
+    if (user.extraEmailQuota > 0) {
+      // Deduct from extra quota
+      await db.execute(`UPDATE users SET extra_email_quota = extra_email_quota - 1 WHERE id = '${user.id}'`);
+      return { allowed: true, speed: limits.speedPerSecond, userId: user.id };
+    }
+    // No extra quota and limits exceeded
+    return { allowed: false, speed: 0, userId: "" };
+  }
+
+  // Deduct standard quota
+  await db.execute(`UPDATE users SET monthly_email_count = monthly_email_count + 1 WHERE id = '${user.id}'`);
+  return { allowed: true, speed: limits.speedPerSecond, userId: user.id };
+}
+
+// ─── Sending Speed Throttle ───────────────────────────────────────────────────
+async function throttleSend(userId: string, speedPerSecond: number) {
+  const key = `ratelimit:email:${userId}`;
+  const count = await redis.incr(key);
+  if (count === 1) {
+    await redis.pexpire(key, 1000);
+  } else if (count > speedPerSecond) {
+    const pttl = await redis.pttl(key);
+    if (pttl > 0) {
+      await new Promise(resolve => setTimeout(resolve, pttl));
+    }
+  }
+}
+
 // ─── Webhook Dispatcher ────────────────────────────────────────────────────────
 
 async function dispatchWebhooks(teamId: string, emailId: string, event: string, toEmail: string, subject: string) {
@@ -284,6 +326,22 @@ const worker = new Worker<SendEmailJobData>(
       return;
     }
 
+    // Check sending quota
+    const quotaResult = await checkSendingQuota(teamId);
+    if (!quotaResult || typeof quotaResult === "boolean" || !quotaResult.allowed) {
+      await db.update(emails).set({ status: "failed", updatedAt: new Date() }).where(eq(emails.id, emailId));
+      await analyticsQueue.add("ingest", {
+        emailId,
+        teamId,
+        type: "failed",
+        metadata: { error: "Quota exceeded: Monthly email limit reached." },
+      });
+      return;
+    }
+
+    // Apply speed throttle
+    await throttleSend(quotaResult.userId, quotaResult.speed);
+
     // Check suppression
     const suppressed = await db.query.suppressionList.findFirst({
       where: eq(suppressionList.email, email.toEmail),
@@ -295,6 +353,19 @@ const worker = new Worker<SendEmailJobData>(
         teamId,
         type: "failed",
         metadata: { error: "Recipient in suppression list" },
+      });
+      return;
+    }
+
+    // Pre-flight Email Validation
+    const validationResult = await ValidationService.validate(email.toEmail);
+    if (validationResult.status === "invalid" || validationResult.status === "disposable") {
+      await db.update(emails).set({ status: "failed", updatedAt: new Date() }).where(eq(emails.id, emailId));
+      await analyticsQueue.add("ingest", {
+        emailId,
+        teamId,
+        type: "failed",
+        metadata: { error: `Pre-flight validation failed: Email is ${validationResult.status}` },
       });
       return;
     }
@@ -593,10 +664,6 @@ const worker = new Worker<SendEmailJobData>(
   {
     connection: redis as any,
     concurrency: 100, // Scales parallel processing to handle massive traffic blasts without bottleneck
-    limiter: {
-      max: 1, // Limit to 1 email
-      duration: 1000, // per 1 second
-    }
   }
 );
 

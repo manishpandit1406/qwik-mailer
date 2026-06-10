@@ -3,6 +3,7 @@ import { z } from "zod";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "@qwikmailer/db";
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
+import { checkProjectLimit, checkTeamMemberLimit } from "../middleware/quota.js";
 import crypto from "crypto";
 import { sendTeamInviteEmail } from "../services/email.service.js";
 
@@ -44,7 +45,7 @@ export async function teamRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/teams - Create team
-  app.post("/", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/", { preHandler: [authenticate, checkProjectLimit] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { name } = z.object({ name: z.string().min(1).max(100) }).parse(req.body);
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
@@ -173,7 +174,7 @@ export async function teamRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/teams/:id/invite
-  app.post("/:id/invite", { preHandler: [authenticate, requireTeamRole(["owner", "admin"])] }, async (req, reply) => {
+  app.post("/:id/invite", { preHandler: [authenticate, requireTeamRole(["owner", "admin"]), checkTeamMemberLimit] }, async (req, reply) => {
     const user = req.user as { sub: string };
     const { id } = req.params as { id: string };
     const { email, role } = z.object({

@@ -36,6 +36,8 @@ import {
   ClipboardList,
   BookUser,
   FlaskConical,
+  ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import { Select } from "@/components/Select";
 import { useRole } from "@/lib/useRole";
@@ -106,6 +108,11 @@ const navItems: NavItem[] = [
     href: "/dashboard/suppression",
     icon: <Ban size={16} />,
   },
+  {
+    label: "Email Validation",
+    href: "/dashboard/validation",
+    icon: <ShieldCheck size={16} />,
+  },
   { label: "API Keys", href: "/dashboard/api-keys", icon: <Key size={16} /> },
   {
     label: "Webhooks",
@@ -121,6 +128,11 @@ const navItems: NavItem[] = [
     label: "Project Settings",
     href: "/dashboard/settings",
     icon: <Settings size={16} />,
+  },
+  {
+    label: "Billing & Plans",
+    href: "/dashboard/billing",
+    icon: <CreditCard size={16} />,
   },
 ];
 

@@ -21,11 +21,10 @@ export const formStatusEnum = pgEnum("form_status", ["active", "draft", "inactiv
 
 export const userPlanEnum = pgEnum("user_plan", [
   "free",
-  "event_level",
-  "starter",
-  "growth",
-  "premium",
-  "enterprise",
+  "standard",
+  "pro",
+  "business",
+  "custom",
 ]);
 
 
@@ -43,6 +42,15 @@ export const emailStatusEnum = pgEnum("email_status", [
   "bounced",
   "complained",
   "failed",
+]);
+
+export const emailValidationStatusEnum = pgEnum("email_validation_status", [
+  "valid",
+  "invalid",
+  "disposable",
+  "role_based",
+  "catch_all",
+  "unknown",
 ]);
 
 export const domainStatusEnum = pgEnum("domain_status", [
@@ -100,9 +108,12 @@ export const users = pgTable(
     isSuspended: boolean("is_suspended").default(false).notNull(),
     suspendReason: text("suspend_reason"),
     monthlyEmailCount: integer("monthly_email_count").default(0).notNull(),
+    monthlyValidationCount: integer("monthly_validation_count").default(0).notNull(),
     billingPeriodStart: timestamp("billing_period_start").defaultNow().notNull(),
     dailyEmailCount: integer("daily_email_count").default(0).notNull(),
     dailyPeriodStart: timestamp("daily_period_start").defaultNow().notNull(),
+    extraEmailQuota: integer("extra_email_quota").default(0).notNull(),
+    isCustomPlan: boolean("is_custom_plan").default(false).notNull(),
     totpSecret: text("totp_secret"),
     tempTotpSecret: text("temp_totp_secret"),
     totpEnabled: boolean("totp_enabled").default(false).notNull(),
@@ -344,6 +355,8 @@ export const contactLists = pgTable(
     fileUrl: varchar("file_url", { length: 1024 }).notNull(), // path to the uploaded file
     totalRows: integer("total_rows").default(0).notNull(),
     validEmails: integer("valid_emails").default(0).notNull(),
+    invalidEmails: integer("invalid_emails").default(0).notNull(),
+    disposableEmails: integer("disposable_emails").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -363,6 +376,9 @@ export const contacts = pgTable(
     phone: varchar("phone", { length: 50 }),
     customFields: jsonb("custom_fields").$type<Record<string, any>>().default({}),
     tags: jsonb("tags").$type<string[]>().default([]),
+    validationStatus: emailValidationStatusEnum("validation_status").default("unknown").notNull(),
+    validationScore: integer("validation_score"),
+    lastValidatedAt: timestamp("last_validated_at"),
     unsubscribedAt: timestamp("unsubscribed_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -370,6 +386,7 @@ export const contacts = pgTable(
   (t) => [
     index("contacts_team_idx").on(t.teamId),
     uniqueIndex("contacts_team_email_idx").on(t.teamId, t.email),
+    index("contacts_validation_status_idx").on(t.validationStatus),
   ]
 );
 
@@ -461,6 +478,26 @@ export const emails = pgTable(
     index("emails_status_idx").on(t.status),
     index("emails_created_at_idx").on(t.createdAt),
     index("emails_to_email_idx").on(t.toEmail),
+  ]
+);
+
+// ─── Email Validations (Cache) ────────────────────────────────────────────────
+
+export const emailValidations = pgTable(
+  "email_validations",
+  {
+    email: varchar("email", { length: 255 }).primaryKey(),
+    status: emailValidationStatusEnum("status").default("unknown").notNull(),
+    score: integer("score"), // 0-100
+    isDisposable: boolean("is_disposable").default(false).notNull(),
+    isRoleBased: boolean("is_role_based").default(false).notNull(),
+    isCatchAll: boolean("is_catch_all").default(false).notNull(),
+    hasMxRecords: boolean("has_mx_records").default(false).notNull(),
+    validatedAt: timestamp("validated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("email_validations_status_idx").on(t.status),
+    index("email_validations_validated_at_idx").on(t.validatedAt),
   ]
 );
 

@@ -4,6 +4,7 @@ import { eq, and, desc } from "drizzle-orm";
 import crypto from "crypto";
 import { db, webhooks, webhookLogs } from "@qwikmailer/db";
 import { authenticate } from "../middleware/auth.js";
+import { requireFeature } from "../middleware/quota.js";
 import { nanoid } from "nanoid";
 
 export async function webhookRoutes(app: FastifyInstance) {
@@ -19,7 +20,7 @@ export async function webhookRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/webhooks
-  app.post("/", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/", { preHandler: [authenticate, requireFeature("webhooks")] }, async (req, reply) => {
     const teamId = req.teamId!;
     const body = z
       .object({

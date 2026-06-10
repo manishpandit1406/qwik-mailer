@@ -4,13 +4,10 @@ import { eq, and, desc, sql, inArray, or } from "drizzle-orm";
 import { db, emails, emailEvents, users, templates, domains, domainSenders, certificates, suppressionList, contactLists, contacts, contactListMembers, teams } from "@qwikmailer/db";
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { getOwnerTeamIds, getTeamOwnerId } from "../utils/team-owner.js";
-import {
-  createEmailQueue,
-  createAnalyticsQueue,
-  createRedisConnection,
-} from "@qwikmailer/queue";
+import { createEmailQueue, createAnalyticsQueue, createRedisConnection } from "@qwikmailer/queue";
 import { checkAndConsumeQuota } from "../utils/quota.js";
 import { isRelatedToCompany } from "../utils/validation.js";
+import { PLAN_LIMITS, PlanType } from "../config/plans.js";
 
 import * as XLSX from "xlsx";
 import crypto from "crypto";
@@ -130,6 +127,13 @@ export async function emailRoutes(app: FastifyInstance) {
       : typeof body.to === "string"
       ? [{ email: body.to }]
       : [body.to];
+
+    if (body.scheduledAt) {
+      const limits = PLAN_LIMITS[user.plan as PlanType];
+      if (!limits || !limits.features.scheduling) {
+        return reply.code(402).send({ success: false, error: `Scheduling is not supported on the ${user.plan} plan.` });
+      }
+    }
 
     // Check sandbox mode — skip quota if sandbox is ON
     const teamRec = await db.query.teams.findFirst({ where: eq(teams.id, (req as any).teamId) });
@@ -315,6 +319,15 @@ export async function emailRoutes(app: FastifyInstance) {
     const body = schema.parse(req.body);
     const teamId = (req as any).teamId as string;
 
+    if (body.scheduledAt) {
+      const userRec = await db.query.users.findFirst({ where: eq(users.id, user.sub) });
+      const plan = userRec?.plan || "free";
+      const limits = PLAN_LIMITS[plan as PlanType];
+      if (!limits || !limits.features.scheduling) {
+        return reply.code(402).send({ success: false, error: `Scheduling is not supported on the ${plan} plan.` });
+      }
+    }
+
     // Fetch contacts
     let conditions = eq(contacts.teamId, teamId);
     if (body.audience.listId) {
@@ -458,6 +471,15 @@ export async function emailRoutes(app: FastifyInstance) {
 
     const teamId = (req as any).teamId as string;
     const emailList = [...parsedEmails];
+
+    if (commonData.scheduledAt) {
+      const userRec = await db.query.users.findFirst({ where: eq(users.id, user.sub) });
+      const plan = userRec?.plan || "free";
+      const limits = PLAN_LIMITS[plan as PlanType];
+      if (!limits || !limits.features.scheduling) {
+        return reply.code(402).send({ success: false, error: `Scheduling is not supported on the ${plan} plan.` });
+      }
+    }
 
     if (audienceTags && audienceTags.length > 0) {
       let tagConditions = [];
