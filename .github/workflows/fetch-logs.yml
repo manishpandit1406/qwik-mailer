@@ -14,4 +14,9 @@ jobs:
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          echo "=== PM2 API Logs ==="
           pm2 logs api --lines 50 --nostream
+          echo "=== PM2 Worker Logs ==="
+          pm2 logs worker --lines 50 --nostream
