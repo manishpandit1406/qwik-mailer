@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { eq, and, desc, ilike, or, sql, inArray } from "drizzle-orm";
-import { db, contacts, contactListMembers } from "@qwikmailer/db";
+import { db, contacts, contactListMembers, users, teams } from "@qwikmailer/db";
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { checkContactQuota } from "../middleware/quota.js";
+import { PlanType, PlanLimits } from "../config/plans.js";
 import * as XLSX from "xlsx";
 import { z } from "zod";
 import { ValidationService } from "../services/validation.service.js";
@@ -235,12 +236,20 @@ export async function contactRoutes(app: FastifyInstance) {
       }
     }
 
-    const limits = (await import("../config/plans.js")).PLAN_LIMITS[plan as PlanType] || (await import("../config/plans.js")).PLAN_LIMITS.free;
-    const userTeams = await db.query.teams.findMany({ where: eq(teams.ownerId, ownerId!), columns: { id: true } });
+    const limitsConfig = await import("../config/plans.js");
+    const limits = limitsConfig.PLAN_LIMITS[plan as PlanType] || limitsConfig.PLAN_LIMITS.free;
     
-    const resCount = await db.execute(sql`SELECT COUNT(*) as count FROM contacts WHERE team_id IN (${sql.raw(userTeams.map(t => `'${t.id}'`).join(',') || "''")})`);
-    const rowsCount = (resCount as any).rows || resCount;
-    const currentContacts = Number(rowsCount[0]?.count || 0);
+    let currentContacts = 0;
+    if (ownerId) {
+      const resCount = await db.execute(sql`
+        SELECT COUNT(*) as count 
+        FROM contacts c
+        JOIN teams t ON c.team_id = t.id
+        WHERE t.owner_id = ${ownerId}
+      `);
+      const rowsCount = (resCount as any).rows || resCount;
+      currentContacts = Number(rowsCount[0]?.count || 0);
+    }
 
     if (currentContacts + rows.length > limits.maxContacts) {
       return reply.code(402).send({ success: false, error: `Contact limit exceeded. Maximum ${limits.maxContacts} contacts allowed on the ${plan} plan. You are trying to add ${rows.length} contacts.` });
