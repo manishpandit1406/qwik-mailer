@@ -296,7 +296,7 @@ export default function SendEmailPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5 animate-fade-in pb-10">
+    <div className="max-w-7xl mx-auto space-y-5 animate-fade-in pb-10">
       <div>
         <h2
           className="text-xl font-bold mb-1"
