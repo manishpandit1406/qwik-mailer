@@ -299,7 +299,7 @@ export default function LandingPage() {
       cta: "Start for Free",
     },
     {
-      name: "Standard",
+      name: "Starter",
       price: "₹199",
       period: "month",
       description: "For growing products and startups",
@@ -321,7 +321,7 @@ export default function LandingPage() {
         { text: "Ticket Support", included: true },
         { text: "Scheduling", included: false },
       ],
-      cta: "Start Standard",
+      cta: "Start Starter",
       highlighted: true,
     },
     {

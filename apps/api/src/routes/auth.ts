@@ -445,21 +445,7 @@ export async function authRoutes(app: FastifyInstance) {
       updatedAt: new Date(),
     }).where(eq(users.id, user.sub));
 
-    // Automatically create a default team for the user based on their company name
-    const slug = body.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-      + "-" + crypto.randomBytes(3).toString("hex");
 
-    const [newTeam] = await db.insert(teams).values({
-      ownerId: user.sub,
-      name: body.companyName,
-      slug,
-    }).returning();
-
-    await db.insert(teamMembers).values({
-      teamId: newTeam.id,
-      userId: user.sub,
-      role: "owner",
-    });
 
     return reply.send({ success: true, data: { message: "Onboarding completed successfully." } });
   });

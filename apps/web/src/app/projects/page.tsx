@@ -106,8 +106,8 @@ export default function ProjectsPage() {
               onClick={() => {
                 if (userPlan === "free" && projects.length >= 1) {
                   setError("Free plan is limited to 1 project. Please upgrade to add more.");
-                } else if (userPlan === "standard" && projects.length >= 2) {
-                  setError("Standard plan is limited to 2 projects. Please upgrade to add more.");
+                } else if (userPlan === "starter" && projects.length >= 2) {
+                  setError("Starter plan is limited to 2 projects. Please upgrade to add more.");
                 } else if (userPlan === "pro" && projects.length >= 5) {
                   setError("Pro plan is limited to 5 projects. Please upgrade to add more.");
                 } else {

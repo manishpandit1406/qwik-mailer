@@ -175,8 +175,8 @@ export default function BillingPage() {
               ]
             },
             {
-              id: "standard",
-              name: "Standard",
+              id: "starter",
+              name: "Starter",
               price: "₹199",
               features: [
                 { text: "Emails: 5,000/month", included: true },

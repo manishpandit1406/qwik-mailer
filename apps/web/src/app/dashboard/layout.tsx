@@ -267,6 +267,30 @@ export default function DashboardLayout({
     } else {
       router.push("/login");
     }
+
+    const fetchMe = async () => {
+      try {
+        const token = localStorage.getItem("mf_access_token");
+        if (!token) return;
+        const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+        const res = await fetch(`${API}/v1/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+        const json = await res.json();
+        if (json.success && json.data) {
+          const freshUser = json.data;
+          setUser(prev => ({ ...prev, plan: freshUser.plan, name: freshUser.name || prev.name }));
+          if (freshUser.name) setUserInitial(freshUser.name[0].toUpperCase());
+          
+          if (userStr) {
+            try {
+              const parsed = JSON.parse(userStr);
+              parsed.plan = freshUser.plan;
+              localStorage.setItem("mf_user", JSON.stringify(parsed));
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    };
+    fetchMe();
   }, [router]);
 
   useEffect(() => {
@@ -350,10 +374,10 @@ export default function DashboardLayout({
 
         <div className="ml-auto flex items-center gap-4">
           {/* Plan badge in navbar */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
+          <Link href="/dashboard/billing" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors cursor-pointer">
             <Zap size={11} className="text-gray-500" />
             <span className="text-xs font-semibold text-gray-600 capitalize">{user.plan} Plan</span>
-          </div>
+          </Link>
           <button className="p-2 relative rounded-full hover:bg-gray-100 transition-colors text-gray-600">
             <Bell size={18} />
             <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-red-500" />
@@ -428,14 +452,6 @@ export default function DashboardLayout({
                     }
                     if (!canAdmin) {
                       return item.label !== "Project Settings";
-                    }
-                    // Filter based on Plan
-                    const currentPlan = user.plan || "free";
-                    if (item.label === "Webhooks") {
-                      return ["standard", "pro", "business", "custom"].includes(currentPlan);
-                    }
-                    if (item.label === "Scheduled") {
-                      return ["pro", "business", "custom"].includes(currentPlan);
                     }
                     return true;
                   })

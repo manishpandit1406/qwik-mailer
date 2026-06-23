@@ -91,7 +91,24 @@ export default function WebhooksPage() {
         if (parsed.plan) setUserPlan(parsed.plan);
       } catch (e) {}
     }
-    fetchWebhooks();
+    const fetchPlanAndWebhooks = async () => {
+      try {
+        const res = await fetch(`${API}/v1/auth/me`, { headers: { Authorization: `Bearer ${getToken()}` } });
+        const json = await res.json();
+        if (json.success && json.data.plan) {
+          setUserPlan(json.data.plan);
+          if (userStr) {
+            try {
+              const parsed = JSON.parse(userStr);
+              parsed.plan = json.data.plan;
+              localStorage.setItem("mf_user", JSON.stringify(parsed));
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+      fetchWebhooks();
+    };
+    fetchPlanAndWebhooks();
   }, []);
   async function createWebhook() {
     if (!newUrl || selectedEvents.length === 0) return;
@@ -173,7 +190,7 @@ export default function WebhooksPage() {
             Receive real-time HTTP events when emails are delivered, opened, clicked, or bounced. This feature is not available on your current plan.
           </p>
           <a href="/dashboard/billing" className="btn-primary inline-flex">
-            Upgrade to Standard or Pro
+            Upgrade to Starter or Pro
           </a>
         </div>
       </div>

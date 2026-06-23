@@ -7,7 +7,7 @@ import { MultiSelect } from "@/components/MultiSelect";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-interface Recipient { name: string; email: string; [key: string]: string; }
+interface Recipient { name: string; email: string;[key: string]: string; }
 interface PreviewError { row: number; reason: string; data: Record<string, string>; }
 interface PreviewData {
   total: number; valid: number; invalid: number;
@@ -19,15 +19,15 @@ type Step = "audience" | "preview" | "compose" | "sending" | "done";
 
 export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () => void }) {
   const [step, setStep] = useState<Step>("audience");
-  
+
   // Tag Selection State
   const [allTags, setAllTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  
+
   // Preview
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [activeTab, setActiveTab] = useState<"recipients" | "errors">("recipients");
-  
+
   // Compose
   const [fromEmail, setFromEmail] = useState("");
   const [fromName, setFromName] = useState("");
@@ -35,7 +35,7 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
   const [htmlBody, setHtmlBody] = useState("");
   const [textBody, setTextBody] = useState("");
   const [useHtml, setUseHtml] = useState(true);
-  
+
   // Options
   const [templates, setTemplates] = useState<any[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -45,7 +45,7 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
   const [attachments, setAttachments] = useState<{ filename: string; content: string; contentType: string; size: number }[]>([]);
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
-  
+
   // Send Result
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -107,11 +107,11 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
 
   async function handlePreview() {
     if (selectedTags.length === 0) {
-        setStep("compose");
-        return;
+      setStep("compose");
+      return;
     }
     setLoading(true); setError("");
-    
+
     let tagRecipients: Recipient[] = [];
     let tagTotal = 0;
 
@@ -131,23 +131,23 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
             return { ...rec, ...(c.customFields || {}) };
           });
         }
-      } catch(err) {
+      } catch (err) {
         console.error("Failed to fetch tag contacts", err);
       }
     }
 
     let columns = ["email", "name"];
     if (tagRecipients.length > 0) {
-       const customKeys = new Set<string>();
-       tagRecipients.forEach((r: any) => {
-         Object.keys(r).forEach(k => {
-           const lowerK = k.toLowerCase();
-           if (!["email", "e-mail", "name", "first_name", "firstname", "fullname", "last_name", "lastname"].includes(lowerK)) {
-             customKeys.add(k);
-           }
-         });
-       });
-       columns = [...columns, ...Array.from(customKeys)];
+      const customKeys = new Set<string>();
+      tagRecipients.forEach((r: any) => {
+        Object.keys(r).forEach(k => {
+          const lowerK = k.toLowerCase();
+          if (!["email", "e-mail", "name", "first_name", "firstname", "fullname", "last_name", "lastname"].includes(lowerK)) {
+            customKeys.add(k);
+          }
+        });
+      });
+      columns = [...columns, ...Array.from(customKeys)];
     }
     setPreview({ total: tagTotal, valid: tagTotal, invalid: 0, recipients: tagRecipients, allFileRecipients: [], errors: [], columns });
     setStep("preview");
@@ -157,7 +157,7 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
   async function handleSend() {
     if (!subject.trim() || (!htmlBody.trim() && !textBody.trim())) return setError("Subject and body are required.");
     setLoading(true); setError(""); setStep("sending");
-    
+
     try {
       const commonData = {
         from: fromEmail || undefined,
@@ -183,14 +183,14 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      
+
       if (!json.success) {
         setError(json.error ?? "Failed to send.");
         setStep("compose");
         setLoading(false);
         return;
       }
-      
+
       setResult(json);
       setStep("done");
     } catch (err) {
@@ -208,14 +208,14 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
   }
 
   return (
-    <div className="max-w-7xl mx-auto animate-fade-in pb-10">
+    <div className="max-w-4xl mx-auto animate-fade-in pb-10">
       {/* Header and Toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>Compose Email</h2>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Send a single transactional email, or a bulk campaign to your audience.</p>
         </div>
-        
+
         {step !== "audience" && step !== "done" && (
           <button onClick={() => { if (confirm("Cancel current campaign?")) reset(); }} className="btn-secondary whitespace-nowrap px-4 py-2 text-sm flex items-center gap-2">
             <X size={14} /> Cancel
@@ -253,7 +253,7 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
           if (isDone) lineClasses += " bg-emerald-500";
           else lineClasses += " bg-gray-200";
           let textClasses = "text-[11px] whitespace-nowrap " + (isActive ? "text-gray-900 font-semibold" : "text-gray-400 font-normal");
-          
+
           // Render Preview step for both now!
           return (
             <div key={s} className="flex items-center flex-1">
@@ -320,7 +320,7 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
               <div className={`text-3xl font-extrabold ${preview.invalid > 0 ? "text-amber-500" : "text-emerald-500"}`}>{preview.invalid}</div>
             </div>
           </div>
-          
+
           <div className="rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden">
             <div className="flex border-b border-gray-200">
               <button onClick={() => setActiveTab("recipients")} className={`flex-1 py-3 text-sm font-semibold border-b-2 ${activeTab === "recipients" ? "border-gray-900 text-gray-900 bg-gray-100" : "border-transparent text-gray-500"}`}>Recipients ({preview.valid})</button>
@@ -340,25 +340,25 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
                   </tr>
                 </thead>
                 <tbody>
-                  {activeTab === "recipients" 
+                  {activeTab === "recipients"
                     ? preview.recipients.slice(0, 100).map((r, i) => (
-                        <tr key={i}>
-                          <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "var(--text-muted)" }}>{i + 1}</td>
-                          <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>{r.name || "-"}</td>
-                          <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "#818cf8" }}>{r.email}</td>
-                          {preview.columns.filter(c => !["name", "Name", "email", "Email", "EMAIL", "NAME", "email_address", "full_name"].includes(c)).map(c => (
-                            <td key={c} style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{r[c] || "-"}</td>
-                          ))}
-                        </tr>
-                      ))
+                      <tr key={i}>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "var(--text-muted)" }}>{i + 1}</td>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>{r.name || "-"}</td>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "#818cf8" }}>{r.email}</td>
+                        {preview.columns.filter(c => !["name", "Name", "email", "Email", "EMAIL", "NAME", "email_address", "full_name"].includes(c)).map(c => (
+                          <td key={c} style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{r[c] || "-"}</td>
+                        ))}
+                      </tr>
+                    ))
                     : preview.errors.slice(0, 100).map((e, i) => (
-                        <tr key={i}>
-                          <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>Row {e.row}</td>
-                          <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>-</td>
-                          <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>{(e.data as any).email || "-"}</td>
-                          <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "#f59e0b" }}>{e.reason}</td>
-                        </tr>
-                      ))
+                      <tr key={i}>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>Row {e.row}</td>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>-</td>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>{(e.data as any).email || "-"}</td>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "#f59e0b" }}>{e.reason}</td>
+                      </tr>
+                    ))
                   }
                 </tbody>
               </table>
@@ -446,7 +446,7 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
                   Text Only
                 </button>
               </div>
-              
+
               {templates.length > 0 && (
                 <select
                   className="bg-transparent border-none outline-none text-xs text-gray-900 font-medium cursor-pointer"
@@ -497,7 +497,7 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
                   <Upload size={16} /> Attach Files
                   <input type="file" multiple className="hidden" onChange={handleFileChange} />
                 </label>
-                
+
                 {certificates.length > 0 && (
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <Award size={16} />
@@ -549,7 +549,7 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
                 />
               )}
             </div>
-            
+
             <button
               onClick={handleSend}
               disabled={loading}
@@ -572,14 +572,14 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
             Your emails have been securely added to the queue. You can track their live delivery progress on your dashboard.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button 
-              onClick={() => window.location.href = '/dashboard'} 
+            <button
+              onClick={() => window.location.href = '/dashboard'}
               className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-colors shadow-sm"
             >
               View Live Progress
             </button>
-            <button 
-              onClick={reset} 
+            <button
+              onClick={reset}
               className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold py-2.5 px-6 rounded-xl transition-colors"
             >
               Send Another

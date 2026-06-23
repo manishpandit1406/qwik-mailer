@@ -1,4 +1,4 @@
-export type PlanType = "free" | "standard" | "pro" | "business" | "custom";
+export type PlanType = "free" | "starter" | "pro" | "business" | "custom";
 
 export interface PlanLimits {
   emailsPerMonth: number;
@@ -34,7 +34,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
       prioritySupport: false,
     },
   },
-  standard: {
+  starter: {
     emailsPerMonth: 5000,
     speedPerSecond: 3,
     maxTeamMembers: 3,
@@ -97,7 +97,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
 };
 
 export const ADD_ON_PRICES = {
-  standard: { pricePer1k: 40 },
+  starter: { pricePer1k: 40 },
   pro: { pricePer1k: 35 },
   business: { pricePer1k: 30 },
 };

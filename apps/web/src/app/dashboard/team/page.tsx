@@ -24,10 +24,10 @@ function getToken() {
 }
 
 const ROLE_ICONS: Record<string, React.ReactNode> = {
-  owner: <Crown size={12} />,
-  admin: <Shield size={12} />,
-  member: <Users size={12} />,
-  viewer: <Eye size={12} />,
+  owner: <Crown size={12} className="text-amber-400" />,
+  admin: <Shield size={12} className="text-blue-400" />,
+  member: <Users size={12} className="text-emerald-400" />,
+  viewer: <Eye size={12} className="text-gray-400" />,
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -193,10 +193,10 @@ export default function TeamPage() {
         {(activeTeam?.role === "owner" || activeTeam?.role === "admin") && userPlan === "free" && (
           <a
             href="/dashboard/billing"
-            className="btn-secondary flex items-center gap-2 text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"
-            title="Upgrade to Standard or Pro to invite team members"
+            className="flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-sm transition-all bg-gradient-to-tr from-gray-900 to-black text-white shadow-sm hover:shadow-md border border-gray-800"
+            title="Upgrade to Starter or Pro to invite team members"
           >
-            <Crown size={14} /> Upgrade to Invite
+            <Crown size={14} className="text-amber-400" /> Upgrade to Invite
           </a>
         )}
       </div>
@@ -314,7 +314,7 @@ export default function TeamPage() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-3 pl-13 sm:pl-0">
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${member.role === "owner" ? "bg-indigo-50 text-indigo-700 border-indigo-100" : "bg-gray-50 text-gray-700 border-gray-200"}`}>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border bg-gradient-to-tr from-gray-900 to-black text-white border-gray-800 shadow-sm">
                       {ROLE_ICONS[member.role]} {ROLE_LABELS[member.role]}
                     </div>
                     {activeTeam.role === "owner" && member.role !== "owner" && (

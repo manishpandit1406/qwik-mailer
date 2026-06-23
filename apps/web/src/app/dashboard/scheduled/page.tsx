@@ -144,7 +144,7 @@ export default function ScheduledPage() {
   const pageSize = 10;
   const paginated = batches;
 
-  if (["free", "standard"].includes(userPlan)) {
+  if (["free", "starter"].includes(userPlan)) {
     return (
       <div className="max-w-3xl mx-auto w-full py-16 text-center">
         <div className="bg-white rounded-2xl border border-gray-200 p-10 shadow-sm">

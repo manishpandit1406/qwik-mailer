@@ -22,7 +22,9 @@ export default function SendEmailPage() {
     subject: "",
     html: "",
     text: "",
+    tags: [] as string[],
   });
+  const [newTag, setNewTag] = useState("");
   const [sendMode, setSendMode] = useState<"single" | "bulk_upload">("single");
   const [parsedContacts, setParsedContacts] = useState<any[]>([]);
   const [bulkFileName, setBulkFileName] = useState("");
@@ -238,6 +240,7 @@ export default function SendEmailPage() {
           subject: "",
           html: "",
           text: "",
+          tags: [],
         });
         setAttachments([]);
         setSelectedTemplateId("");
@@ -260,6 +263,13 @@ export default function SendEmailPage() {
       });
     } finally {
       setSending(false);
+    }
+  }
+
+  function addTag() {
+    if (newTag.trim() && !form.tags.includes(newTag.trim())) {
+      setForm({ ...form, tags: [...form.tags, newTag.trim()] });
+      setNewTag("");
     }
   }
 
@@ -296,7 +306,7 @@ export default function SendEmailPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5 animate-fade-in pb-10">
+    <div className="max-w-5xl mx-auto w-full space-y-5 animate-fade-in pb-10">
       <div>
         <h2
           className="text-xl font-bold mb-1"
@@ -370,7 +380,7 @@ export default function SendEmailPage() {
         </div>
       )}
 
-      <form onSubmit={handleSend} className="space-y-6">
+            <form onSubmit={handleSend} className="glass-card p-6 space-y-5">
         {!sendersLoaded ? (
           <div className="p-4 bg-gray-50 rounded-xl text-sm text-gray-500 text-center animate-pulse">
             Loading sender identities...
@@ -385,125 +395,197 @@ export default function SendEmailPage() {
           </div>
         ) : null}
 
-        {/* Envelope Metadata Box */}
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-          {/* To Row */}
-          <div className="flex items-center border-b border-gray-100 px-4 py-3">
-            <label className="text-gray-400 font-medium text-sm w-16 shrink-0">To:</label>
+        {/* Template Selector */}
+        {templates.length > 0 && (
+          <div>
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Use Saved Template
+            </label>
+            <select
+              className="input"
+              value={selectedTemplateId}
+              onChange={(e) => handleTemplateChange(e.target.value)}
+            >
+              <option value="">-- Select a template (optional) --</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* To */}
+        <div>
+          <label
+            className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+            style={{ color: "var(--text-muted)" }}
+          >
+            To
+          </label>
+          <input
+            id="compose-to"
+            className="input"
+            type="email"
+            placeholder="recipient@example.com"
+            required
+            value={form.to}
+            onChange={(e) => setForm({ ...form, to: e.target.value })}
+          />
+        </div>
+
+        {/* From */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+              style={{ color: "var(--text-muted)" }}
+            >
+              From Email
+            </label>
+            <select
+              id="compose-from"
+              className="input"
+              value={form.from}
+              onChange={(e) => setForm({ ...form, from: e.target.value })}
+            >
+              {senders.length === 0 && <option value="">Platform Default</option>}
+              {senders.map((s) => (
+                <option key={s.id} value={s.email}>
+                  {s.email}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+              style={{ color: "var(--text-muted)" }}
+            >
+              From Name <span className="normal-case font-normal">(optional)</span>
+            </label>
             <input
-              id="compose-to"
-              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-300"
-              type="email"
-              placeholder="recipient@example.com"
-              required
-              value={form.to}
-              onChange={(e) => setForm({ ...form, to: e.target.value })}
+              id="compose-from-name"
+              className="input"
+              type="text"
+              placeholder="Your Company"
+              value={form.fromName}
+              onChange={(e) => setForm({ ...form, fromName: e.target.value })}
             />
           </div>
-
-          {/* From Row */}
-          <div className="flex items-center border-b border-gray-100 px-4 py-3">
-            <label className="text-gray-400 font-medium text-sm w-16 shrink-0">From:</label>
-            <div className="flex-1 flex items-center gap-3">
-              <input
-                className="bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-300 w-48"
-                type="text"
-                placeholder="Name (e.g. Rahul)"
-                value={form.fromName}
-                onChange={(e) => setForm({ ...form, fromName: e.target.value })}
-              />
-              <span className="text-gray-300 text-sm">via</span>
-              <select
-                className="bg-gray-50 border border-gray-200 text-sm rounded-lg px-2 py-1 outline-none text-gray-700 hover:border-gray-300 transition-colors"
-                value={form.from}
-                onChange={(e) => setForm({ ...form, from: e.target.value })}
-              >
-                {senders.map(s => <option key={s.email} value={s.email}>{s.email}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Reply-To Row */}
-          <div className="flex items-center px-4 py-3">
-            <label className="text-gray-400 font-medium text-sm w-20 shrink-0">Reply-To:</label>
+          <div className="col-span-2">
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Reply-To Email <span className="normal-case font-normal">(optional)</span>
+            </label>
             <input
-              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-300"
+              id="compose-reply-to"
+              className="input"
               type="email"
-              placeholder="support@example.com (Optional)"
+              placeholder="reply@example.com"
               value={form.replyTo}
               onChange={(e) => setForm({ ...form, replyTo: e.target.value })}
             />
           </div>
         </div>
 
-        {/* Editor Box */}
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-gray-900 focus-within:border-gray-900 transition-all">
-          {/* Subject */}
+        {/* Subject */}
+        <div>
+          <label
+            className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Subject
+          </label>
           <input
             id="compose-subject"
-            className="w-full bg-transparent border-b border-gray-100 outline-none text-lg font-semibold text-gray-800 placeholder-gray-300 px-6 py-4"
+            className="input"
             type="text"
-            placeholder="Subject"
+            placeholder="Welcome to Qwik Mailer!"
             required
             value={form.subject}
             onChange={(e) => setForm({ ...form, subject: e.target.value })}
           />
+        </div>
 
-          {/* Editor Format Toggle */}
-          <div className="flex justify-between items-center px-6 py-2 bg-gray-50/50 border-b border-gray-100">
-            <div className="flex rounded-lg overflow-hidden bg-gray-200/50 p-1">
+        {/* Body tabs */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label
+              className="block text-xs font-semibold uppercase tracking-wider"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Body
+            </label>
+            <div
+              className="flex rounded-lg overflow-hidden border"
+              style={{ borderColor: "var(--border-subtle)" }}
+            >
               {(["visual", "code"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setTab(t)}
-                  className={`px-3 py-1 text-xs font-medium capitalize rounded-md transition-all ${tab === t ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                  className={`px-3 py-1 text-xs font-medium capitalize transition-all ${tab === t ? "text-white" : ""}`}
+                  style={{
+                    background:
+                      tab === t ? "rgba(99,102,241,0.3)" : "transparent",
+                    color: tab === t ? "#fff" : "var(--text-muted)",
+                  }}
                 >
                   {t === "visual" ? (
-                    <><Eye size={12} className="inline mr-1" /> Visual</>
+                    <>
+                      <Eye size={11} className="inline mr-1" />
+                      Visual
+                    </>
                   ) : (
-                    <><Code2 size={12} className="inline mr-1" /> HTML</>
+                    <>
+                      <Code2 size={11} className="inline mr-1" />
+                      HTML
+                    </>
                   )}
                 </button>
               ))}
             </div>
-
-            {templates.length > 0 && (
-              <select
-                className="bg-transparent border-none outline-none text-xs text-gray-900 font-medium cursor-pointer"
-                value={selectedTemplateId}
-                onChange={(e) => handleTemplateChange(e.target.value)}
-              >
-                <option value="">Use a Template...</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            )}
           </div>
-
-          {/* Editor Body */}
           {tab === "visual" ? (
             <textarea
               id="compose-text"
-              className="w-full h-80 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-300 px-6 py-4 resize-y font-sans"
-              placeholder="Write your email here..."
+              className="input resize-none font-sans"
+              rows={8}
+              placeholder="Write your email content here."
               value={form.text}
               onChange={(e) => setForm({ ...form, text: e.target.value })}
             />
           ) : (
             <textarea
               id="compose-html"
-              className="w-full h-80 bg-slate-50/50 text-slate-700 border-none outline-none text-xs placeholder-gray-400 px-6 py-4 resize-y font-mono shadow-inner"
-              placeholder="<h1>Hello!</h1>"
+              className="input resize-none font-mono text-xs"
+              rows={10}
+              placeholder={
+                "<h1>Hello!</h1>"
+              }
               value={form.html}
               onChange={(e) => setForm({ ...form, html: e.target.value })}
             />
           )}
+        </div>
 
-          {/* Attachments Area (Inside Editor) */}
-          <div className="bg-gray-50/80 px-6 py-4 border-t border-gray-100 flex flex-col gap-3">
+        {/* Attachments & Certificates */}
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
+            Attachments & Metadata
+          </label>
+          <div className="flex flex-col gap-3 p-4 rounded-xl border border-gray-200 bg-white shadow-sm">
             <div className="flex items-center justify-between">
-              <label className="cursor-pointer inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
-                <Upload size={16} /> Attach Files
+              <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-medium rounded-xl border border-gray-200 transition-colors">
+                <Upload size={14} /> Attach Files
                 <input type="file" multiple className="hidden" onChange={handleFileChange} />
               </label>
 
@@ -523,12 +605,18 @@ export default function SendEmailPage() {
             </div>
 
             {attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex flex-col gap-2">
                 {attachments.map((att, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-                    <span className="text-xs font-semibold text-gray-700 truncate max-w-[150px]">{att.filename}</span>
-                    <span className="text-[10px] text-gray-400">{(att.size / 1024).toFixed(0)}kb</span>
-                    <button type="button" onClick={() => removeAttachment(i)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-semibold text-gray-800 truncate">{att.filename}</span>
+                        <span className="text-xs text-gray-400">{(att.size / 1024).toFixed(1)} KB</span>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => removeAttachment(i)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <X size={14} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -536,53 +624,125 @@ export default function SendEmailPage() {
           </div>
         </div>
 
-        {/* Schedule & Submit Footer */}
-        <div className="flex items-center justify-between pt-4">
-          <div className="flex items-center gap-4">
-            <label className={`flex items-center gap-2 text-sm transition-colors ${["free", "standard"].includes(userPlan) ? "text-gray-400 cursor-not-allowed" : "cursor-pointer text-gray-600 hover:text-gray-900"}`} title={["free", "standard"].includes(userPlan) ? "Upgrade to Pro to schedule emails" : ""}>
+        {/* Tags */}
+        <div>
+          <label
+            className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Tags <span className="normal-case font-normal">(optional)</span>
+          </label>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {form.tags.map((tag) => (
+              <span key={tag} className="badge-info flex items-center gap-1">
+                {tag}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      tags: form.tags.filter((t) => t !== tag),
+                    })
+                  }
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+            <div className="flex items-center gap-1">
               <input
-                type="checkbox"
-                className="rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                checked={isScheduled}
-                disabled={["free", "standard"].includes(userPlan)}
-                onChange={(e) => setIsScheduled(e.target.checked)}
+                className="input py-1 px-2 text-xs w-28"
+                placeholder="Add tag..."
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addTag();
+                  }
+                }}
               />
-              Schedule for later
-              {["free", "standard"].includes(userPlan) && (
+              <button
+                type="button"
+                onClick={addTag}
+                className="btn-ghost p-1.5"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Scheduling Section */}
+        <div className="p-4 rounded-xl bg-gray-50 border border-gray-200/80 space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              className="accent-indigo-600 disabled:opacity-50"
+              checked={isScheduled}
+              disabled={["free", "starter"].includes(userPlan)}
+              onChange={(e) => setIsScheduled(e.target.checked)}
+            />
+            <span
+              className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Schedule this email for later
+              {["free", "starter"].includes(userPlan) && (
                 <span className="text-[9px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded ml-1">Pro</span>
               )}
-            </label>
-            {isScheduled && (
+            </span>
+          </label>
+          {isScheduled && (
+            <div className="animate-fade-up">
               <input
                 type="datetime-local"
-                className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-gray-900 transition-colors shadow-sm"
+                className="input"
                 required={isScheduled}
                 value={scheduledDate}
                 onChange={(e) => setScheduledDate(e.target.value)}
               />
-            )}
-          </div>
+              <p
+                className="text-xs mt-1"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Select the date and time when you want this email to be sent.
+              </p>
+            </div>
+          )}
+        </div>
 
-          <div className="flex items-center gap-3">
+        {/* Submit */}
+        <div
+          className="flex items-center justify-between pt-2 border-t"
+          style={{ borderColor: "var(--border-subtle)" }}
+        >
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {isScheduled
+              ? "Emails are queued and sent at the scheduled time."
+              : "Emails are queued and processed within seconds."}
+          </p>
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setShowPreview(true)}
               disabled={!form.html && !form.text}
-              className="text-gray-500 hover:text-gray-900 font-medium text-sm transition-colors"
+              className="btn-secondary flex items-center gap-2"
             >
-              Preview
+              <Eye size={14} /> Preview
             </button>
             <button
               id="compose-submit"
               type="submit"
               disabled={sending || isViewer || !form.to || !form.subject || (!form.text && !form.html)}
-              className="bg-gray-900 hover:bg-black disabled:bg-gray-300 text-white font-semibold py-2.5 px-6 rounded-xl flex items-center gap-2 shadow-sm transition-all"
+              className="btn-primary flex items-center gap-2"
             >
               {sending ? (
-                <RefreshCw size={16} className="animate-spin" />
+                <RefreshCw size={14} className="animate-spin" />
               ) : (
                 <>
-                  <Send size={16} /> {isScheduled ? "Schedule" : "Send Now"}
+                  <Send size={14} />{" "}
+                  {isScheduled ? "Schedule Email" : "Send Email"}
                 </>
               )}
             </button>

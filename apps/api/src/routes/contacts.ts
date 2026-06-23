@@ -315,6 +315,39 @@ export async function contactRoutes(app: FastifyInstance) {
       }
     }
 
-    return reply.send({ success: true, message: `Imported ${addedCount} contacts`, count: addedCount });
+    // Fire-and-forget background validation
+    (async () => {
+      try {
+        console.log(`[Import] Starting background validation for ${rows.length} contacts...`);
+        for (let i = 0; i < rows.length; i += 20) {
+          const chunk = rows.slice(i, i + 20);
+          await Promise.all(chunk.map(async (row) => {
+            let email = "";
+            for (const key of Object.keys(row)) {
+              const lowerK = key.replace(/^\uFEFF/, "").trim().toLowerCase();
+              if (lowerK === "email" || lowerK === "e-mail") {
+                email = row[key] ? row[key].toString().trim() : "";
+                break;
+              }
+            }
+            if (email && emailRegex.test(email)) {
+              const validation = await ValidationService.validate(email);
+              await db.update(contacts)
+                .set({
+                  validationStatus: validation.status,
+                  validationScore: validation.score,
+                  lastValidatedAt: validation.validatedAt
+                })
+                .where(and(eq(contacts.teamId, teamId), eq(contacts.email, email)));
+            }
+          }));
+        }
+        console.log(`[Import] Background validation complete.`);
+      } catch (err) {
+        console.error("[Import] Background validation failed:", err);
+      }
+    })();
+
+    return reply.send({ success: true, message: `Imported ${addedCount} contacts. Validation is running in the background.`, count: addedCount });
   });
 }

@@ -1,6 +1,7 @@
 import { db, emailValidations } from "@qwikmailer/db";
 import { eq } from "drizzle-orm";
 import { resolveMx } from "node:dns/promises";
+import validateEmail from "deep-email-validator";
 
 // Static lists for fast lookups
 const ROLE_PREFIXES = new Set([
@@ -90,7 +91,9 @@ export class ValidationService {
     if (status === "valid" || status === "role_based") {
       try {
         const mxRecords = await resolveMx(domain);
-        hasMxRecords = mxRecords && mxRecords.length > 0;
+        // RFC 7505 Null MX record check
+        const validMx = mxRecords.filter(mx => mx.exchange && mx.exchange !== '.' && mx.exchange !== '');
+        hasMxRecords = validMx.length > 0;
         if (!hasMxRecords) {
           status = "invalid";
           score = 0;
@@ -106,6 +109,27 @@ export class ValidationService {
           hasMxRecords = false;
           status = "unknown";
           score = 50;
+        }
+      }
+      
+      // 5. Deep SMTP Mailbox Check
+      if (status === "valid" || status === "role_based") {
+        try {
+          const deepRes = await validateEmail({
+            email: normalizedEmail,
+            validateRegex: false,
+            validateMx: false,
+            validateTypo: false,
+            validateDisposable: false,
+            validateSMTP: true
+          });
+          
+          if (deepRes.validators.smtp && !deepRes.validators.smtp.valid) {
+             status = "invalid";
+             score = 0;
+          }
+        } catch (err) {
+          console.warn("SMTP deep validation failed, ignoring:", err);
         }
       }
     }
