@@ -1,3 +1,5 @@
+const colors = require('tailwindcss/colors');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -8,6 +10,10 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        indigo: colors.gray,
+        purple: colors.gray,
+        violet: colors.gray,
+        fuchsia: colors.gray,
         brand: {
           50:  "#f9fafb",
           100: "#f3f4f6",

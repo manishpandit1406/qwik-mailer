@@ -35,7 +35,7 @@ export const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
     subject: "You're in! Welcome to the family 🚀",
     description: "A visually striking welcome email with a large header.",
     htmlBody: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
-  <div style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 40px 20px; text-align: center;">
+  <div style="background: linear-gradient(135deg, #111827 0%, #374151 100%); padding: 40px 20px; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 28px;">Welcome, {{name | "Friend"}}!</h1>
     <p style="color: #e0e7ff; margin-top: 10px; font-size: 16px;">We are so excited to see you here.</p>
   </div>

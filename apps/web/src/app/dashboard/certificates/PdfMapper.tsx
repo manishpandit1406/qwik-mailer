@@ -231,10 +231,10 @@ export default function PdfMapper({
                     width: qrSize,
                     height: qrSize,
                     border: isActive
-                      ? "2px solid #6366f1"
+                      ? "2px solid #111827"
                       : "2px dashed #9ca3af",
                     background: isActive
-                      ? "rgba(99,102,241,0.08)"
+                      ? "rgba(17,24,39,0.08)"
                       : "rgba(0,0,0,0.04)",
                     borderRadius: 4,
                     display: "flex",
@@ -251,7 +251,7 @@ export default function PdfMapper({
                     height={qrSize * 0.4}
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke={isActive ? "#6366f1" : "#9ca3af"}
+                    stroke={isActive ? "#111827" : "#9ca3af"}
                     strokeWidth="1.5"
                   >
                     {" "}
@@ -263,31 +263,31 @@ export default function PdfMapper({
                       y="4"
                       width="4"
                       height="4"
-                      fill={isActive ? "#6366f1" : "#9ca3af"}
+                      fill={isActive ? "#111827" : "#9ca3af"}
                     />{" "}
                     <rect
                       x="16"
                       y="4"
                       width="4"
                       height="4"
-                      fill={isActive ? "#6366f1" : "#9ca3af"}
+                      fill={isActive ? "#111827" : "#9ca3af"}
                     />{" "}
                     <rect
                       x="4"
                       y="16"
                       width="4"
                       height="4"
-                      fill={isActive ? "#6366f1" : "#9ca3af"}
+                      fill={isActive ? "#111827" : "#9ca3af"}
                     />{" "}
                     <path
                       d="M14 14h3v3h-3zM17 17h3v3h-3zM14 17h3v3h-3z"
-                      fill={isActive ? "#6366f1" : "#9ca3af"}
+                      fill={isActive ? "#111827" : "#9ca3af"}
                     />{" "}
                   </svg>{" "}
                   <span
                     style={{
                       fontSize: 9,
-                      color: isActive ? "#6366f1" : "#9ca3af",
+                      color: isActive ? "#111827" : "#9ca3af",
                       fontFamily: "monospace",
                     }}
                   >

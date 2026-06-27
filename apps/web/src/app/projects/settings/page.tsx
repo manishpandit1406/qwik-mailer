@@ -934,8 +934,7 @@ const [notifSaved, setNotifSaved] = useState(false);
                       <button
                         onClick={deleteWithPasskey}
                         disabled={deletingPasskey !== null}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 mb-4 text-sm font-semibold text-white rounded-xl disabled:opacity-50 transition-all"
-                        style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 mb-4 text-sm font-semibold text-white rounded-xl disabled:opacity-50 transition-all bg-gray-900"
                       >
                         {deletingPasskey ? <RefreshCw size={16} className="animate-spin" /> : <Shield size={16} />}
                         {deletingPasskey ? "Verifying..." : "Use Passkey (Touch ID / Face ID)"}

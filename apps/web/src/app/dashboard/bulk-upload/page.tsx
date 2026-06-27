@@ -1004,7 +1004,7 @@ export default function BulkUploadPage() {
                 borderRadius: 50,
                 background:
                   preview.valid > 0
-                    ? "linear-gradient(135deg,#6366f1,#8b5cf6)"
+                    ? "linear-gradient(135deg,#111827,#4b5563)"
                     : "rgba(255,255,255,0.05)",
                 border: "none",
                 color: preview.valid > 0 ? "white" : "var(--text-muted)",
@@ -1389,8 +1389,8 @@ export default function BulkUploadPage() {
               style={{
                 width: 40,
                 height: 40,
-                border: "3px solid rgba(99,102,241,0.3)",
-                borderTop: "3px solid #6366f1",
+                border: "3px solid rgba(17,24,39,0.3)",
+                borderTop: "3px solid #111827",
                 borderRadius: "50%",
                 animation: "spin 0.8s linear infinite",
               }}

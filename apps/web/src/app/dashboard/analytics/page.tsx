@@ -48,12 +48,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     </div>
   );
 };
-const DEVICE_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#64748b"];
+const DEVICE_COLORS = ["#111827", "#10b981", "#f59e0b", "#64748b"];
 const PLATFORM_COLORS = [
-  "#6366f1",
+  "#111827",
   "#10b981",
   "#f59e0b",
-  "#8b5cf6",
+  "#6b7280",
   "#ec4899",
   "#64748b",
 ];
@@ -252,9 +252,8 @@ export default function AnalyticsPage() {
             <defs>
               {" "}
               <linearGradient id="sentGrad2" x1="0" y1="0" x2="0" y2="1">
-                {" "}
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />{" "}
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />{" "}
+                <stop offset="5%" stopColor="#111827" stopOpacity={0.3} />{" "}
+                <stop offset="95%" stopColor="#111827" stopOpacity={0} />{" "}
               </linearGradient>{" "}
               <linearGradient id="delGrad" x1="0" y1="0" x2="0" y2="1">
                 {" "}
@@ -281,8 +280,8 @@ export default function AnalyticsPage() {
               type="monotone"
               dataKey="sent"
               name="Sent"
-              stroke="#6366f1"
-              strokeWidth={2}
+              stroke="#111827"
+              fillOpacity={1}
               fill="url(#sentGrad2)"
             />{" "}
             <Area
@@ -350,7 +349,7 @@ export default function AnalyticsPage() {
               <Bar
                 dataKey="opened"
                 name="Opens"
-                fill="#6366f1"
+                fill="#111827"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={24}
               />{" "}

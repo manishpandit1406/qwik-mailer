@@ -316,7 +316,7 @@ export default function DashboardPage() {
 
       {/* Active Sending Jobs */}{" "}
       {activeJobs.length > 0 && (
-        <div className="glass-card p-6 overflow-hidden relative animate-fade-up border-indigo-200" style={{ borderLeft: "4px solid #6366f1" }}>
+        <div className="glass-card p-6 overflow-hidden relative animate-fade-up border-gray-200" style={{ borderLeft: "4px solid #111827" }}>
           <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
             <Zap size={18} className="text-indigo-500" /> Active Sending Queue
           </h3>
@@ -395,7 +395,7 @@ export default function DashboardPage() {
           value={stats!.sent.toLocaleString()}
           sub="This month"
           icon={<Mail size={18} />}
-          color="#6366f1"
+          color="#111827"
           trend={stats!.trends?.sent ?? 0}
         />{" "}
         <StatCard
@@ -411,7 +411,7 @@ export default function DashboardPage() {
           value={`${stats!.openRate}%`}
           sub={`${stats!.opened.toLocaleString()} opens`}
           icon={<BarChart3 size={18} />}
-          color="#8b5cf6"
+          color="#6b7280"
           trend={stats!.trends?.openRate ?? 0}
         />{" "}
         <StatCard
@@ -467,10 +467,10 @@ export default function DashboardPage() {
                   {" "}
                   <stop
                     offset="5%"
-                    stopColor="#6366f1"
+                    stopColor="#111827"
                     stopOpacity={0.3}
                   />{" "}
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />{" "}
+                  <stop offset="95%" stopColor="#111827" stopOpacity={0} />{" "}
                 </linearGradient>{" "}
                 <linearGradient id="deliveredGrad" x1="0" y1="0" x2="0" y2="1">
                   {" "}
@@ -500,7 +500,7 @@ export default function DashboardPage() {
                 type="monotone"
                 dataKey="sent"
                 name="Sent"
-                stroke="#6366f1"
+                stroke="#111827"
                 strokeWidth={2}
                 fill="url(#sentGrad)"
               />{" "}
