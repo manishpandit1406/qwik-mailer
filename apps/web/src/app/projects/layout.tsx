@@ -35,6 +35,11 @@ const navItems: NavItem[] = [
     label: "Account Settings",
     href: "/projects/settings",
     icon: <Settings size={16} />,
+  },
+  {
+    label: "Billing & Plans",
+    href: "/projects/billing",
+    icon: <CreditCard size={16} />,
   }
 ];
 

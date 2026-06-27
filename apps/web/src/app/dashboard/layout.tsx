@@ -128,12 +128,7 @@ const navItems: NavItem[] = [
     label: "Project Settings",
     href: "/dashboard/settings",
     icon: <Settings size={16} />,
-  },
-  {
-    label: "Billing & Plans",
-    href: "/dashboard/billing",
-    icon: <CreditCard size={16} />,
-  },
+  }
 ];
 
 function SecurityReminderPopup() {
@@ -374,7 +369,7 @@ export default function DashboardLayout({
 
         <div className="ml-auto flex items-center gap-4">
           {/* Plan badge in navbar */}
-          <Link href="/dashboard/billing" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors cursor-pointer">
+          <Link href="/projects/billing" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors cursor-pointer">
             <Zap size={11} className="text-gray-500" />
             <span className="text-xs font-semibold text-gray-600 capitalize">{user.plan} Plan</span>
           </Link>

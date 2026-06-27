@@ -189,7 +189,7 @@ export default function WebhooksPage() {
           <p className="text-gray-500 mb-8 max-w-md mx-auto">
             Receive real-time HTTP events when emails are delivered, opened, clicked, or bounced. This feature is not available on your current plan.
           </p>
-          <a href="/dashboard/billing" className="btn-primary inline-flex">
+          <a href="/projects/billing" className="btn-primary inline-flex">
             Upgrade to Starter or Pro
           </a>
         </div>

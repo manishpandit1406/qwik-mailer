@@ -192,7 +192,7 @@ export default function TeamPage() {
         )}
         {(activeTeam?.role === "owner" || activeTeam?.role === "admin") && userPlan === "free" && (
           <a
-            href="/dashboard/billing"
+            href="/projects/billing"
             className="flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-sm transition-all bg-gradient-to-tr from-gray-900 to-black text-white shadow-sm hover:shadow-md border border-gray-800"
             title="Upgrade to Starter or Pro to invite team members"
           >

@@ -155,7 +155,7 @@ export default function ScheduledPage() {
           <p className="text-gray-500 mb-8 max-w-md mx-auto">
             Schedule emails to be sent at a specific date and time in the future. This feature requires the Pro plan.
           </p>
-          <a href="/dashboard/billing" className="btn-primary inline-flex">
+          <a href="/projects/billing" className="btn-primary inline-flex">
             Upgrade to Pro
           </a>
         </div>

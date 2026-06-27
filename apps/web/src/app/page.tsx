@@ -115,82 +115,40 @@ function PricingCard({
   highlighted,
 }: PricingCardProps) {
   return (
-    <div
-      className={`glass-card p-8 flex flex-col relative ${highlighted ? "ring-2 ring-indigo-500/50" : ""}`}
-    >
-      {" "}
+    <div className={`glass-card p-8 flex flex-col relative h-full hover:shadow-2xl transition-all duration-300 bg-white ${highlighted ? "border-2 border-indigo-600 shadow-xl z-10 scale-105" : "border border-gray-200 hover:border-indigo-300"}`}>
       {highlighted && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          {" "}
-          <span className="bg-black text-white px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded">
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+          <span className="bg-indigo-600 text-white px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full shadow-md">
             Most Popular
-          </span>{" "}
+          </span>
         </div>
-      )}{" "}
+      )}
       <div className="mb-6">
-        {" "}
-        <p
-          className="text-xs font-bold uppercase tracking-widest mb-2"
-          style={{ color: "var(--accent-light)" }}
-        >
-          {name}
-        </p>{" "}
-        <div className="flex items-baseline gap-1 mb-2">
-          {" "}
-          <span
-            className="text-4xl font-black"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {price}
-          </span>{" "}
-          {period && (
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-              /{period}
-            </span>
-          )}{" "}
-        </div>{" "}
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          {description}
-        </p>{" "}
-      </div>{" "}
-      <ul className="space-y-3 mb-8 flex-1">
-        {" "}
+        <h3 className="text-xl font-bold mb-1 text-gray-900">{name}</h3>
+        <div className="text-4xl font-black mb-2 text-gray-900">
+          {price}
+          {period && <span className="text-sm text-gray-500 font-medium">/{period}</span>}
+        </div>
+        <p className="text-sm text-gray-500">{description}</p>
+      </div>
+      <ul className="space-y-3 mb-8 flex-1 text-sm">
         {features.map((f, i) => (
-          <li
-            key={i}
-            className={`flex items-start gap-2 text-sm`}
-            style={{ color: f.included ? "var(--text-secondary)" : "#9ca3af" }}
-          >
-            {" "}
+          <li key={i} className={`flex items-start gap-2 ${f.included ? "text-gray-700" : "text-gray-400"}`}>
             {f.included ? (
-              <CheckCircle2
-                size={15}
-                className="mt-0.5 shrink-0"
-                style={{ color: "#000000" }}
-              />
+              <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
             ) : (
-              <XCircle
-                size={15}
-                className="mt-0.5 shrink-0"
-                style={{ color: "#d1d5db" }}
-              />
+              <XCircle size={16} className="text-gray-300 shrink-0 mt-0.5" />
             )}
-            {" "}
-            {f.text}{" "}
+            <span>{f.text}</span>
           </li>
-        ))}{" "}
-      </ul>{" "}
+        ))}
+      </ul>
       <Link
-        href="/register"
-        className={
-          highlighted
-            ? "btn-primary text-center block"
-            : "btn-secondary text-center block"
-        }
+        href={name === "Custom" ? "mailto:sales@qwikmailer.com" : "/register"}
+        className={`w-full text-center block ${highlighted ? "bg-gray-900 hover:bg-gray-800 text-white shadow-md" : "btn-secondary border-gray-200 hover:border-indigo-300 bg-gray-50 hover:bg-indigo-50 text-gray-900"} font-semibold rounded-lg px-4 py-3 text-sm transition-all`}
       >
-        {" "}
-        {cta}{" "}
-      </Link>{" "}
+        {cta}
+      </Link>
     </div>
   );
 } // ─── Code Snippet ─────────────────────────────────────────────────────────────
@@ -770,10 +728,15 @@ export default function LandingPage() {
               No hidden fees. No sending limits on paid plans*. Cancel anytime.
             </p>{" "}
           </div>{" "}
-          <div className="grid md:grid-cols-4 gap-6">
+          <div 
+            className="flex overflow-x-auto gap-6 pb-8 snap-x snap-mandatory pt-8 -mx-6 px-6 md:mx-0 md:px-4 hide-scrollbar" 
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
             {" "}
             {plans.map((plan) => (
-              <PricingCard key={plan.name} {...plan} />
+              <div key={plan.name} className="shrink-0 w-[85vw] max-w-[320px] snap-center h-auto">
+                <PricingCard {...plan} />
+              </div>
             ))}{" "}
           </div>{" "}
           <p
