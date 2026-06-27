@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, MoreVertical, Ban, CheckCircle, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, Search, MoreVertical, Ban, CheckCircle, ShieldAlert, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { format } from "date-fns";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
