@@ -239,7 +239,7 @@ export default function FormsPage() {
             onClick={() => setActiveTab("my-forms")}
             className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center gap-2 ${
               activeTab === "my-forms"
-                ? "bg-white text-indigo-700 shadow-sm border border-gray-200/50"
+                ? "bg-white text-gray-900 shadow-sm border border-gray-200/50"
                 : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
             }`}
           >
@@ -249,7 +249,7 @@ export default function FormsPage() {
             onClick={() => setActiveTab("gallery")}
             className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center gap-2 ${
               activeTab === "gallery"
-                ? "bg-white text-indigo-700 shadow-sm border border-gray-200/50"
+                ? "bg-white text-gray-900 shadow-sm border border-gray-200/50"
                 : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
             }`}
           >
@@ -270,7 +270,7 @@ export default function FormsPage() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${selectedCategory === cat ? "bg-indigo-600 text-white shadow-md" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}
+                  className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${selectedCategory === cat ? "bg-gray-900 text-white shadow-md" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}
                 >
                   {cat}
                 </button>
@@ -285,20 +285,44 @@ export default function FormsPage() {
                     key={template.id}
                     onClick={() => createForm(template)}
                     disabled={creating}
-                    className="glass-card animate-fade-up text-left p-6 group relative overflow-hidden hover:-translate-y-1 hover:shadow-xl hover:shadow-gray-500/10 hover:border-indigo-200 transition-all duration-300 bg-white flex flex-col h-full disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md hover:border-gray-300 transition-all group flex flex-col h-full text-left disabled:opacity-50 disabled:cursor-not-allowed w-full animate-fade-up"
                   >
-                    <div className="flex items-start justify-between mb-4 relative z-10">
-                      <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors shadow-sm">
-                        <Icon size={24} />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">
-                        {template.category}
-                      </span>
+                    {/* Thumbnail Preview area */}
+                    <div className="h-44 w-full bg-gray-50 relative overflow-hidden border-b border-gray-100 flex items-center justify-center p-4">
+                       <div className="absolute top-3 right-3 z-10">
+                         <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md shadow-sm bg-gray-900 text-white">
+                           {template.category}
+                         </span>
+                       </div>
+                       
+                       {/* Real Content Mock Form */}
+                       <div className="w-[300px] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-gray-100 p-5 transform scale-[0.65] origin-top absolute top-6 transition-transform group-hover:scale-[0.68]">
+                         <h2 className="text-xl font-bold text-gray-900 mb-2 leading-tight">{template.name}</h2>
+                         <p className="text-sm text-gray-500 mb-5 leading-relaxed">{template.description}</p>
+                         
+                         <div className="space-y-4">
+                            {template.schema.slice(0, 2).map((field: any, idx: number) => (
+                               <div key={idx} className="text-left">
+                                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                    {field.label} {field.required && <span className="text-red-500">*</span>}
+                                  </label>
+                                  <div className="w-full h-10 bg-white border border-gray-200 rounded-lg shadow-sm"></div>
+                               </div>
+                            ))}
+                            <div className="h-10 w-full bg-gray-900 rounded-lg mt-4 flex items-center justify-center">
+                               <span className="text-sm text-white font-bold">Submit</span>
+                            </div>
+                         </div>
+                       </div>
                     </div>
-                    <h5 className="font-bold text-gray-900 text-lg mb-2 relative z-10">{template.name}</h5>
-                    <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed relative z-10 flex-1">{template.description}</p>
-                    <div className="mt-6 pt-4 border-t border-gray-100 relative z-10 flex items-center text-xs font-semibold text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                      Use Template <span className="ml-1 tracking-widest">→</span>
+                    
+                    <div className="p-4 flex-1 flex flex-col">
+                      <h3 className="font-bold text-gray-900 text-base mb-1">{template.name}</h3>
+                      <p className="text-xs text-gray-500 mb-4 line-clamp-2">{template.description}</p>
+                      
+                      <div className="mt-auto pt-3 flex items-center text-xs font-semibold text-gray-900 opacity-0 group-hover:opacity-100 transition-opacity">
+                        Use Template <span className="ml-1 tracking-widest">→</span>
+                      </div>
                     </div>
                   </button>
                 );
@@ -335,7 +359,7 @@ export default function FormsPage() {
                     </span>
                   </div>
                   <div style={{ width: '500px', height: '600px', transform: 'scale(0.65)', transformOrigin: 'top center', marginTop: '-15px' }}>
-                    <iframe src={`/f/${form.id}`} className="w-full h-full border-0 pointer-events-none bg-transparent" tabIndex={-1} scrolling="no" />
+                    <iframe src={`/f/${form.id}?preview=true`} className="w-full h-full border-0 pointer-events-none bg-transparent" tabIndex={-1} scrolling="no" />
                   </div>
                   <div className="absolute inset-0 bg-transparent" /> {/* Overlay to capture clicks */}
                 </div>

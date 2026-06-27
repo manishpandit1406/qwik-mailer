@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { eq, sql } from "drizzle-orm";
-import { db, emails, suppressionList, reputationLogs } from "@qwikmailer/db";
+import { db, emails, suppressionList, reputationLogs, teams, users } from "@qwikmailer/db";
 import { createRedisConnection, createAnalyticsQueue } from "@qwikmailer/queue";
 
 const redis = createRedisConnection();
@@ -86,6 +86,13 @@ export async function sesWebhookRoutes(app: FastifyInstance) {
 
         const emailId = emailRecord.id;
         const teamId = emailRecord.teamId;
+        
+        const team = await db.query.teams.findFirst({ where: eq(teams.id, teamId!) });
+        const userId = team?.ownerId;
+        if (!userId) {
+          console.warn(`[SES Webhook] Could not find owner for team: ${teamId}`);
+          return reply.send({ success: true });
+        }
 
         if (notificationType === "Bounce") {
           const bounce = messageData.bounce;
@@ -113,10 +120,22 @@ export async function sesWebhookRoutes(app: FastifyInstance) {
                 addedAt: new Date()
               } as any).onConflictDoNothing();
 
-              // Deduct Reputation Points
-              await db.execute(sql`UPDATE users SET reputation_score = reputation_score - 10 WHERE id = ${teamId}`);
+              // Deduct Reputation Points and Auto-Suspend if <= 0
+              const [updatedUser] = await db.update(users)
+                .set({ reputationScore: sql`reputation_score - 10` })
+                .where(eq(users.id, userId))
+                .returning();
+                
+              if (updatedUser && updatedUser.reputationScore <= 0 && !updatedUser.isSuspended) {
+                await db.update(users).set({ 
+                  isSuspended: true, 
+                  suspendReason: "Auto-suspended due to high hard bounce rate from AWS SES",
+                  updatedAt: new Date()
+                }).where(eq(users.id, userId));
+              }
+
               await db.insert(reputationLogs).values({
-                teamId: teamId!,
+                userId: userId,
                 points: -10,
                 reason: `Hard bounce from AWS SES: ${recipientEmail}`
               } as any);
@@ -146,10 +165,22 @@ export async function sesWebhookRoutes(app: FastifyInstance) {
               addedAt: new Date()
             } as any).onConflictDoNothing();
 
-            // Heavy deduction for complaints
-            await db.execute(sql`UPDATE users SET reputation_score = reputation_score - 20 WHERE id = ${teamId}`);
+            // Heavy deduction for complaints and Auto-Suspend if <= 0
+            const [updatedUser] = await db.update(users)
+              .set({ reputationScore: sql`reputation_score - 20` })
+              .where(eq(users.id, userId))
+              .returning();
+              
+            if (updatedUser && updatedUser.reputationScore <= 0 && !updatedUser.isSuspended) {
+              await db.update(users).set({ 
+                isSuspended: true, 
+                suspendReason: "Auto-suspended due to high spam complaint rate from AWS SES",
+                updatedAt: new Date()
+              }).where(eq(users.id, userId));
+            }
+
             await db.insert(reputationLogs).values({
-              teamId: teamId!,
+              userId: userId,
               points: -20,
               reason: `Spam complaint from AWS SES: ${recipientEmail}`
             } as any);

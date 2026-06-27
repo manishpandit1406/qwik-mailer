@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { db } from "@qwikmailer/db";
-import { teamMembers } from "@qwikmailer/db";
+import { teamMembers, users } from "@qwikmailer/db";
 import { eq, and } from "drizzle-orm";
 import { validateApiKey } from "../services/api-key.service.js";
 
@@ -29,6 +29,23 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
     }
 
     await req.jwtVerify();
+    
+    // Check if user is active and not suspended
+    const userId = (req.user as any).sub || (req.user as any).id;
+    if (userId) {
+      const userRec = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        columns: { isSuspended: true, isActive: true }
+      });
+      
+      if (!userRec || !userRec.isActive) {
+        return reply.code(401).send({ success: false, error: "Account is inactive" });
+      }
+      if (userRec.isSuspended) {
+        return reply.code(403).send({ success: false, error: "Account suspended. Please contact support." });
+      }
+    }
+
     req.user = { ...(req.user as any), source: "dashboard" };
 
     // Resolve active team
