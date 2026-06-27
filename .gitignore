@@ -66,3 +66,6 @@ fix-*.ts
 fix-*.sh
 revert-*.js
 test_*.ts
+make-admin.ts
+make-admin.js
+packages/db/make-admin.js
