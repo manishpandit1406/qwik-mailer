@@ -149,7 +149,7 @@ export default function BillingPage() {
           <h3 className="text-2xl font-black text-gray-900 mb-2">Available Plans</h3>
           <p className="text-gray-500">Choose the perfect plan for your business needs.</p>
         </div>
-        <div className="flex overflow-x-auto pb-8 pt-4 gap-8 snap-x snap-mandatory hide-scrollbar -mx-4 px-4 sm:-mx-6 sm:px-6 md:mx-0 md:px-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="flex overflow-x-auto pb-12 pt-8 gap-8 snap-x snap-mandatory hide-scrollbar -mx-4 px-4 sm:-mx-6 sm:px-6 md:mx-0 md:px-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {[
             {
               id: "free",
