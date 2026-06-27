@@ -70,44 +70,43 @@ export default function TermsPage() {
         <div className="prose prose-gray max-w-none text-gray-600 space-y-6 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-black [&>h2]:mt-10 [&>h2]:mb-4 [&>p]:leading-relaxed [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:space-y-2 [&_strong]:text-black">
           <h2>1. Acceptance of Terms</h2>
           <p>
-            By accessing and using Qwik Mailer, you accept and agree to be bound by the terms and provision of this agreement. In addition, when using these particular services, you shall be subject to any posted guidelines or rules applicable to such services.
+            By accessing and using Qwik Mailer, you accept and agree to be bound by the terms and provision of this agreement. Because our platform utilizes Amazon Web Services (AWS) infrastructure, you also agree to be bound by the <a href="https://aws.amazon.com/aup/" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">AWS Acceptable Use Policy</a>.
           </p>
 
           <h2>2. Description of Service</h2>
           <p>
-            Qwik Mailer provides developers with email infrastructure to send, receive, and track transactional emails through API integration (the "Service"). You understand that the Service may include certain communications from Qwik Mailer, such as service announcements and administrative messages.
+            Qwik Mailer provides developers with email infrastructure to send, receive, and track transactional and bulk emails through API integration and SMTP (the "Service"). 
           </p>
 
           <h2>3. Account Registration & Obligations</h2>
           <p>In consideration of your use of the Service, you agree to:</p>
           <ul>
-            <li>Provide true, accurate, current and complete information about yourself as prompted by the Service's registration form.</li>
-            <li>Maintain and promptly update the Registration Data to keep it true, accurate, current and complete.</li>
-            <li>Be responsible for maintaining the confidentiality of your password and account.</li>
+            <li>Provide true, accurate, current and complete information about yourself.</li>
+            <li>Maintain a valid, verified sending domain with proper SPF, DKIM, and DMARC configurations.</li>
+            <li>Be responsible for maintaining the confidentiality of your API keys and account credentials.</li>
           </ul>
 
-          <h2>4. Anti-Spam Policy & Acceptable Use</h2>
+          <h2>4. Anti-Spam Policy & Strict Deliverability Limits</h2>
           <p>
-            Qwik Mailer has a strict zero-tolerance policy against spam. You agree <strong>not</strong> to use the Service to:
+            Qwik Mailer has a strict zero-tolerance policy against spam and poor sending practices. You agree <strong>not</strong> to use the Service to:
           </p>
           <ul>
+            <li>Send emails to recipients who have not explicitly <strong>opted-in</strong> (e.g., purchased, scraped, or rented mailing lists).</li>
             <li>Send unsolicited bulk emails or commercial messages ("spam").</li>
-            <li>Use purchased, rented, or third-party mailing lists.</li>
-            <li>Transmit any content that is unlawful, harmful, threatening, abusive, harassing, or otherwise objectionable.</li>
-            <li>Impersonate any person or entity or falsely state or otherwise misrepresent your affiliation with a person or entity.</li>
+            <li>Bypass our automated unsubscribe and suppression list mechanisms.</li>
           </ul>
           <p>
-            Violation of our anti-spam policy will result in immediate and permanent account suspension without refund.
+            <strong>Deliverability Enforcement:</strong> We actively monitor bounce and complaint rates via AWS SNS webhooks. If your account exceeds a <strong>5% bounce rate</strong> or a <strong>0.1% spam complaint rate</strong>, your account and API access will be immediately suspended to protect the reputation of our network.
           </p>
 
           <h2>5. API Usage and Rate Limits</h2>
           <p>
-            You agree to use the Qwik Mailer API in accordance with the documented rate limits. Attempting to bypass these rate limits or circumvent security features of the API is strictly prohibited.
+            You agree to use the Qwik Mailer API in accordance with your plan's documented rate limits and monthly quotas. We reserve the right to throttle or suspend API access if unusual, abusive, or highly irregular traffic patterns are detected.
           </p>
 
           <h2>6. Limitation of Liability</h2>
           <p>
-            You expressly understand and agree that Qwik Mailer shall not be liable for any direct, indirect, incidental, special, consequential or exemplary damages, including but not limited to, damages for loss of profits, goodwill, use, data or other intangible losses resulting from the use or the inability to use the service.
+            You expressly understand and agree that Qwik Mailer shall not be liable for any direct, indirect, incidental, special, consequential or exemplary damages, including but not limited to, damages for loss of profits, goodwill, use, data or other intangible losses resulting from the use or the inability to use the service, including disruptions caused by our upstream providers (e.g., AWS).
           </p>
         </div>
       </main>

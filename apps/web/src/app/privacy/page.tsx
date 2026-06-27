@@ -70,35 +70,43 @@ export default function PrivacyPage() {
         <div className="prose prose-gray max-w-none text-gray-600 space-y-6 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-black [&>h2]:mt-10 [&>h2]:mb-4 [&>p]:leading-relaxed [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:space-y-2 [&_strong]:text-black">
           <h2>1. Introduction</h2>
           <p>
-            At Qwik Mailer, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website or use our email infrastructure platform.
+            At Qwik Mailer, we take your privacy and deliverability seriously. This Privacy Policy explains how we collect, use, process, and safeguard your information when you visit our website or use our developer-focused email automation platform.
           </p>
 
           <h2>2. Information We Collect</h2>
-          <p>We may collect information about you in a variety of ways. The information we may collect includes:</p>
+          <p>We collect information necessary to provide a reliable email sending service:</p>
           <ul>
-            <li><strong>Personal Data:</strong> Personally identifiable information, such as your name, shipping address, email address, and telephone number that you voluntarily give to us when registering with the site.</li>
-            <li><strong>Derivative Data:</strong> Information our servers automatically collect when you access the Site, such as your IP address, your browser type, your operating system, your access times, and the pages you have viewed.</li>
-            <li><strong>Transmission Data:</strong> Contents of emails, metadata, sender/recipient addresses, and other data necessarily processed when you utilize our API to send emails.</li>
+            <li><strong>Account Data:</strong> Information like your name, email address, API keys, and billing details provided during registration.</li>
+            <li><strong>Transmission & Recipient Data:</strong> Email addresses, metadata, variables, and content you transmit through our API or SMTP servers for delivery.</li>
+            <li><strong>Engagement Data (Tracking):</strong> If enabled, we collect IP addresses, User-Agents, and timestamps via tracking pixels to report on email opens, clicks, bounces, and spam complaints.</li>
+            <li><strong>Suppression Data:</strong> We permanently store email addresses that bounce or report spam in our suppression lists to protect sender reputation.</li>
           </ul>
 
-          <h2>3. How We Use Your Information</h2>
-          <p>Having accurate information about you permits us to provide you with a smooth, efficient, and customized experience. Specifically, we may use information collected about you to:</p>
+          <h2>3. How We Process & Use Your Information</h2>
+          <p>Qwik Mailer utilizes third-party infrastructure, including Amazon Web Services (AWS) Simple Email Service (SES) and Simple Notification Service (SNS), to process and deliver emails.</p>
           <ul>
-            <li>Create and manage your account.</li>
-            <li>Process transactions and send related information.</li>
-            <li>Deliver and facilitate delivery of emails via our API.</li>
-            <li>Monitor and analyze usage and trends to improve your experience.</li>
-            <li>Prevent fraudulent transactions, monitor against spam, and protect against criminal activity.</li>
+            <li><strong>Email Delivery:</strong> We transmit your email content to AWS SES for final delivery to recipients.</li>
+            <li><strong>Bounce & Complaint Handling:</strong> We use AWS SNS webhooks to automatically monitor bounces and spam complaints. Any recipient who bounces or complains is immediately added to a suppression list, and future sends to them are blocked.</li>
+            <li><strong>Unsubscribe Management:</strong> We inject unsubscribe links and "List-Unsubscribe" headers into outbound emails. When clicked, we process the opt-out and update your active mailing lists.</li>
+            <li><strong>Analytics:</strong> We process engagement data to provide you with delivery rates, open rates, and geographic analytics in your dashboard.</li>
           </ul>
 
-          <h2>4. Data Processing and GDPR/CCPA</h2>
+          <h2>4. Your Responsibilities (Acceptable Use)</h2>
+          <p>As a user of Qwik Mailer, you must ensure that:</p>
+          <ul>
+            <li>You only send emails to recipients who have explicitly <strong>opted-in</strong> to receive communications from you.</li>
+            <li>You do not use purchased, rented, or third-party mailing lists.</li>
+            <li>You comply with our anti-spam policies and AWS's Acceptable Use Policy. High bounce rates (&gt;5%) or complaint rates (&gt;0.1%) will result in immediate account suspension.</li>
+          </ul>
+
+          <h2>5. Data Processing and GDPR/CCPA</h2>
           <p>
-            As an email service provider, Qwik Mailer acts as a Data Processor for the email contents and recipient data you transmit through our API. You (the user) act as the Data Controller. We process this data strictly in accordance with your API instructions and our Data Processing Agreement (DPA).
+            Qwik Mailer acts as a Data Processor for the email contents and recipient data you transmit through our platform. You act as the Data Controller. We process this data strictly in accordance with your instructions, our automated deliverability rules (suppression), and our Data Processing Agreement (DPA).
           </p>
 
-          <h2>5. Contact Us</h2>
+          <h2>6. Contact Us</h2>
           <p>
-            If you have questions or comments about this Privacy Policy, please contact us at: <br/>
+            If you have questions about this Privacy Policy or need to report abuse, please contact us at: <br/>
             <strong>privacy@qwikmailer.in</strong>
           </p>
         </div>

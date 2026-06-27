@@ -79,21 +79,35 @@ export default function DPAPage() {
           </p>
 
           <h2>3. Processing of Personal Data</h2>
-          <p>Qwik Mailer will only process personal data on your documented instructions unless required by law to act otherwise. We will notify you if we believe an instruction infringes data protection laws.</p>
-          
+          <p>Qwik Mailer processes personal data to provide our email automation and delivery service. The types of personal data we process include:</p>
+          <ul>
+            <li><strong>Recipient Details:</strong> Email addresses and names provided via API or SMTP.</li>
+            <li><strong>Template Variables:</strong> Dynamic variables injected into emails or PDFs (e.g., scores, certificates, custom identifiers).</li>
+            <li><strong>Engagement Data:</strong> IP addresses and User-Agent strings collected via tracking pixels when recipients open or click emails.</li>
+          </ul>
+
           <h2>4. Security Measures</h2>
           <p>
-            We implement and maintain appropriate technical and organizational measures to ensure a level of security appropriate to the risk, protecting against unauthorized or unlawful processing and accidental loss, destruction, or damage.
+            We implement and maintain appropriate technical and organizational measures to ensure a level of security appropriate to the risk, protecting against unauthorized or unlawful processing and accidental loss, destruction, or damage. All databases are securely isolated.
           </p>
 
           <h2>5. Sub-processors</h2>
           <p>
-            You agree that Qwik Mailer may engage sub-processors to process personal data. We will remain fully liable for their compliance with this DPA and will ensure they are bound by equivalent data protection obligations.
+            You authorize Qwik Mailer to engage third-party sub-processors to fulfill our service. Our primary sub-processor is <strong>Amazon Web Services (AWS)</strong>, which we use for:
           </p>
+          <ul>
+            <li>Email Delivery (AWS SES)</li>
+            <li>Bounce & Complaint Tracking (AWS SNS)</li>
+            <li>Core Cloud Infrastructure (Hosting & Database management)</li>
+          </ul>
+          <p>We remain fully liable for our sub-processors' compliance with this DPA and ensure they are bound by equivalent data protection obligations.</p>
 
-          <h2>6. Data Subject Rights</h2>
+          <h2>6. Data Subject Rights & Deletion</h2>
           <p>
-            We will provide reasonable assistance to help you fulfill your obligations to respond to requests from data subjects exercising their rights under applicable data protection laws.
+            We will provide reasonable assistance to help you fulfill your obligations to respond to requests from data subjects exercising their rights. 
+          </p>
+          <p>
+            <strong>Data Retention:</strong> We store email logs and event data for analytical purposes. Hard bounces and spam complaints are stored permanently in a suppression list to comply with anti-spam regulations. If you request account deletion, we will purge your data in accordance with our retention policy, excluding mandatory suppression records.
           </p>
         </div>
       </main>
