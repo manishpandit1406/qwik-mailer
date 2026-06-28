@@ -1,20 +1,14 @@
 "use client";
 import { formatIST } from "@/lib/dateUtils";
-import { useState, useEffect, useRef } from "react";
-import { Plus, ChevronDown, ChevronUp, LifeBuoy, CheckCircle2, CircleDashed, CircleDot, X, Send } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, ChevronDown, ChevronUp, LifeBuoy, CheckCircle2, CircleDashed, CircleDot } from "lucide-react";
+import Link from "next/link";
 
 interface Ticket {
   id: string;
   subject: string;
   description: string;
   status: "open" | "in_progress" | "resolved";
-  createdAt: string;
-}
-
-interface Message {
-  id: string;
-  senderType: "user" | "admin";
-  message: string;
   createdAt: string;
 }
 
@@ -52,29 +46,11 @@ export default function SupportPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [replyMessage, setReplyMessage] = useState("");
-  const [replying, setReplying] = useState(false);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
   useEffect(() => {
     fetchTickets();
   }, []);
-
-  useEffect(() => {
-    if (selectedTicket) {
-      fetchMessages(selectedTicket.id);
-    }
-  }, [selectedTicket]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   async function fetchTickets() {
     setLoadingTickets(true);
@@ -91,24 +67,6 @@ export default function SupportPage() {
       console.error(err);
     } finally {
       setLoadingTickets(false);
-    }
-  }
-
-  async function fetchMessages(ticketId: string) {
-    setLoadingMessages(true);
-    try {
-      const token = localStorage.getItem("mf_access_token");
-      const res = await fetch(`${API}/v1/support/tickets/${ticketId}/messages`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMessages(data.data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingMessages(false);
     }
   }
 
@@ -138,37 +96,6 @@ export default function SupportPage() {
       setError(err.message);
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleReply() {
-    if (!selectedTicket || !replyMessage.trim()) return;
-    
-    try {
-      setReplying(true);
-      const token = localStorage.getItem("mf_access_token");
-      const res = await fetch(`${API}/v1/support/tickets/${selectedTicket.id}/reply`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
-        },
-        body: JSON.stringify({ message: replyMessage }),
-      });
-      
-      const data = await res.json();
-      if (data.success) {
-        setReplyMessage("");
-        fetchMessages(selectedTicket.id);
-        fetchTickets(); // update status in the list
-      } else {
-        alert(data.error || "Failed to send reply");
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Error sending reply");
-    } finally {
-      setReplying(false);
     }
   }
 
@@ -287,14 +214,14 @@ export default function SupportPage() {
             ) : (
               <div className="space-y-3">
                 {tickets.map(ticket => (
-                  <button 
+                  <Link 
                     key={ticket.id} 
-                    onClick={() => setSelectedTicket(ticket)}
-                    className="w-full text-left border border-gray-100 bg-gray-50/30 rounded-lg p-4 hover:border-blue-200 hover:bg-blue-50/30 transition-colors group"
+                    href={`/dashboard/support/${ticket.id}`}
+                    className="block w-full text-left border border-gray-100 bg-gray-50/30 rounded-lg p-4 hover:border-gray-300 hover:bg-gray-50 transition-colors group"
                   >
                     <div className="flex items-start justify-between gap-4 mb-2">
-                      <h4 className="font-medium text-sm text-gray-900 group-hover:text-blue-700 transition-colors">{ticket.subject}</h4>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-gray-100 bg-white">
+                      <h4 className="font-medium text-sm text-gray-900 group-hover:text-black transition-colors">{ticket.subject}</h4>
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-gray-100 bg-white shadow-sm">
                         {getStatusIcon(ticket.status)}
                         <span className="text-[10px] uppercase font-semibold text-gray-600 tracking-wider">
                           {ticket.status.replace('_', ' ')}
@@ -307,103 +234,13 @@ export default function SupportPage() {
                     <div className="mt-3 pt-3 border-t border-gray-100 text-[10px] text-gray-400 font-medium">
                       Submitted on {formatIST(ticket.createdAt, false)}
                     </div>
-                  </button>
+                  </Link>
                 ))}
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Ticket Chat Modal */}
-      {selectedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/80">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 pr-4">{selectedTicket.subject}</h2>
-                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                  <span className="flex items-center gap-1">
-                    {getStatusIcon(selectedTicket.status)} 
-                    <span className="uppercase font-semibold tracking-wider">{selectedTicket.status.replace('_', ' ')}</span>
-                  </span>
-                  <span>&bull;</span>
-                  <span>{formatIST(selectedTicket.createdAt, false)}</span>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedTicket(null)}
-                className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-colors self-start"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal Chat Body */}
-            <div className="flex-1 overflow-y-auto p-5 bg-gray-50/50 space-y-6">
-              {/* Original Issue */}
-              <div className="flex flex-col gap-1 max-w-[85%] self-end items-end ml-auto">
-                <span className="text-[10px] font-semibold text-blue-500 uppercase mr-1">You (Original Issue)</span>
-                <div className="bg-blue-600 text-white p-4 rounded-2xl rounded-tr-sm text-sm leading-relaxed shadow-sm whitespace-pre-wrap">
-                  {selectedTicket.description}
-                </div>
-              </div>
-
-              {loadingMessages ? (
-                <div className="text-center text-xs text-gray-400 py-4">Loading messages...</div>
-              ) : (
-                messages.map((msg) => {
-                  const isUser = msg.senderType === "user";
-                  return (
-                    <div key={msg.id} className={`flex flex-col gap-1 max-w-[85%] ${isUser ? 'self-end items-end ml-auto' : ''}`}>
-                      <span className={`text-[10px] font-semibold uppercase ${isUser ? 'text-blue-500 mr-1' : 'text-gray-500 ml-1'}`}>
-                        {isUser ? 'You' : 'Support Team'}
-                      </span>
-                      <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap ${
-                        isUser 
-                          ? 'bg-blue-600 text-white rounded-tr-sm' 
-                          : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
-                      }`}>
-                        {msg.message}
-                      </div>
-                      <span className={`text-[10px] text-gray-400 mt-1 px-1 ${isUser ? 'text-right' : ''}`}>
-                        {formatIST(msg.createdAt, true)}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Modal Reply Area */}
-            {selectedTicket.status !== 'resolved' ? (
-              <div className="p-4 bg-white border-t border-gray-100">
-                <div className="relative flex gap-3">
-                  <textarea
-                    value={replyMessage}
-                    onChange={(e) => setReplyMessage(e.target.value)}
-                    placeholder="Type your reply to our support team..."
-                    className="flex-1 h-20 px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 resize-none transition-shadow bg-gray-50 focus:bg-white"
-                  />
-                  <button
-                    onClick={handleReply}
-                    disabled={replying || !replyMessage.trim()}
-                    className="px-6 bg-black text-white rounded-xl hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center font-semibold text-sm h-20"
-                  >
-                    {replying ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Send"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 bg-gray-50 border-t border-gray-100 text-center">
-                <p className="text-sm text-gray-500">This ticket has been marked as resolved.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

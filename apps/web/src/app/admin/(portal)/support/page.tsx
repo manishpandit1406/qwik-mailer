@@ -179,10 +179,10 @@ export default function AdminSupportPage() {
                 <button
                   key={t.id}
                   onClick={() => setSelectedTicket(t)}
-                  className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${selectedTicket?.id === t.id ? 'bg-blue-50/50 hover:bg-blue-50/50' : ''}`}
+                  className={`w-full text-left p-4 transition-colors border-l-4 ${selectedTicket?.id === t.id ? 'bg-gray-100 border-black' : 'bg-white border-transparent hover:bg-gray-50'}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className={`text-sm font-semibold truncate ${selectedTicket?.id === t.id ? 'text-blue-900' : 'text-gray-900'}`}>{t.subject}</h3>
+                    <h3 className={`text-sm font-semibold truncate ${selectedTicket?.id === t.id ? 'text-black' : 'text-gray-900'}`}>{t.subject}</h3>
                     <span className="text-[10px] text-gray-400 whitespace-nowrap">{format(new Date(t.createdAt), "MMM d")}</span>
                   </div>
                   <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed">{t.description}</p>
@@ -249,13 +249,13 @@ export default function AdminSupportPage() {
                   const isAdmin = msg.senderType === "admin";
                   return (
                     <div key={msg.id} className={`flex flex-col gap-1 max-w-[85%] ${isAdmin ? 'self-end items-end ml-auto' : ''}`}>
-                      <span className={`text-[10px] font-semibold uppercase ${isAdmin ? 'text-blue-500 mr-1' : 'text-gray-500 ml-1'}`}>
+                      <span className={`text-[10px] font-bold tracking-wider uppercase ${isAdmin ? 'text-black mr-1' : 'text-gray-500 ml-1'}`}>
                         {isAdmin ? 'Admin (You)' : 'User'}
                       </span>
-                      <div className={`p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                      <div className={`p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm border ${
                         isAdmin 
-                          ? 'bg-blue-600 text-white rounded-tr-sm' 
-                          : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
+                          ? 'bg-black text-white rounded-tr-sm border-black' 
+                          : 'bg-white text-gray-800 rounded-tl-sm border-gray-200'
                       }`}>
                         {msg.message}
                       </div>
