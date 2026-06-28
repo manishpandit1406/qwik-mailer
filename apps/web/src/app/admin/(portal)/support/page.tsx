@@ -6,6 +6,7 @@ import { format } from "date-fns";
 interface Ticket {
   id: string;
   userId: string;
+  teamId: string | null;
   subject: string;
   description: string;
   status: string;
@@ -76,6 +77,7 @@ export default function AdminSupportPage() {
                 <th className="px-6 py-4 font-semibold">Subject</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold">User ID</th>
+                <th className="px-6 py-4 font-semibold">Project ID</th>
                 <th className="px-6 py-4 font-semibold">Created At</th>
                 <th className="px-6 py-4 font-semibold text-right">Action</th>
               </tr>
@@ -111,6 +113,9 @@ export default function AdminSupportPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-gray-500 font-mono text-xs">{t.userId}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-gray-500 font-mono text-xs">{t.teamId || "N/A"}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                       {format(new Date(t.createdAt), "MMM d, yyyy")}

@@ -90,6 +90,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
     await db.insert(suppressionList).values({ teamId: userId, email, reason }).onConflictDoNothing();
     return reply.send({ success: true, data: { message: "Address added to suppression list." } });
+  });
   // GET /v1/admin/domains
   app.get("/domains", { preHandler: adminOnly }, async (req, reply) => {
     const { page, limit } = z
@@ -132,6 +133,7 @@ export async function adminRoutes(app: FastifyInstance) {
       .select({
         id: supportTickets.id,
         userId: supportTickets.userId,
+        teamId: supportTickets.teamId,
         subject: supportTickets.subject,
         description: supportTickets.description,
         status: supportTickets.status,
