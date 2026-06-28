@@ -10,7 +10,10 @@ import {
   Menu,
   X,
   ShieldAlert,
-  ArrowLeft
+  ArrowLeft,
+  Globe,
+  Ban,
+  LifeBuoy
 } from "lucide-react";
 
 interface NavItem {
@@ -29,6 +32,21 @@ const navItems: NavItem[] = [
     label: "Users",
     href: "/admin/users",
     icon: <Users size={16} />,
+  },
+  {
+    label: "Domains",
+    href: "/admin/domains",
+    icon: <Globe size={16} />,
+  },
+  {
+    label: "Support",
+    href: "/admin/support",
+    icon: <LifeBuoy size={16} />,
+  },
+  {
+    label: "Suppression",
+    href: "/admin/suppression",
+    icon: <Ban size={16} />,
   },
 ];
 

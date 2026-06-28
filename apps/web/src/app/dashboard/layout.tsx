@@ -240,7 +240,7 @@ export default function DashboardLayout({
   const [isHovered, setIsHovered] = useState(false);
   const isCollapsed = !isHovered;
 
-  const [user, setUser] = useState<{name: string, email?: string, plan?: string, onboardingCompleted?: boolean, role?: string}>({ name: "User", email: "dev@qwikmailer.in", plan: "free" });
+  const [user, setUser] = useState<{name: string, email?: string, plan?: string, onboardingCompleted?: boolean}>({ name: "User", email: "dev@qwikmailer.in", plan: "free" });
   const [userInitial, setUserInitial] = useState("U");
   
   const [teams, setTeams] = useState<any[]>([]);
@@ -272,7 +272,7 @@ export default function DashboardLayout({
         const json = await res.json();
         if (json.success && json.data) {
           const freshUser = json.data;
-          setUser(prev => ({ ...prev, plan: freshUser.plan, name: freshUser.name || prev.name, role: freshUser.role }));
+          setUser(prev => ({ ...prev, plan: freshUser.plan, name: freshUser.name || prev.name }));
           if (freshUser.name) setUserInitial(freshUser.name[0].toUpperCase());
           
           if (userStr) {
@@ -368,12 +368,6 @@ export default function DashboardLayout({
         </div>
 
         <div className="ml-auto flex items-center gap-4">
-          {user.role === "admin" && (
-            <Link href="/admin" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 border border-gray-900 hover:bg-black transition-colors cursor-pointer text-white">
-              <ShieldAlert size={14} className="text-white" />
-              <span className="text-xs font-semibold">Admin Panel</span>
-            </Link>
-          )}
           {/* Plan badge in navbar */}
           <Link href="/projects/billing" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors cursor-pointer">
             <Zap size={11} className="text-gray-500" />

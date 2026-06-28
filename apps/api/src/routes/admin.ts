@@ -90,5 +90,89 @@ export async function adminRoutes(app: FastifyInstance) {
 
     await db.insert(suppressionList).values({ teamId: userId, email, reason }).onConflictDoNothing();
     return reply.send({ success: true, data: { message: "Address added to suppression list." } });
+  // GET /v1/admin/domains
+  app.get("/domains", { preHandler: adminOnly }, async (req, reply) => {
+    const { page, limit } = z
+      .object({ page: z.coerce.number().default(1), limit: z.coerce.number().max(100).default(20) })
+      .parse(req.query);
+
+    const offset = (page - 1) * limit;
+    
+    // Using simple query string to get user email along with domain
+    const { domains } = await import("@qwikmailer/db");
+    
+    // Try to get domains with user info
+    const domainList = await db
+      .select({
+        id: domains.id,
+        domain: domains.domain,
+        status: domains.status,
+        provider: domains.provider,
+        createdAt: domains.createdAt,
+        teamId: domains.teamId
+      })
+      .from(domains)
+      .orderBy(desc(domains.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return reply.send({ success: true, data: domainList });
+  });
+
+  // GET /v1/admin/tickets
+  app.get("/tickets", { preHandler: adminOnly }, async (req, reply) => {
+    const { page, limit } = z
+      .object({ page: z.coerce.number().default(1), limit: z.coerce.number().max(100).default(20) })
+      .parse(req.query);
+      
+    const offset = (page - 1) * limit;
+    const { supportTickets } = await import("@qwikmailer/db");
+    
+    const ticketsList = await db
+      .select({
+        id: supportTickets.id,
+        userId: supportTickets.userId,
+        subject: supportTickets.subject,
+        description: supportTickets.description,
+        status: supportTickets.status,
+        createdAt: supportTickets.createdAt
+      })
+      .from(supportTickets)
+      .orderBy(desc(supportTickets.createdAt))
+      .limit(limit)
+      .offset(offset);
+      
+    return reply.send({ success: true, data: ticketsList });
+  });
+
+  // GET /v1/admin/suppression (List suppressions)
+  app.get("/suppression", { preHandler: adminOnly }, async (req, reply) => {
+    const { page, limit } = z
+      .object({ page: z.coerce.number().default(1), limit: z.coerce.number().max(100).default(20) })
+      .parse(req.query);
+      
+    const offset = (page - 1) * limit;
+    
+    const list = await db
+      .select({
+        id: suppressionList.id,
+        email: suppressionList.email,
+        reason: suppressionList.reason,
+        createdAt: suppressionList.createdAt,
+        teamId: suppressionList.teamId
+      })
+      .from(suppressionList)
+      .orderBy(desc(suppressionList.createdAt))
+      .limit(limit)
+      .offset(offset);
+      
+    return reply.send({ success: true, data: list });
+  });
+
+  // DELETE /v1/admin/suppression/:id
+  app.delete("/suppression/:id", { preHandler: adminOnly }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    await db.delete(suppressionList).where(eq(suppressionList.id, id));
+    return reply.send({ success: true, data: { message: "Removed from suppression list." } });
   });
 }
