@@ -489,3 +489,40 @@ export async function sendTeamInviteEmail(
 
   console.log(`[EmailService] Team invite email sent to ${to}`);
 }
+
+// ─── Send Support Reply Email ──────────────────────────────────────────────────
+
+export async function sendSupportReplyEmail(
+  email: string,
+  name: string,
+  subject: string,
+  originalIssue: string,
+  replyMessage: string
+): Promise<void> {
+  const content = `
+    <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">New Reply: ${subject}</h1>
+    <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
+      Hey ${name || "there"}, our support team has replied to your ticket.
+    </p>
+    <div style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:0 0 32px 0;white-space:pre-wrap;">
+      <p style="margin:0;font-size:14px;color:#111827;"><strong>Reply from Admin:</strong></p>
+      <p style="margin:8px 0 0 0;font-size:14px;color:#374151;">${replyMessage}</p>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${process.env.NEXTAUTH_URL ?? "https://qwikmailer.in"}/dashboard/support"
+         style="display:inline-block;background-color:#000000;color:#ffffff;font-size:14px;font-weight:500;padding:12px 32px;border-radius:6px;text-decoration:none;">
+        View Ticket in Dashboard &rarr;
+      </a>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer Support"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
+    to: email,
+    subject: `Re: ${subject}`,
+    html: emailLayout(content, "You have a new reply to your support ticket."),
+    text: `New reply to your ticket: ${subject}\n\n${replyMessage}\n\nView your ticket: ${process.env.NEXTAUTH_URL ?? "https://qwikmailer.in"}/dashboard/support`,
+  });
+
+  console.log(`[EmailService] Support reply email sent to ${email}`);
+}

@@ -87,6 +87,7 @@ export const workflowRunStatusEnum = pgEnum("workflow_run_status", ["pending", "
 export const contactMessageStatusEnum = pgEnum("contact_message_status", ["pending", "resolved"]);
 export const newsletterSubscriberStatusEnum = pgEnum("newsletter_subscriber_status", ["active", "unsubscribed"]);
 export const supportTicketStatusEnum = pgEnum("support_ticket_status", ["open", "in_progress", "resolved"]);
+export const supportTicketSenderEnum = pgEnum("support_ticket_sender", ["user", "admin"]);
 
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -907,7 +908,7 @@ export const supportTickets = pgTable("support_tickets", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const supportTicketsRelations = relations(supportTickets, ({ one }) => ({
+export const supportTicketsRelations = relations(supportTickets, ({ one, many }) => ({
   user: one(users, {
     fields: [supportTickets.userId],
     references: [users.id],
@@ -915,6 +916,22 @@ export const supportTicketsRelations = relations(supportTickets, ({ one }) => ({
   team: one(teams, {
     fields: [supportTickets.teamId],
     references: [teams.id],
+  }),
+  messages: many(supportTicketMessages),
+}));
+
+export const supportTicketMessages = pgTable("support_ticket_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ticketId: uuid("ticket_id").notNull().references(() => supportTickets.id, { onDelete: "cascade" }),
+  senderType: supportTicketSenderEnum("sender_type").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const supportTicketMessagesRelations = relations(supportTicketMessages, ({ one }) => ({
+  ticket: one(supportTickets, {
+    fields: [supportTicketMessages.ticketId],
+    references: [supportTickets.id],
   }),
 }));
 

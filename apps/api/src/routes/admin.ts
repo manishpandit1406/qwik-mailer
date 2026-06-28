@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, asc, sql } from "drizzle-orm";
 import { db, users, emails, suppressionList } from "@qwikmailer/db";
 import { authenticate } from "../middleware/auth.js";
 
@@ -148,6 +148,25 @@ export async function adminRoutes(app: FastifyInstance) {
     return reply.send({ success: true, data: ticketsList });
   });
 
+  // GET /v1/admin/tickets/:id/messages
+  app.get("/tickets/:id/messages", { preHandler: adminOnly }, async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const { supportTicketMessages } = await import("@qwikmailer/db");
+
+    const messages = await db
+      .select({
+        id: supportTicketMessages.id,
+        senderType: supportTicketMessages.senderType,
+        message: supportTicketMessages.message,
+        createdAt: supportTicketMessages.createdAt,
+      })
+      .from(supportTicketMessages)
+      .where(eq(supportTicketMessages.ticketId, id))
+      .orderBy(asc(supportTicketMessages.createdAt));
+
+    return reply.send({ success: true, data: messages });
+  });
+
   // POST /v1/admin/tickets/:id/reply
   app.post("/tickets/:id/reply", { preHandler: adminOnly }, async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
@@ -156,19 +175,40 @@ export async function adminRoutes(app: FastifyInstance) {
       markResolved: z.boolean().default(true)
     }).parse(req.body);
 
-    const { supportTickets } = await import("@qwikmailer/db");
+    const { supportTickets, supportTicketMessages, users } = await import("@qwikmailer/db");
     
     // Check if ticket exists
-    const [ticket] = await db.select().from(supportTickets).where(eq(supportTickets.id, id));
+    const [ticket] = await db.select({
+      id: supportTickets.id,
+      userId: supportTickets.userId,
+      subject: supportTickets.subject
+    }).from(supportTickets).where(eq(supportTickets.id, id));
+    
     if (!ticket) {
       return reply.code(404).send({ success: false, error: "Ticket not found" });
     }
 
-    // Pseudo-logic to send email to user
-    // await sendEmail({ to: ticket.userId, subject: `Re: ${ticket.subject}`, text: message })
+    // Insert message
+    await db.insert(supportTicketMessages).values({
+      ticketId: id,
+      senderType: "admin",
+      message,
+    });
 
+    // Update status if needed
     if (markResolved) {
       await db.update(supportTickets).set({ status: "resolved" }).where(eq(supportTickets.id, id));
+    }
+
+    // Send email to user (import sendSupportReplyEmail dynamically to avoid top-level issues)
+    try {
+      const [user] = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, ticket.userId));
+      if (user && user.email) {
+        const { sendSupportReplyEmail } = await import("../services/email.service.js");
+        await sendSupportReplyEmail(user.email, user.name || "there", ticket.subject, "", message);
+      }
+    } catch (e) {
+      console.error("Failed to send reply email:", e);
     }
 
     return reply.send({ success: true, message: "Reply sent successfully" });
