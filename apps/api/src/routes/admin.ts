@@ -108,7 +108,6 @@ export async function adminRoutes(app: FastifyInstance) {
         id: domains.id,
         domain: domains.domain,
         status: domains.status,
-        provider: domains.provider,
         createdAt: domains.createdAt,
         teamId: domains.teamId
       })
@@ -160,11 +159,11 @@ export async function adminRoutes(app: FastifyInstance) {
         id: suppressionList.id,
         email: suppressionList.email,
         reason: suppressionList.reason,
-        createdAt: suppressionList.createdAt,
+        createdAt: suppressionList.addedAt,
         teamId: suppressionList.teamId
       })
       .from(suppressionList)
-      .orderBy(desc(suppressionList.createdAt))
+      .orderBy(desc(suppressionList.addedAt))
       .limit(limit)
       .offset(offset);
       
