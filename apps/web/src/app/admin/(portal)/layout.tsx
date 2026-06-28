@@ -60,7 +60,7 @@ export default function AdminLayout({
         if (parsed.name) setUserInitial(parsed.name[0].toUpperCase());
       } catch (e) {}
     } else {
-      router.push("/login");
+      router.push("/admin/login");
     }
 
     const fetchMe = async () => {
@@ -97,7 +97,7 @@ export default function AdminLayout({
     localStorage.removeItem("mf_refresh_token");
     localStorage.removeItem("mf_user");
     localStorage.removeItem("mf_active_team");
-    router.push("/login");
+    router.push("/admin/login");
   }
 
   return (
