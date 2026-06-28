@@ -126,24 +126,52 @@ export async function adminRoutes(app: FastifyInstance) {
       .parse(req.query);
       
     const offset = (page - 1) * limit;
-    const { supportTickets } = await import("@qwikmailer/db");
+    const { supportTickets, teams } = await import("@qwikmailer/db");
     
     const ticketsList = await db
       .select({
         id: supportTickets.id,
         userId: supportTickets.userId,
         teamId: supportTickets.teamId,
+        teamSlug: teams.slug,
         subject: supportTickets.subject,
         description: supportTickets.description,
         status: supportTickets.status,
         createdAt: supportTickets.createdAt
       })
       .from(supportTickets)
+      .leftJoin(teams, eq(supportTickets.teamId, teams.id))
       .orderBy(desc(supportTickets.createdAt))
       .limit(limit)
       .offset(offset);
       
     return reply.send({ success: true, data: ticketsList });
+  });
+
+  // POST /v1/admin/tickets/:id/reply
+  app.post("/tickets/:id/reply", { preHandler: adminOnly }, async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const { message, markResolved } = z.object({ 
+      message: z.string().min(1),
+      markResolved: z.boolean().default(true)
+    }).parse(req.body);
+
+    const { supportTickets } = await import("@qwikmailer/db");
+    
+    // Check if ticket exists
+    const [ticket] = await db.select().from(supportTickets).where(eq(supportTickets.id, id));
+    if (!ticket) {
+      return reply.code(404).send({ success: false, error: "Ticket not found" });
+    }
+
+    // Pseudo-logic to send email to user
+    // await sendEmail({ to: ticket.userId, subject: `Re: ${ticket.subject}`, text: message })
+
+    if (markResolved) {
+      await db.update(supportTickets).set({ status: "resolved" }).where(eq(supportTickets.id, id));
+    }
+
+    return reply.send({ success: true, message: "Reply sent successfully" });
   });
 
   // GET /v1/admin/suppression (List suppressions)

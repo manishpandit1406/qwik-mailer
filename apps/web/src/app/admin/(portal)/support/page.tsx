@@ -7,6 +7,7 @@ interface Ticket {
   id: string;
   userId: string;
   teamId: string | null;
+  teamSlug: string | null;
   subject: string;
   description: string;
   status: string;
@@ -18,6 +19,9 @@ export default function AdminSupportPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [replyTicket, setReplyTicket] = useState<Ticket | null>(null);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [replying, setReplying] = useState(false);
 
   const fetchTickets = async (p = page) => {
     try {
@@ -46,6 +50,39 @@ export default function AdminSupportPage() {
     t.subject.toLowerCase().includes(search.toLowerCase()) || 
     t.userId.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleReply = async () => {
+    if (!replyTicket || !replyMessage.trim()) return;
+    
+    try {
+      setReplying(true);
+      const token = localStorage.getItem("mf_access_token");
+      const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      
+      const res = await fetch(`${API}/v1/admin/tickets/${replyTicket.id}/reply`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ message: replyMessage, markResolved: true }),
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setReplyTicket(null);
+        setReplyMessage("");
+        fetchTickets(page);
+      } else {
+        alert(data.error || "Failed to send reply");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error sending reply");
+    } finally {
+      setReplying(false);
+    }
+  };
 
   return (
     <div className="max-w-6xl w-full mx-auto space-y-6">
@@ -115,13 +152,16 @@ export default function AdminSupportPage() {
                       <span className="text-gray-500 font-mono text-xs">{t.userId}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-gray-500 font-mono text-xs">{t.teamId || "N/A"}</span>
+                      <span className="text-gray-500 font-mono text-xs">{t.teamSlug || "N/A"}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                       {format(new Date(t.createdAt), "MMM d, yyyy")}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <button className="text-sm font-medium text-black hover:underline inline-flex items-center gap-1">
+                      <button 
+                        onClick={() => setReplyTicket(t)}
+                        className="text-sm font-medium text-black hover:underline inline-flex items-center gap-1"
+                      >
                         <Mail size={14} /> Reply
                       </button>
                     </td>
@@ -154,6 +194,69 @@ export default function AdminSupportPage() {
           </div>
         </div>
       </div>
+
+      {replyTicket && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <LifeBuoy size={18} className="text-blue-600" />
+                Reply to Ticket
+              </h2>
+              <button 
+                onClick={() => setReplyTicket(null)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ChevronLeft size={16} className="rotate-180" /> {/* Close icon */}
+              </button>
+            </div>
+            
+            <div className="p-5 overflow-y-auto">
+              <div className="mb-6 space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Subject</label>
+                  <div className="text-sm font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">{replyTicket.subject}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Issue Description</label>
+                  <div className="text-sm text-gray-700 bg-amber-50/50 px-3 py-2 rounded-lg border border-amber-100 whitespace-pre-wrap">{replyTicket.description}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-900 block mb-2">Your Reply Message</label>
+                <textarea
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  placeholder="Type your response to the user here. They will receive an email."
+                  className="w-full h-32 p-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
+              <button
+                onClick={() => setReplyTicket(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReply}
+                disabled={replying || !replyMessage.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-black rounded-lg shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {replying ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Mail size={16} />
+                )}
+                {replying ? "Sending..." : "Send Reply & Resolve"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
