@@ -900,6 +900,7 @@ export const newsletterSubscribers = pgTable(
 export const supportTickets = pgTable("support_tickets", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
   subject: varchar("subject", { length: 255 }).notNull(),
   description: text("description").notNull(),
   status: supportTicketStatusEnum("status").default("open").notNull(),
@@ -908,8 +909,12 @@ export const supportTickets = pgTable("support_tickets", {
 
 export const supportTicketsRelations = relations(supportTickets, ({ one }) => ({
   user: one(users, {
-    fields: [(supportTickets as any).teamId || (supportTickets as any).userId],
+    fields: [supportTickets.userId],
     references: [users.id],
+  }),
+  team: one(teams, {
+    fields: [supportTickets.teamId],
+    references: [teams.id],
   }),
 }));
 
