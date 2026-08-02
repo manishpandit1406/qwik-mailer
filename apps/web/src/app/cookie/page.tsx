@@ -63,33 +63,74 @@ export default function CookiePolicyPage() {
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-6 py-20 pb-32">
-        <h1 className="text-4xl md:text-5xl font-black text-black mb-4 tracking-tight">Cookie Policy</h1>
-        <p className="text-gray-500 mb-12">Last updated: May 30, 2026</p>
+      <main className="max-w-5xl mx-auto px-6 py-20 pb-32 flex flex-col md:flex-row gap-12">
+        {/* Sidebar */}
+        <aside className="md:w-64 shrink-0 hidden md:block">
+          <div className="sticky top-24">
+            <h3 className="font-bold text-black text-sm uppercase tracking-wider mb-4">Table of Contents</h3>
+            <ul className="space-y-3 text-sm font-medium text-gray-500">
+              <li><a href="#what-are-cookies" className="hover:text-black transition-colors">1. What Are Cookies</a></li>
+              <li><a href="#how-we-use" className="hover:text-black transition-colors">2. How We Use Cookies</a></li>
+              <li><a href="#types" className="hover:text-black transition-colors">3. Types of Cookies We Use</a></li>
+              <li><a href="#third-party" className="hover:text-black transition-colors">4. Third-Party Cookies</a></li>
+              <li><a href="#your-choices" className="hover:text-black transition-colors">5. Your Choices</a></li>
+              <li><a href="#contact" className="hover:text-black transition-colors">6. Contact Us</a></li>
+            </ul>
+          </div>
+        </aside>
 
-        <div className="prose prose-gray max-w-none text-gray-600 space-y-6 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-black [&>h2]:mt-10 [&>h2]:mb-4 [&>p]:leading-relaxed [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:space-y-2 [&_strong]:text-black">
-          <h2>1. What Are Cookies</h2>
-          <p>
-            Cookies are small pieces of text sent to your web browser by a website you visit. A cookie file is stored in your web browser and allows the Service or a third-party to recognize you and make your next visit easier and the Service more useful to you.
-          </p>
+        {/* Content */}
+        <div className="flex-1">
+          <div className="mb-12">
+            <h1 className="text-4xl md:text-5xl font-black text-black mb-4 tracking-tight">Cookie Policy</h1>
+            <p className="text-gray-500 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+              Effective Date: August 1, 2026
+            </p>
+          </div>
 
-          <h2>2. How Qwik Mailer Uses Cookies</h2>
-          <p>When you use and access the Service, we may place a number of cookie files in your web browser. We use cookies for the following purposes:</p>
-          <ul>
-            <li>To enable certain functions of the Service (e.g., maintaining login sessions).</li>
-            <li>To provide analytics and understand how the Service is used.</li>
-            <li>To store your preferences.</li>
-          </ul>
+          <div className="prose prose-gray max-w-none text-gray-600 space-y-8 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-black [&>h2]:mt-12 [&>h2]:mb-4 [&>h2]:pb-2 [&>h2]:border-b [&>h2]:border-gray-100 [&>p]:leading-relaxed [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:space-y-2 [&_strong]:text-black">
+            
+            <h2 id="what-are-cookies">1. What Are Cookies</h2>
+            <p>
+              Cookies are small pieces of text sent to your web browser by a website you visit. A cookie file is stored in your web browser and allows Qwik Mailer or a third-party to recognize you, making your next visit easier and the Service more useful. Cookies can be "persistent" or "session" cookies.
+            </p>
 
-          <h2>3. Essential Cookies</h2>
-          <p>
-            We use essential cookies to authenticate users and prevent fraudulent use of user accounts. Without these cookies, the services that you have asked for cannot be provided.
-          </p>
+            <h2 id="how-we-use">2. How We Use Cookies</h2>
+            <p>When you use and access the Qwik Mailer platform, we may place a number of cookie files in your web browser. We use cookies for the following core purposes:</p>
+            <ul>
+              <li><strong>Authentication:</strong> To verify your account and prevent fraudulent use of login credentials.</li>
+              <li><strong>Preferences:</strong> To remember information that changes the way the service behaves or looks (e.g., "remember me" functionality or theme preferences).</li>
+              <li><strong>Analytics:</strong> To track information on how the Service is used so that we can make improvements.</li>
+            </ul>
 
-          <h2>4. Your Choices Regarding Cookies</h2>
-          <p>
-            If you'd like to delete cookies or instruct your web browser to delete or refuse cookies, please visit the help pages of your web browser. Please note, however, that if you delete cookies or refuse to accept them, you might not be able to use all of the features we offer, you may not be able to store your preferences, and some of our pages might not display properly.
-          </p>
+            <h2 id="types">3. Types of Cookies We Use</h2>
+            <p>We classify the cookies we use into the following categories:</p>
+            <ul>
+              <li><strong>Essential Cookies:</strong> These are strictly necessary to provide you with services available through our website. For example, they allow you to log in to secure areas of our dashboard. Without these cookies, the services cannot be provided.</li>
+              <li><strong>Functional Cookies:</strong> These cookies allow our website to remember choices you make when you use our website, such as remembering your login details or language preference.</li>
+              <li><strong>Performance & Analytics Cookies:</strong> These cookies collect information about traffic to our website and how users use our service. The information gathered does not identify any individual visitor.</li>
+            </ul>
+
+            <h2 id="third-party">4. Third-Party Cookies</h2>
+            <p>
+              In addition to our own cookies, we may also use various third-party cookies to report usage statistics of the Service and deliver advertisements on and through the Service. For example, we use Google Analytics to help us understand how our customers use the site.
+            </p>
+
+            <h2 id="your-choices">5. Your Choices Regarding Cookies</h2>
+            <p>
+              You have the right to decide whether to accept or reject cookies. You can exercise your cookie preferences by clicking on the appropriate opt-out links provided in our Cookie Consent banner. 
+            </p>
+            <p>
+              If you'd like to delete cookies or instruct your web browser to delete or refuse cookies, please visit the help pages of your web browser. Please note, however, that if you delete cookies or refuse to accept them, you might not be able to use all of the features we offer, you may not be able to store your preferences, and some of our pages (such as the authenticated dashboard) might not function properly.
+            </p>
+
+            <h2 id="contact">6. Contact Us</h2>
+            <p>
+              If you have any questions about our use of cookies or other technologies, please email us at: <br/>
+              <strong>privacy@qwikmailer.in</strong>
+            </p>
+          </div>
         </div>
       </main>
 

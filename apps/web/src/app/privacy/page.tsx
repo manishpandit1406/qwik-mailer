@@ -63,52 +63,83 @@ export default function PrivacyPage() {
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-6 py-20 pb-32">
-        <h1 className="text-4xl md:text-5xl font-black text-black mb-4 tracking-tight">Privacy Policy</h1>
-        <p className="text-gray-500 mb-12">Last updated: May 30, 2026</p>
+      <main className="max-w-5xl mx-auto px-6 py-20 pb-32 flex flex-col md:flex-row gap-12">
+        {/* Sidebar */}
+        <aside className="md:w-64 shrink-0 hidden md:block">
+          <div className="sticky top-24">
+            <h3 className="font-bold text-black text-sm uppercase tracking-wider mb-4">Table of Contents</h3>
+            <ul className="space-y-3 text-sm font-medium text-gray-500">
+              <li><a href="#introduction" className="hover:text-black transition-colors">1. Introduction</a></li>
+              <li><a href="#information-collection" className="hover:text-black transition-colors">2. Information We Collect</a></li>
+              <li><a href="#data-usage" className="hover:text-black transition-colors">3. How We Use Data</a></li>
+              <li><a href="#sharing" className="hover:text-black transition-colors">4. Data Sharing & Sub-processors</a></li>
+              <li><a href="#tracking" className="hover:text-black transition-colors">5. Cookies & Tracking</a></li>
+              <li><a href="#rights" className="hover:text-black transition-colors">6. Your Privacy Rights</a></li>
+              <li><a href="#contact" className="hover:text-black transition-colors">7. Contact Us</a></li>
+            </ul>
+          </div>
+        </aside>
 
-        <div className="prose prose-gray max-w-none text-gray-600 space-y-6 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-black [&>h2]:mt-10 [&>h2]:mb-4 [&>p]:leading-relaxed [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:space-y-2 [&_strong]:text-black">
-          <h2>1. Introduction</h2>
-          <p>
-            At Qwik Mailer, we take your privacy and deliverability seriously. This Privacy Policy explains how we collect, use, process, and safeguard your information when you visit our website or use our developer-focused email automation platform.
-          </p>
+        {/* Content */}
+        <div className="flex-1">
+          <div className="mb-12">
+            <h1 className="text-4xl md:text-5xl font-black text-black mb-4 tracking-tight">Privacy Policy</h1>
+            <p className="text-gray-500 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+              Effective Date: August 1, 2026
+            </p>
+          </div>
 
-          <h2>2. Information We Collect</h2>
-          <p>We collect information necessary to provide a reliable email sending service:</p>
-          <ul>
-            <li><strong>Account Data:</strong> Information like your name, email address, API keys, and billing details provided during registration.</li>
-            <li><strong>Transmission & Recipient Data:</strong> Email addresses, metadata, variables, and content you transmit through our API or SMTP servers for delivery.</li>
-            <li><strong>Engagement Data (Tracking):</strong> If enabled, we collect IP addresses, User-Agents, and timestamps via tracking pixels to report on email opens, clicks, bounces, and spam complaints.</li>
-            <li><strong>Suppression Data:</strong> We permanently store email addresses that bounce or report spam in our suppression lists to protect sender reputation.</li>
-          </ul>
+          <div className="prose prose-gray max-w-none text-gray-600 space-y-8 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-black [&>h2]:mt-12 [&>h2]:mb-4 [&>h2]:pb-2 [&>h2]:border-b [&>h2]:border-gray-100 [&>p]:leading-relaxed [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:space-y-2 [&_strong]:text-black">
+            
+            <h2 id="introduction">1. Introduction</h2>
+            <p>
+              At Qwik Mailer, we prioritize your privacy and data security. This Privacy Policy explains how we collect, use, process, and safeguard your personal information when you visit our website, use our application, or integrate with our email automation infrastructure.
+            </p>
 
-          <h2>3. How We Process & Use Your Information</h2>
-          <p>Qwik Mailer utilizes third-party infrastructure, including Amazon Web Services (AWS) Simple Email Service (SES) and Simple Notification Service (SNS), to process and deliver emails.</p>
-          <ul>
-            <li><strong>Email Delivery:</strong> We transmit your email content to AWS SES for final delivery to recipients.</li>
-            <li><strong>Bounce & Complaint Handling:</strong> We use AWS SNS webhooks to automatically monitor bounces and spam complaints. Any recipient who bounces or complains is immediately added to a suppression list, and future sends to them are blocked.</li>
-            <li><strong>Unsubscribe Management:</strong> We inject unsubscribe links and "List-Unsubscribe" headers into outbound emails. When clicked, we process the opt-out and update your active mailing lists.</li>
-            <li><strong>Analytics:</strong> We process engagement data to provide you with delivery rates, open rates, and geographic analytics in your dashboard.</li>
-          </ul>
+            <h2 id="information-collection">2. Information We Collect</h2>
+            <p>We collect information strictly necessary to provide a reliable email delivery service and protect our network reputation:</p>
+            <ul>
+              <li><strong>Account & Billing Data:</strong> Your name, email address, API keys, password (encrypted), and payment information provided during registration and subscription.</li>
+              <li><strong>Transmission & Recipient Data:</strong> Email addresses, metadata, variables, and body content you transmit through our API or SMTP servers for final delivery.</li>
+              <li><strong>Engagement Data:</strong> If open and click tracking is enabled, we collect IP addresses, User-Agents, and timestamps via tracking pixels to report on email engagement.</li>
+              <li><strong>Suppression Data:</strong> We automatically collect and permanently store email addresses that hard bounce or report spam to protect sender reputation.</li>
+            </ul>
 
-          <h2>4. Your Responsibilities (Acceptable Use)</h2>
-          <p>As a user of Qwik Mailer, you must ensure that:</p>
-          <ul>
-            <li>You only send emails to recipients who have explicitly <strong>opted-in</strong> to receive communications from you.</li>
-            <li>You do not use purchased, rented, or third-party mailing lists.</li>
-            <li>You comply with our anti-spam policies and AWS's Acceptable Use Policy. High bounce rates (&gt;5%) or complaint rates (&gt;0.1%) will result in immediate account suspension.</li>
-          </ul>
+            <h2 id="data-usage">3. How We Process & Use Your Information</h2>
+            <p>We use the collected information for the following core purposes:</p>
+            <ul>
+              <li><strong>Email Delivery:</strong> To securely transmit your email content to upstream providers (AWS SES) for final delivery.</li>
+              <li><strong>Reputation Protection:</strong> We use AWS SNS webhooks to automatically monitor bounces and spam complaints. Any recipient who bounces or complains is immediately added to an isolated suppression list.</li>
+              <li><strong>Analytics:</strong> To provide you with accurate delivery rates, open rates, and geographic engagement metrics within your dashboard.</li>
+              <li><strong>Compliance:</strong> To inject mandatory "List-Unsubscribe" headers and manage opt-out requests automatically.</li>
+            </ul>
 
-          <h2>5. Data Processing and GDPR/CCPA</h2>
-          <p>
-            Qwik Mailer acts as a Data Processor for the email contents and recipient data you transmit through our platform. You act as the Data Controller. We process this data strictly in accordance with your instructions, our automated deliverability rules (suppression), and our Data Processing Agreement (DPA).
-          </p>
+            <h2 id="sharing">4. Data Sharing & Sub-processors</h2>
+            <p>
+              Qwik Mailer acts as a Data Processor, and you act as the Data Controller. We do not sell your data. We share data only with authorized sub-processors necessary to provide our service, primarily <strong>Amazon Web Services (AWS)</strong>. Data is transmitted securely and is subject to strict confidentiality agreements.
+            </p>
 
-          <h2>6. Contact Us</h2>
-          <p>
-            If you have questions about this Privacy Policy or need to report abuse, please contact us at: <br/>
-            <strong>privacy@qwikmailer.in</strong>
-          </p>
+            <h2 id="tracking">5. Cookies & Tracking Technologies</h2>
+            <p>
+              Our website uses essential cookies to maintain user sessions and authentication states. We also use analytics cookies to understand website traffic. Within the emails you send, we may embed invisible 1x1 tracking pixels to provide you with open-rate analytics, which you can disable in your dashboard settings.
+            </p>
+
+            <h2 id="rights">6. Your Privacy Rights (GDPR & CCPA)</h2>
+            <p>
+              Depending on your location, you have the right to access, correct, delete, or restrict the processing of your personal data. 
+            </p>
+            <ul>
+              <li>You may export your account data at any time from the dashboard.</li>
+              <li>You may request full account deletion, which will purge your active lists and campaign history. Note: Suppression lists (bounces/complaints) are exempt from deletion to comply with federal anti-spam laws.</li>
+            </ul>
+
+            <h2 id="contact">7. Contact Us</h2>
+            <p>
+              If you have questions, concerns, or wish to exercise your privacy rights, please contact our Data Protection Officer at: <br/>
+              <strong>privacy@qwikmailer.in</strong>
+            </p>
+          </div>
         </div>
       </main>
 

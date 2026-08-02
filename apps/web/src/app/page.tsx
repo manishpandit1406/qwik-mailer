@@ -181,6 +181,26 @@ export default function LandingPage() {
     }
   }, []);
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Qwik Mailer",
+    "operatingSystem": "Web, Cloud",
+    "applicationCategory": "BusinessApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "description": "AI-Native B2B SaaS Email Delivery Platform designed for developers and startups.",
+    "url": "https://qwikmailer.in",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Qwik Mailer",
+      "url": "https://qwikmailer.in"
+    }
+  };
+
   const features = [
     {
       icon: <Zap size={20} />,
@@ -363,6 +383,10 @@ export default function LandingPage() {
       className="min-h-screen overflow-x-hidden font-sans selection:bg-black selection:text-white"
       style={{ background: "var(--bg-primary)" }}
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Subtle Dot Grid Background */}
       <div 
         className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 

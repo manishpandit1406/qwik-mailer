@@ -1,0 +1,25 @@
+# Qwik Mailer
+
+Qwik Mailer (https://qwikmailer.in) is an AI-Native B2B SaaS Email Delivery Platform designed for developers, startups, creators, and marketers. It provides highly reliable email infrastructure to send, receive, and track transactional and marketing emails via SMTP and REST API.
+
+## Core Value Proposition
+- **Fast Integration:** Drop-in SMTP replacement or modern REST API integration in under 10 minutes.
+- **AI-Native Deliverability:** Built on top of Amazon Web Services (AWS) SES, Qwik Mailer provides intelligent email routing, automatic bounce handling, and spam suppression to protect sender reputation.
+- **Strict Anti-Spam Policy:** We enforce a strict zero-tolerance policy for spam. All emails must be double opt-in. We do not allow purchased or scraped lists. Bounce rates >5% or complaint rates >0.1% result in automatic suspension.
+
+## Features
+- Transactional and Bulk Marketing Campaigns
+- Real-time Analytics (Open rates, click tracking, bounce monitoring)
+- Automatic SNS Webhook handling for bounces/complaints
+- Global Suppression List management
+- API Key management with strict rate limits
+
+## Compliance
+- Fully compliant with GDPR, CCPA, and AWS Acceptable Use Policies.
+- Offers a comprehensive Data Processing Agreement (DPA) and Privacy Policy.
+- Handles explicit opt-outs and automatically injects List-Unsubscribe headers.
+
+## Support & Contacts
+- Website: https://qwikmailer.in
+- Support: support@qwikmailer.in
+- Privacy: privacy@qwikmailer.in
