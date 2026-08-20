@@ -72,7 +72,11 @@ export default function LoginPage() {
       }
       const urlParams = new URLSearchParams(window.location.search);
       const redirect = urlParams.get('redirect') || "/projects";
-      router.push(redirect);
+      if (redirect.startsWith("http")) {
+        window.location.href = redirect;
+      } else {
+        router.push(redirect);
+      }
     }
   }, [router]);
 
@@ -102,7 +106,11 @@ export default function LoginPage() {
       if (!data.data.user.onboardingCompleted) {
         router.push(`/onboarding?redirect=${encodeURIComponent(redirect)}`);
       } else {
-        router.push(redirect);
+        if (redirect.startsWith("http")) {
+          window.location.href = redirect;
+        } else {
+          router.push(redirect);
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";
