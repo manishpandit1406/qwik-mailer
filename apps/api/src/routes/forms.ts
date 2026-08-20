@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, count } from "drizzle-orm";
 import { db, forms, formSubmissions, contacts, contactListMembers } from "@qwikmailer/db";
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { safeFetch } from "../utils/ssrf.js";
@@ -74,26 +74,137 @@ export async function formRoutes(app: FastifyInstance) {
     return reply.send({ success: true, message: "Form deleted" });
   });
 
-  // GET /v1/forms/:id/submissions
+  // ─── Submissions ──────────────────────────────────────────────────────────
+
+  // GET /v1/forms/:id/submissions — paginated
   app.get("/:id/submissions", { preHandler: authenticate }, async (req, reply) => {
     const teamId = req.teamId!;
     const { id } = req.params as { id: string };
-    
+    const { page = "1", limit = "50" } = req.query as { page?: string; limit?: string };
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+    const offset = (pageNum - 1) * limitNum;
+
     // Verify form belongs to team
     const form = await db.query.forms.findFirst({
       where: and(eq(forms.id, id), eq(forms.teamId, teamId))
     });
-    
     if (!form) return reply.code(404).send({ success: false, error: "Form not found" });
 
-    const submissions = await db.query.formSubmissions.findMany({
+    // Total count
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(formSubmissions)
+      .where(and(eq(formSubmissions.formId, id), eq(formSubmissions.teamId, teamId)));
+
+    const data = await db.query.formSubmissions.findMany({
       where: and(eq(formSubmissions.formId, id), eq(formSubmissions.teamId, teamId)),
       orderBy: [desc(formSubmissions.createdAt)],
-      limit: 100 // Hardcoded limit for now, can be paginated later
+      limit: limitNum,
+      offset,
     });
 
-    return reply.send({ success: true, data: submissions });
+    return reply.send({
+      success: true,
+      data,
+      total: Number(total),
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(Number(total) / limitNum),
+    });
   });
+
+  // GET /v1/forms/:id/submissions/export — CSV download
+  // NOTE: This route must be registered BEFORE /:id/submissions/:subId to avoid routing conflict
+  app.get("/:id/submissions/export", { preHandler: authenticate }, async (req, reply) => {
+    const teamId = req.teamId!;
+    const { id } = req.params as { id: string };
+
+    const form = await db.query.forms.findFirst({
+      where: and(eq(forms.id, id), eq(forms.teamId, teamId))
+    });
+    if (!form) return reply.code(404).send({ success: false, error: "Form not found" });
+
+    const allSubmissions = await db.query.formSubmissions.findMany({
+      where: and(eq(formSubmissions.formId, id), eq(formSubmissions.teamId, teamId)),
+      orderBy: [desc(formSubmissions.createdAt)],
+    });
+
+    if (allSubmissions.length === 0) {
+      // Return an empty CSV with just a header row
+      const safeFormName = (form.name || "submissions").replace(/[^a-z0-9_-]/gi, "_");
+      reply.header("Content-Type", "text/csv; charset=utf-8");
+      reply.header("Content-Disposition", `attachment; filename="${safeFormName}_submissions.csv"`);
+      return reply.send("id,submitted_at,ip\n");
+    }
+
+    // Collect all unique data keys across all submissions (preserve insertion order)
+    const dataKeySet = new Set<string>();
+    for (const sub of allSubmissions) {
+      Object.keys(sub.data ?? {}).forEach(k => dataKeySet.add(k));
+    }
+    const dataKeys = Array.from(dataKeySet);
+
+    // Build CSV
+    const escape = (val: any): string => {
+      const str = val === null || val === undefined ? "" : String(val);
+      // Wrap in quotes if it contains comma, newline or quote
+      if (str.includes(",") || str.includes("\n") || str.includes('"')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const headers = ["id", "submitted_at", "ip", ...dataKeys];
+    const rows = allSubmissions.map(sub => [
+      escape(sub.id),
+      escape(sub.createdAt ? new Date(sub.createdAt).toISOString() : ""),
+      escape(sub.ip ?? ""),
+      ...dataKeys.map(k => escape((sub.data as any)?.[k] ?? "")),
+    ]);
+
+    const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const safeFormName = (form.name || "submissions").replace(/[^a-z0-9_-]/gi, "_");
+
+    reply.header("Content-Type", "text/csv; charset=utf-8");
+    reply.header("Content-Disposition", `attachment; filename="${safeFormName}_submissions.csv"`);
+    return reply.send(csv);
+  });
+
+  // DELETE /v1/forms/:id/submissions/:subId
+  app.delete("/:id/submissions/:subId", {
+    preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])],
+  }, async (req, reply) => {
+    const teamId = req.teamId!;
+    const { id, subId } = req.params as { id: string; subId: string };
+
+    // Verify form belongs to team
+    const form = await db.query.forms.findFirst({
+      where: and(eq(forms.id, id), eq(forms.teamId, teamId))
+    });
+    if (!form) return reply.code(404).send({ success: false, error: "Form not found" });
+
+    const [deleted] = await db
+      .delete(formSubmissions)
+      .where(
+        and(
+          eq(formSubmissions.id, subId),
+          eq(formSubmissions.formId, id),
+          eq(formSubmissions.teamId, teamId)
+        )
+      )
+      .returning();
+
+    if (!deleted) return reply.code(404).send({ success: false, error: "Submission not found" });
+
+    // Decrement submissions counter on the form
+    await db.execute(sql`UPDATE forms SET submissions = GREATEST(submissions - 1, 0) WHERE id = ${id}`);
+
+    return reply.send({ success: true, message: "Submission deleted" });
+  });
+
+  // ─── Public ────────────────────────────────────────────────────────────────
 
   // GET /v1/forms/:id/public (No Auth)
   app.get("/:id/public", async (req, reply) => {

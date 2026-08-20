@@ -1,12 +1,13 @@
 "use client";
 import { formatIST } from "@/lib/dateUtils";
-import { useState, useEffect } from "react";
-import { Plus, Trash2, Edit3, Share2, ClipboardList, RefreshCw, BarChart2, X, Mail, Users, MessageSquare, Bug, Calendar, Video, Briefcase, FileText, Sparkles, Link as LinkIcon, Check } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, Edit3, Share2, ClipboardList, RefreshCw, BarChart2, X, Mail, Users, MessageSquare, Bug, Calendar, Video, Briefcase, FileText, Sparkles, Link as LinkIcon, Check, Download } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useRole } from "@/lib/useRole";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const FORMS_URL = process.env.NEXT_PUBLIC_FORMS_URL ?? "https://forms.qwikmailer.in";
 function getToken() {
   return typeof window !== "undefined" ? (localStorage.getItem("mf_access_token") ?? "") : "";
 }
@@ -116,11 +117,16 @@ export default function FormsPage() {
   const [error, setError] = useState("");
   const [viewingForm, setViewingForm] = useState<any>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
+  const [submissionsTotal, setSubmissionsTotal] = useState(0);
+  const [submissionsPage, setSubmissionsPage] = useState(1);
+  const [submissionsSearch, setSubmissionsSearch] = useState("");
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [creating, setCreating] = useState(false);
   const [activeTab, setActiveTab] = useState<"my-forms" | "gallery">("my-forms");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const { isViewer } = useRole();
 
   // Group templates by category
@@ -153,23 +159,80 @@ export default function FormsPage() {
     }
   }
 
-  async function openSubmissions(form: any) {
+  async function openSubmissions(form: any, page = 1) {
     setViewingForm(form);
     setLoadingSubmissions(true);
-    setSubmissions([]);
+    if (page === 1) setSubmissions([]);
+    setSubmissionsPage(page);
+    setSubmissionsSearch("");
+    setExpandedRow(null);
     try {
-      const res = await fetch(`${API}/v1/forms/${form.id}/submissions`, {
+      const res = await fetch(`${API}/v1/forms/${form.id}/submissions?page=${page}&limit=50`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       const json = await res.json();
       if (json.success) {
         setSubmissions(json.data);
+        setSubmissionsTotal(json.total ?? json.data.length);
       }
     } catch {
       // ignore
     } finally {
       setLoadingSubmissions(false);
     }
+  }
+
+  async function loadMoreSubmissions(form: any, page: number) {
+    setLoadingSubmissions(true);
+    setSubmissionsPage(page);
+    try {
+      const res = await fetch(`${API}/v1/forms/${form.id}/submissions?page=${page}&limit=50`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSubmissions(json.data);
+        setSubmissionsTotal(json.total ?? json.data.length);
+      }
+    } catch {}
+    finally { setLoadingSubmissions(false); }
+  }
+
+  async function exportCSV(formId: string, formName: string) {
+    setExportingCsv(true);
+    try {
+      const res = await fetch(`${API}/v1/forms/${formId}/submissions/export`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) { alert("Export failed"); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${formName.replace(/[^a-z0-9_-]/gi, "_")}_submissions.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert("Export failed"); }
+    finally { setExportingCsv(false); }
+  }
+
+  async function deleteSubmission(formId: string, subId: string) {
+    if (!confirm("Delete this submission? This cannot be undone.")) return;
+    try {
+      const res = await fetch(`${API}/v1/forms/${formId}/submissions/${subId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSubmissions(prev => prev.filter(s => s.id !== subId));
+        setSubmissionsTotal(prev => Math.max(0, prev - 1));
+        // Update local form submissions counter
+        setForms(prev => prev.map(f => f.id === formId ? { ...f, submissions: Math.max(0, f.submissions - 1) } : f));
+      } else {
+        alert(json.error ?? "Failed to delete");
+      }
+    } catch { alert("Network error"); }
   }
 
   async function deleteForm(id: string) {
@@ -402,7 +465,7 @@ export default function FormsPage() {
                     <button
                       title="Copy Public Link"
                       onClick={() => {
-                        const url = `${window.location.origin}/f/${form.id}`;
+                        const url = `${FORMS_URL}/f/${form.id}`;
                         navigator.clipboard.writeText(url);
                         setCopiedId(form.id);
                         setTimeout(() => setCopiedId(null), 2000);
@@ -428,55 +491,182 @@ export default function FormsPage() {
       </div>
 
       {/* Submissions Modal */}
-      {viewingForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-fade-up" style={{ animationDuration: '0.2s' }}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">Submissions</h3>
-                <p className="text-xs text-gray-500">{viewingForm.name}</p>
+      {viewingForm && (() => {
+        // Derive column keys from all submissions
+        const allKeys = Array.from(
+          submissions.reduce((s, sub) => {
+            Object.keys(sub.data ?? {}).forEach(k => s.add(k));
+            return s;
+          }, new Set<string>())
+        ) as string[];
+
+        // Client-side search filter
+        const filtered = submissionsSearch.trim()
+          ? submissions.filter(sub =>
+              JSON.stringify(sub.data ?? {}).toLowerCase().includes(submissionsSearch.toLowerCase())
+            )
+          : submissions;
+
+        const totalPages = Math.ceil(submissionsTotal / 50);
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-fade-up"
+            style={{ animationDuration: '0.2s' }}
+            onClick={() => setViewingForm(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">Submissions</h3>
+                  <p className="text-xs text-gray-500">{viewingForm.name} &mdash; {submissionsTotal} total</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {!isViewer && (
+                    <button
+                      onClick={() => exportCSV(viewingForm.id, viewingForm.name)}
+                      disabled={exportingCsv || submissions.length === 0}
+                      className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3"
+                    >
+                      {exportingCsv ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />}
+                      Export CSV
+                    </button>
+                  )}
+                  <button onClick={() => setViewingForm(null)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
-              <button onClick={() => setViewingForm(null)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-5 bg-gray-50">
-              {loadingSubmissions ? (
-                <div className="py-12 text-center text-gray-500">
-                  <RefreshCw size={24} className="animate-spin mx-auto mb-3 text-indigo-500" />
-                  Loading...
-                </div>
-              ) : submissions.length === 0 ? (
-                <div className="py-12 text-center text-gray-500">
-                  No submissions yet.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {submissions.map((sub: any) => (
-                    <div key={sub.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3 border-b border-gray-50 pb-2">
-                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                          {formatIST(sub.createdAt, true)}
-                        </div>
-                        <div className="text-[10px] text-gray-400 font-mono">ID: {sub.id.substring(0, 8)}</div>
-                      </div>
-                      <div className="space-y-2">
-                        {Object.keys(sub.data || {}).map(key => (
-                          <div key={key} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4">
-                            <span className="text-xs font-medium text-gray-500 sm:w-1/3 shrink-0">{key}:</span>
-                            <span className="text-sm text-gray-900 break-words">{String(sub.data[key])}</span>
-                          </div>
+
+              {/* Search */}
+              <div className="px-5 py-3 border-b border-gray-100 shrink-0">
+                <input
+                  type="text"
+                  className="input text-sm py-1.5"
+                  placeholder="Search submissions..."
+                  value={submissionsSearch}
+                  onChange={e => setSubmissionsSearch(e.target.value)}
+                />
+              </div>
+
+              {/* Table */}
+              <div className="flex-1 overflow-auto">
+                {loadingSubmissions ? (
+                  <div className="py-12 text-center text-gray-500">
+                    <RefreshCw size={24} className="animate-spin mx-auto mb-3 text-indigo-500" />
+                    Loading...
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="py-12 text-center text-gray-500">
+                    {submissionsSearch ? "No matching submissions." : "No submissions yet."}
+                  </div>
+                ) : (
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th className="w-10">#</th>
+                        <th>Submitted At</th>
+                        {allKeys.map(k => (
+                          <th key={k} className="max-w-[180px]">{k}</th>
                         ))}
-                      </div>
-                    </div>
-                  ))}
+                        {!isViewer && <th className="w-16 text-center">Delete</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((sub: any, idx: number) => (
+                        <React.Fragment key={sub.id}>
+                          <tr
+                            className="cursor-pointer"
+                            onClick={() => setExpandedRow(expandedRow === sub.id ? null : sub.id)}
+                          >
+                            <td className="text-gray-400 text-xs font-mono">{(submissionsPage - 1) * 50 + idx + 1}</td>
+                            <td className="text-xs text-gray-500 whitespace-nowrap">
+                              {formatIST(sub.createdAt, true)}
+                            </td>
+                            {allKeys.map(k => (
+                              <td key={k} className="max-w-[200px]">
+                                <span className="block truncate text-sm">
+                                  {Array.isArray(sub.data?.[k])
+                                    ? (sub.data[k] as string[]).join(", ")
+                                    : String(sub.data?.[k] ?? "")}
+                                </span>
+                              </td>
+                            ))}
+                            {!isViewer && (
+                              <td className="text-center" onClick={e => e.stopPropagation()}>
+                                <button
+                                  onClick={() => deleteSubmission(viewingForm.id, sub.id)}
+                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                          {/* Expanded detail row */}
+                          {expandedRow === sub.id && (
+                            <tr key={`${sub.id}-expand`}>
+                              <td colSpan={allKeys.length + (isViewer ? 2 : 3)} className="bg-gray-50 px-6 py-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                  {Object.entries(sub.data ?? {}).map(([k, v]) => (
+                                    <div key={k}>
+                                      <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{k}</div>
+                                      <div className="text-sm text-gray-900 break-words">
+                                        {Array.isArray(v) ? (v as string[]).join(", ") : String(v ?? "")}
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">IP</div>
+                                    <div className="text-sm text-gray-500 font-mono">{sub.ip ?? "—"}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Submission ID</div>
+                                    <div className="text-xs text-gray-400 font-mono">{sub.id}</div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between shrink-0">
+                  <span className="text-xs text-gray-500">
+                    Page {submissionsPage} of {totalPages} &bull; {submissionsTotal} submissions
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={submissionsPage <= 1 || loadingSubmissions}
+                      onClick={() => loadMoreSubmissions(viewingForm, submissionsPage - 1)}
+                      className="btn-secondary text-xs py-1 px-3 disabled:opacity-40"
+                    >
+                      ← Prev
+                    </button>
+                    <button
+                      disabled={submissionsPage >= totalPages || loadingSubmissions}
+                      onClick={() => loadMoreSubmissions(viewingForm, submissionsPage + 1)}
+                      className="btn-secondary text-xs py-1 px-3 disabled:opacity-40"
+                    >
+                      Next →
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

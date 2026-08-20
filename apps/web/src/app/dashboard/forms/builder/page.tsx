@@ -9,6 +9,7 @@ import { CSS } from '@dnd-kit/utilities';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const FRONTEND = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || "https://qwikmailer.in");
+const FORMS_URL = process.env.NEXT_PUBLIC_FORMS_URL || "https://forms.qwikmailer.in";
 function getToken() {
   return typeof window !== "undefined" ? (localStorage.getItem("mf_access_token") ?? "") : "";
 }
@@ -120,7 +121,14 @@ function BuilderContent() {
     buttonTextColor: "#ffffff",
     title: "Join our newsletter",
     description: "Get the latest updates delivered to your inbox.",
-    type: "embedded", // embedded, popup, hosted
+    type: "embedded",
+    // Theme settings
+    bgType: "solid",
+    bgColor: "#f9fafb",
+    bgGradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    fontFamily: "Inter",
+    cardStyle: "card",
+    accentColor: "#4f46e5",
   });
   const [settings, setSettings] = useState<any>({
     webhookUrl: "",
@@ -161,6 +169,12 @@ function BuilderContent() {
           title: "Join our newsletter",
           description: "Get the latest updates delivered to your inbox.",
           type: "embedded",
+          bgType: "solid",
+          bgColor: "#f9fafb",
+          bgGradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          fontFamily: "Inter",
+          cardStyle: "card",
+          accentColor: "#4f46e5",
           ...(json.data.design || {})
         });
         setSettings({
@@ -252,7 +266,8 @@ function BuilderContent() {
     setSchema(schema.filter(f => f.id !== id));
   }
 
-  const iframeEmbedCode = `<iframe src="${FRONTEND}/f/${id}" width="100%" height="400" frameborder="0" style="border:0; border-radius: 8px; overflow:hidden;" allowtransparency="true"></iframe>`;
+  const formsPublicUrl = `${FORMS_URL}/f/${id}`;
+  const iframeEmbedCode = `<iframe src="${FORMS_URL}/f/${id}" width="100%" height="400" frameborder="0" style="border:0; border-radius: 8px; overflow:hidden;" allowtransparency="true"></iframe>`;
 
   const generateApiPayload = () => {
     const payload: any = {};
@@ -380,7 +395,7 @@ func main() {
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
-          <a href={`/f/${id}?preview=true`} target="_blank" className="btn-secondary flex items-center gap-2 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg text-sm font-medium">
+          <a href={`${FORMS_URL}/f/${id}?preview=true`} target="_blank" className="btn-secondary flex items-center gap-2 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg text-sm font-medium">
             <Eye size={16} /> Preview
           </a>
           <button className="btn-secondary flex items-center gap-2 bg-white" onClick={() => setShowApiModal(true)}>
@@ -471,26 +486,135 @@ func main() {
 
             {activeTab === 'design' && (
               <div className="space-y-6">
+
+                {/* ── Font Family ── */}
                 <div>
-                  <label className="block text-sm font-semibold mb-1 text-gray-700">Button Text</label>
-                  <input type="text" className="input" value={design.buttonText || ""} onChange={e => setDesign({...design, buttonText: e.target.value})} />
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Font Family</label>
+                  <select className="input text-sm" value={design.fontFamily || 'Inter'} onChange={e => setDesign({...design, fontFamily: e.target.value})}>
+                    {['Inter','Poppins','Space Grotesk','Lato','DM Sans'].map(f => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-1 text-gray-700">Button Color</label>
+
+                {/* ── Background ── */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Background</label>
+                  <div className="flex gap-2 mb-3">
+                    {(['solid','gradient','image'] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setDesign({...design, bgType: t})}
+                        className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all capitalize ${
+                          design.bgType === t
+                            ? 'bg-gray-900 text-white border-gray-900'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+
+                  {design.bgType === 'solid' && (
                     <div className="flex items-center gap-2">
-                      <input type="color" className="w-8 h-8 rounded border border-gray-300 cursor-pointer" value={design.buttonColor || "#4f46e5"} onChange={e => setDesign({...design, buttonColor: e.target.value})} />
-                      <input type="text" className="input text-sm font-mono uppercase" value={design.buttonColor || ""} onChange={e => setDesign({...design, buttonColor: e.target.value})} />
+                      <input type="color" className="w-9 h-9 rounded border border-gray-200 cursor-pointer" value={design.bgColor || '#f9fafb'} onChange={e => setDesign({...design, bgColor: e.target.value})} />
+                      <input type="text" className="input text-sm font-mono" placeholder="#f9fafb" value={design.bgColor || ''} onChange={e => setDesign({...design, bgColor: e.target.value})} />
+                    </div>
+                  )}
+
+                  {design.bgType === 'gradient' && (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          'linear-gradient(135deg,#667eea 0%,#764ba2 100%)',
+                          'linear-gradient(135deg,#f093fb 0%,#f5576c 100%)',
+                          'linear-gradient(135deg,#4facfe 0%,#00f2fe 100%)',
+                          'linear-gradient(135deg,#43e97b 0%,#38f9d7 100%)',
+                          'linear-gradient(135deg,#fa709a 0%,#fee140 100%)',
+                          'linear-gradient(135deg,#a18cd1 0%,#fbc2eb 100%)',
+                          'linear-gradient(135deg,#ffecd2 0%,#fcb69f 100%)',
+                          'linear-gradient(135deg,#0f0c29,#302b63,#24243e)',
+                        ].map((g, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setDesign({...design, bgGradient: g})}
+                            className={`h-10 rounded-lg border-2 transition-all ${
+                              design.bgGradient === g ? 'border-gray-900 scale-105' : 'border-transparent hover:scale-105'
+                            }`}
+                            style={{ background: g }}
+                          />
+                        ))}
+                      </div>
+                      <input type="text" className="input text-xs font-mono" placeholder="linear-gradient(...)" value={design.bgGradient || ''} onChange={e => setDesign({...design, bgGradient: e.target.value})} />
+                    </div>
+                  )}
+
+                  {design.bgType === 'image' && (
+                    <input type="url" className="input text-sm" placeholder="https://example.com/bg.jpg" value={design.bgImageUrl || ''} onChange={e => setDesign({...design, bgImageUrl: e.target.value})} />
+                  )}
+                </div>
+
+                {/* ── Card Style ── */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Card Style</label>
+                  <div className="flex gap-2">
+                    {[
+                      { val: 'card', label: 'Card' },
+                      { val: 'minimal', label: 'Minimal' },
+                      { val: 'fullscreen', label: 'Fullscreen' },
+                    ].map(({ val, label }) => (
+                      <button
+                        key={val}
+                        onClick={() => setDesign({...design, cardStyle: val})}
+                        className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                          design.cardStyle === val
+                            ? 'bg-gray-900 text-white border-gray-900'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── Accent Color ── */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Accent Color</label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" className="w-9 h-9 rounded border border-gray-200 cursor-pointer" value={design.accentColor || '#4f46e5'} onChange={e => setDesign({...design, accentColor: e.target.value, buttonColor: e.target.value})} />
+                    <input type="text" className="input text-sm font-mono" value={design.accentColor || ''} onChange={e => setDesign({...design, accentColor: e.target.value, buttonColor: e.target.value})} />
+                  </div>
+                </div>
+
+                {/* ── Button ── */}
+                <div className="pt-2 border-t border-gray-100">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Submit Button</label>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-600">Button Text</label>
+                      <input type="text" className="input" value={design.buttonText || ''} onChange={e => setDesign({...design, buttonText: e.target.value})} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-1 text-gray-600">Button Color</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" className="w-8 h-8 rounded border border-gray-200 cursor-pointer" value={design.buttonColor || '#4f46e5'} onChange={e => setDesign({...design, buttonColor: e.target.value})} />
+                          <input type="text" className="input text-xs font-mono" value={design.buttonColor || ''} onChange={e => setDesign({...design, buttonColor: e.target.value})} />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1 text-gray-600">Text Color</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" className="w-8 h-8 rounded border border-gray-200 cursor-pointer" value={design.buttonTextColor || '#ffffff'} onChange={e => setDesign({...design, buttonTextColor: e.target.value})} />
+                          <input type="text" className="input text-xs font-mono" value={design.buttonTextColor || ''} onChange={e => setDesign({...design, buttonTextColor: e.target.value})} />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-1 text-gray-700">Button Text Color</label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" className="w-8 h-8 rounded border border-gray-300 cursor-pointer" value={design.buttonTextColor || "#ffffff"} onChange={e => setDesign({...design, buttonTextColor: e.target.value})} />
-                      <input type="text" className="input text-sm font-mono uppercase" value={design.buttonTextColor || ""} onChange={e => setDesign({...design, buttonTextColor: e.target.value})} />
-                    </div>
-                  </div>
                 </div>
+
               </div>
             )}
 
@@ -574,8 +698,8 @@ func main() {
                 <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2"><Globe size={18} /> Hosted Link</h4>
                 <p className="text-sm text-gray-500 mb-3">Share this direct link with your audience. No coding required.</p>
                 <div className="flex items-center gap-2">
-                  <input type="text" readOnly className="input font-mono text-sm bg-gray-50" value={`${FRONTEND}/f/${id}`} />
-                  <button className="btn-secondary whitespace-nowrap" onClick={() => {navigator.clipboard.writeText(`${FRONTEND}/f/${id}`); alert("Copied!");}}>Copy Link</button>
+                  <input type="text" readOnly className="input font-mono text-sm bg-gray-50" value={formsPublicUrl} />
+                  <button className="btn-secondary whitespace-nowrap" onClick={() => {navigator.clipboard.writeText(formsPublicUrl); alert("Copied!");}}>Copy Link</button>
                 </div>
               </div>
 
