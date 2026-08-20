@@ -18,6 +18,13 @@ export function middleware(request: NextRequest) {
       url.pathname = "/forms-landing";
       return NextResponse.rewrite(url);
     }
+
+    // Rewrite /dashboard to /forms-dashboard for the standalone forms dashboard
+    if (pathname.startsWith("/dashboard")) {
+      const url = request.nextUrl.clone();
+      url.pathname = pathname.replace(/^\/dashboard/, "/forms-dashboard");
+      return NextResponse.rewrite(url);
+    }
   }
 
   return NextResponse.next();
