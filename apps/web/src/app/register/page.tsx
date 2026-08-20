@@ -86,9 +86,16 @@ export default function RegisterPage() {
           >
             {loadingResend ? "Sending..." : "Resend Verification Email"}
           </button>
-          <Link href="/login" className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black">
+          <button
+            onClick={() => {
+              const urlParams = new URLSearchParams(window.location.search);
+              const redirect = urlParams.get('redirect');
+              router.push(redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login");
+            }}
+            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+          >
             Go to Login
-          </Link>
+          </button>
         </div>
       </div>
     );

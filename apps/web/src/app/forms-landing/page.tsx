@@ -96,7 +96,7 @@ export default function FormsLandingPage() {
 
           <div className="flex items-center gap-4">
             <Link
-              href="https://qwikmailer.in/login"
+              href="https://qwikmailer.in/login?redirect=/forms-dashboard"
               className="hidden sm:block text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors"
             >
               Sign in
@@ -132,7 +132,7 @@ export default function FormsLandingPage() {
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              href="https://qwikmailer.in/register"
+              href="https://qwikmailer.in/register?redirect=/forms-dashboard"
               className="inline-flex items-center gap-2 px-6 py-3.5 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
             >
               Start building for free <ArrowRight size={16} />
@@ -339,7 +339,7 @@ export default function FormsLandingPage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="https://qwikmailer.in/register"
+              href="https://qwikmailer.in/register?redirect=/forms-dashboard"
               className="inline-flex items-center gap-2 px-8 py-4 bg-black text-white font-bold rounded-xl hover:bg-gray-800 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 text-base"
             >
               Get started free <ArrowRight size={18} />

@@ -70,7 +70,9 @@ export default function LoginPage() {
           }
         } catch (e) {}
       }
-      router.push("/projects");
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirect = urlParams.get('redirect') || "/projects";
+      router.push(redirect);
     }
   }, [router]);
 
@@ -95,10 +97,12 @@ export default function LoginPage() {
       localStorage.setItem("mf_access_token", data.data.accessToken);
       localStorage.setItem("mf_refresh_token", data.data.refreshToken);
       localStorage.setItem("mf_user", JSON.stringify(data.data.user));
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirect = urlParams.get('redirect') || "/projects";
       if (!data.data.user.onboardingCompleted) {
-        router.push("/onboarding");
+        router.push(`/onboarding?redirect=${encodeURIComponent(redirect)}`);
       } else {
-        router.push("/projects");
+        router.push(redirect);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";
