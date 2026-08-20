@@ -261,33 +261,87 @@ export async function formRoutes(app: FastifyInstance) {
     });
 
     if (!form) return reply.code(404).send({ success: false, error: "Form not found or inactive" });
-
     const settings = form.settings as any;
     // Process Contacts
     let contactId = null;
     const schema = (form.schema || []) as any[];
+
+    // ── Helper: find value in submitted data by schema field name OR by scanning data keys ──
+    // The builder auto-converts labels to snake_case for field.name (e.g. "Email Address" → "email_address")
+    // So we match schema field.name directly to data keys.
+    const findByField = (fieldNames: string[]): string | undefined => {
+      for (const name of fieldNames) {
+        if (data[name] !== undefined && data[name] !== null && data[name] !== "")
+          return String(data[name]);
+      }
+      return undefined;
+    };
+
+    // ── Email field ─────────────────────────────────────────────────────
+    // 1. Schema field with type "email"
+    // 2. Schema field whose label contains "email"
+    // 3. Any data key containing "email"
+    const emailSchemaField = schema.find((f: any) => f.type === "email") 
+      || schema.find((f: any) => f.label?.toLowerCase().includes("email"));
     
-    let emailField = schema.find((f: any) => f.type === "email")?.name;
-    if (!emailField) {
-      emailField = schema.find((f: any) => f.label?.toLowerCase().includes("email"))?.name;
-    }
-    let emailValue = emailField ? data[emailField] : undefined;
+    let emailValue: string | undefined = emailSchemaField
+      ? findByField([emailSchemaField.name])
+      : undefined;
+
     if (!emailValue) {
-      emailValue = data["email"] || data["Email"] || Object.entries(data).find(([k]) => k.toLowerCase().includes("email"))?.[1];
+      // Scan all data keys for anything containing "email"
+      for (const [k, v] of Object.entries(data)) {
+        if (k.toLowerCase().includes("email") && v) { emailValue = String(v); break; }
+      }
     }
 
-    const nameField = schema.find((f: any) => f.label?.toLowerCase().includes("name") || f.label?.toLowerCase().includes("first"))?.name;
-    const lastNameField = schema.find((f: any) => f.label?.toLowerCase().includes("last"))?.name;
-    const phoneField = schema.find((f: any) => f.type === "tel" || f.label?.toLowerCase().includes("phone") || f.label?.toLowerCase().includes("mobile"))?.name;
+    // ── Name fields ─────────────────────────────────────────────────────
+    // Find schema field whose label contains "name" (but not "last name")
+    const firstNameSchemaField = schema.find((f: any) => {
+      const lbl = f.label?.toLowerCase() || "";
+      return (lbl.includes("first") || (lbl.includes("name") && !lbl.includes("last")));
+    });
+    const lastNameSchemaField = schema.find((f: any) =>
+      f.label?.toLowerCase().includes("last")
+    );
+    const phoneSchemaField = schema.find((f: any) =>
+      f.type === "tel" || f.label?.toLowerCase().includes("phone") || f.label?.toLowerCase().includes("mobile")
+    );
 
-    let firstNameVal = data["first_name"] || data["firstName"] || data["Name"] || data["name"];
-    if (!firstNameVal && nameField) firstNameVal = data[nameField];
+    let firstNameVal: string | undefined = firstNameSchemaField
+      ? findByField([firstNameSchemaField.name])
+      : undefined;
+    if (!firstNameVal) {
+      // Scan data keys containing "name" as fallback
+      for (const [k, v] of Object.entries(data)) {
+        const lk = k.toLowerCase();
+        if ((lk.includes("name") && !lk.includes("last") && !lk.includes("user")) && v) {
+          firstNameVal = String(v); break;
+        }
+      }
+    }
 
-    let lastNameVal = data["last_name"] || data["lastName"];
-    if (!lastNameVal && lastNameField) lastNameVal = data[lastNameField];
+    let lastNameVal: string | undefined = lastNameSchemaField
+      ? findByField([lastNameSchemaField.name])
+      : undefined;
+    if (!lastNameVal) {
+      for (const [k, v] of Object.entries(data)) {
+        if (k.toLowerCase().includes("last") && v) { lastNameVal = String(v); break; }
+      }
+    }
 
-    let phoneVal = data["phone"] || data["Phone"];
-    if (!phoneVal && phoneField) phoneVal = data[phoneField];
+    let phoneVal: string | undefined = phoneSchemaField
+      ? findByField([phoneSchemaField.name])
+      : undefined;
+    if (!phoneVal) {
+      for (const [k, v] of Object.entries(data)) {
+        const lk = k.toLowerCase();
+        if ((lk.includes("phone") || lk.includes("mobile") || lk.includes("tel")) && v) {
+          phoneVal = String(v); break;
+        }
+      }
+    }
+
 
     if (emailValue) {
       const formTag = `Form: ${form.name}`;
