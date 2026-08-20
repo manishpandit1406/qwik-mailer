@@ -72,31 +72,40 @@ export default function FormsLandingPage() {
   return (
     <div className="min-h-screen bg-white font-sans" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
       {/* ── Nav ── */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center">
-              <ClipboardList size={15} className="text-white" />
-            </div>
-            <span className="text-base font-bold tracking-tight text-gray-900">
-              QwikForms
-            </span>
-            <span className="hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-widest text-gray-400 border border-gray-200 rounded-md px-2 py-0.5 ml-1">
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-[72px] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="w-8 h-8 bg-black rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+                <ClipboardList size={16} className="text-white" />
+              </div>
+              <span className="text-lg font-extrabold tracking-tight text-gray-900 group-hover:text-black transition-colors">
+                QwikForms
+              </span>
+            </Link>
+            <span className="hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-widest text-gray-500 border border-gray-200 rounded-md px-2 py-0.5 ml-1 bg-gray-50">
               by QwikMailer
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          
+          <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-500">
+            <a href="#features" className="hover:text-gray-900 transition-colors">Features</a>
+            <a href="#developers" className="hover:text-gray-900 transition-colors">Developers</a>
+            <a href="#templates" className="hover:text-gray-900 transition-colors">Templates</a>
+          </div>
+
+          <div className="flex items-center gap-4">
             <Link
               href="https://qwikmailer.in/login"
-              className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              className="hidden sm:block text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors"
             >
               Sign in
             </Link>
             <Link
               href="https://qwikmailer.in/dashboard/forms"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-black text-white text-sm font-semibold rounded-md hover:bg-gray-800 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-black transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
             >
-              Go to Dashboard <ChevronRight size={14} />
+              Go to Dashboard <ArrowRight size={16} />
             </Link>
           </div>
         </div>
@@ -346,23 +355,59 @@ export default function FormsLandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-gray-100 py-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <div className="w-5 h-5 bg-black rounded flex items-center justify-center">
-              <ClipboardList size={11} className="text-white" />
+      <footer className="border-t border-gray-200 bg-gray-50 pt-16 pb-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
+            <div className="col-span-2">
+              <div className="flex items-center gap-2.5 mb-5">
+                <div className="w-8 h-8 bg-black rounded-xl flex items-center justify-center shadow-sm">
+                  <ClipboardList size={16} className="text-white" />
+                </div>
+                <span className="text-xl font-extrabold tracking-tight text-gray-900">
+                  QwikForms
+                </span>
+              </div>
+              <p className="text-sm text-gray-500 max-w-sm leading-relaxed mb-6">
+                The easiest way to build beautiful forms, collect submissions, and integrate with your favorite tools. Seamlessly powered by the QwikMailer ecosystem.
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="px-3 py-1.5 bg-gray-200/50 rounded-lg text-xs font-semibold text-gray-600">
+                  Status: All systems operational
+                </div>
+              </div>
             </div>
-            <span className="font-semibold text-gray-600">QwikForms</span>
-            <span>·</span>
-            <span>Powered by</span>
-            <Link href="https://qwikmailer.in" className="font-semibold text-gray-700 hover:text-black transition-colors">
-              QwikMailer
-            </Link>
+            
+            <div>
+              <h4 className="font-bold text-gray-900 mb-5">Product</h4>
+              <ul className="space-y-3.5 text-sm font-medium text-gray-500">
+                <li><Link href="#" className="hover:text-black transition-colors flex items-center gap-2">Form Builder</Link></li>
+                <li><Link href="#" className="hover:text-black transition-colors flex items-center gap-2">Integrations <span className="text-[9px] uppercase tracking-wider bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-sm">New</span></Link></li>
+                <li><Link href="#" className="hover:text-black transition-colors flex items-center gap-2">Templates</Link></li>
+                <li><Link href="#" className="hover:text-black transition-colors flex items-center gap-2">API Reference</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-gray-900 mb-5">Company</h4>
+              <ul className="space-y-3.5 text-sm font-medium text-gray-500">
+                <li><Link href="https://qwikmailer.in" className="hover:text-black transition-colors">QwikMailer CRM</Link></li>
+                <li><Link href="https://qwikmailer.in/privacy" className="hover:text-black transition-colors">Privacy Policy</Link></li>
+                <li><Link href="https://qwikmailer.in/terms" className="hover:text-black transition-colors">Terms of Service</Link></li>
+                <li><Link href="mailto:admin@qwikmailer.in" className="hover:text-black transition-colors">Contact Support</Link></li>
+              </ul>
+            </div>
           </div>
-          <div className="flex items-center gap-5 text-sm text-gray-400">
-            <Link href="https://qwikmailer.in/privacy" className="hover:text-gray-700 transition-colors">Privacy</Link>
-            <Link href="https://qwikmailer.in/terms" className="hover:text-gray-700 transition-colors">Terms</Link>
-            <Link href="https://qwikmailer.in/docs" className="hover:text-gray-700 transition-colors">Docs</Link>
+
+          <div className="pt-8 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm font-medium text-gray-400">
+              © {new Date().getFullYear()} QwikMailer. All rights reserved.
+            </p>
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-400">
+              <span>Built by</span>
+              <Link href="https://qwikmailer.in" className="font-bold text-gray-900 hover:text-black transition-colors flex items-center gap-1.5">
+                <Zap size={14} className="text-yellow-500 fill-yellow-500" /> QwikMailer
+              </Link>
+            </div>
           </div>
         </div>
       </footer>
