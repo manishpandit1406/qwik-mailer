@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Zap,
-  ArrowLeft
+  ArrowLeft,
+  Globe
 } from "lucide-react";
 import { Select } from "@/components/Select";
 import { SandboxProvider } from "@/lib/sandboxContext";
@@ -35,8 +36,13 @@ const navItems: NavItem[] = [
     icon: <FileText size={16} />,
   },
   {
-    label: "Global Settings",
-    href: "/forms-dashboard/settings",
+    label: "Global Domains",
+    href: "https://qwikmailer.in/projects/domains",
+    icon: <Globe size={16} />,
+  },
+  {
+    label: "Account Settings",
+    href: "https://qwikmailer.in/projects/settings",
     icon: <Settings size={16} />,
   }
 ];
