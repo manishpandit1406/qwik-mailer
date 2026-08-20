@@ -142,10 +142,22 @@ export default function OnboardingPage() {
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.error);
-        router.push("/projects");
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirect = urlParams.get('redirect') || "/projects";
+        if (redirect.startsWith("http")) {
+          window.location.href = redirect;
+        } else {
+          router.push(redirect);
+        }
       } else if (domainStrategy === "shared") {
         // Skip sender identity setup — user will create senders inside their project
-        router.push("/projects");
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirect = urlParams.get('redirect') || "/projects";
+        if (redirect.startsWith("http")) {
+          window.location.href = redirect;
+        } else {
+          router.push(redirect);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to setup domain.");
@@ -155,7 +167,13 @@ export default function OnboardingPage() {
   }
 
   function handleSkip() {
-    router.push("/dashboard");
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirect = urlParams.get('redirect') || "/dashboard";
+    if (redirect.startsWith("http")) {
+      window.location.href = redirect;
+    } else {
+      router.push(redirect);
+    }
   }
 
   return (
