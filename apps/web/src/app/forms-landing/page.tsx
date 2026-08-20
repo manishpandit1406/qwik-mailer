@@ -67,7 +67,17 @@ const STEPS = [
 
 export default function FormsLandingPage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [user, setUser] = useState<{name: string} | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const userStr = localStorage.getItem("mf_user");
+      if (userStr) {
+        setUser(JSON.parse(userStr));
+      }
+    } catch (e) {}
+  }, []);
 
   return (
     <div className="min-h-screen bg-white font-sans" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
@@ -95,18 +105,28 @@ export default function FormsLandingPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link
-              href="/login"
-              className="hidden sm:block text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="https://qwikmailer.in/dashboard/forms"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-black transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
-            >
-              Go to Dashboard <ArrowRight size={16} />
-            </Link>
+            {mounted && user ? (
+              <Link href="/dashboard" title="Go to Dashboard">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-md hover:scale-105 transition-transform">
+                  {user.name ? user.name[0].toUpperCase() : "U"}
+                </div>
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="hidden sm:block text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/register"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-black transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -131,18 +151,27 @@ export default function FormsLandingPage() {
             QwikMailer CRM — no code required.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-2 px-6 py-3.5 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
-            >
-              Start building for free <ArrowRight size={16} />
-            </Link>
-            <Link
-              href="https://qwikmailer.in/dashboard/forms"
+            {!user ? (
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+              >
+                Start building for free <ArrowRight size={16} />
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+              >
+                Go to Dashboard <ArrowRight size={16} />
+              </Link>
+            )}
+            <a
+              href="#templates"
               className="inline-flex items-center gap-2 px-5 py-3.5 bg-white border border-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all text-sm"
             >
               View Templates
-            </Link>
+            </a>
           </div>
           <div className="flex flex-wrap items-center gap-5 mt-8">
             {["No credit card required", "Free to start", "Instant setup"].map((t) => (
