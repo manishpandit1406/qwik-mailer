@@ -397,7 +397,7 @@ func main() {
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
-          <a href={`${FORMS_URL}/f/${id}?preview=true`} target="_blank" className="btn-secondary flex items-center gap-2 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg text-sm font-medium">
+          <a href={`${formsPublicUrl}?preview=true`} target="_blank" className="btn-secondary flex items-center gap-2 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg text-sm font-medium">
             <Eye size={16} /> Preview
           </a>
           <button className="btn-secondary flex items-center gap-2 bg-white" onClick={() => setShowApiModal(true)}>
