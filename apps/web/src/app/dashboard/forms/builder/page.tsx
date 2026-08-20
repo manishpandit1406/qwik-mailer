@@ -266,8 +266,9 @@ function BuilderContent() {
     setSchema(schema.filter(f => f.id !== id));
   }
 
-  const formsPublicUrl = `${FORMS_URL}/f/${id}`;
-  const iframeEmbedCode = `<iframe src="${FORMS_URL}/f/${id}" width="100%" height="400" frameborder="0" style="border:0; border-radius: 8px; overflow:hidden;" allowtransparency="true"></iframe>`;
+  const safeName = (design.title || "form").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const formsPublicUrl = `${FORMS_URL}/f/${safeName}/${id}`;
+  const iframeEmbedCode = `<iframe src="${formsPublicUrl}" width="100%" height="400" frameborder="0" style="border:0; border-radius: 8px; overflow:hidden;" allowtransparency="true"></iframe>`;
 
   const generateApiPayload = () => {
     const payload: any = {};

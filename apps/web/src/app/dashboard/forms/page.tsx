@@ -465,7 +465,8 @@ export default function FormsPage() {
                     <button
                       title="Copy Public Link"
                       onClick={() => {
-                        const url = `${FORMS_URL}/f/${form.id}`;
+                        const safeName = (form.design?.title || "form").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+                        const url = `${FORMS_URL}/f/${safeName}/${form.id}`;
                         navigator.clipboard.writeText(url);
                         setCopiedId(form.id);
                         setTimeout(() => setCopiedId(null), 2000);
