@@ -68,7 +68,7 @@ export default function FormsDashboardLayout({
         if (parsed.name) setUserInitial(parsed.name[0].toUpperCase());
       } catch (e) {}
     } else {
-      window.location.href = "https://qwikmailer.in/login";
+      window.location.href = "/login";
     }
 
     const fetchMe = async () => {
@@ -128,7 +128,7 @@ export default function FormsDashboardLayout({
     localStorage.removeItem("mf_refresh_token");
     localStorage.removeItem("mf_user");
     localStorage.removeItem("mf_active_team");
-    window.location.href = "https://qwikmailer.in/login";
+    window.location.href = "/login";
   }
 
   return (

@@ -25,6 +25,18 @@ export function middleware(request: NextRequest) {
       url.pathname = pathname.replace(/^\/dashboard/, "/forms-dashboard");
       return NextResponse.rewrite(url);
     }
+
+    if (pathname === "/login") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/forms-login";
+      return NextResponse.rewrite(url);
+    }
+
+    if (pathname === "/register") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/forms-register";
+      return NextResponse.rewrite(url);
+    }
   }
 
   return NextResponse.next();
