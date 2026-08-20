@@ -272,7 +272,8 @@ function BuilderContent() {
   const generateApiPayload = () => {
     const payload: any = {};
     schema.forEach(f => {
-      payload[f.name] = f.type === 'email' ? 'user@example.com' : 'value';
+      const key = f.label || f.name;
+      payload[key] = f.type === 'email' ? 'user@example.com' : 'value';
     });
     return JSON.stringify({ data: payload }, null, 2);
   };

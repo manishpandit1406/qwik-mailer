@@ -286,13 +286,13 @@ export default function HostedFormPage() {
 
                 {field.type === "textarea" ? (
                   <textarea
-                    name={field.name}
+                    name={field.label || field.name}
                     required={field.required}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white transition-all min-h-[100px] text-sm text-gray-900 placeholder:text-gray-400"
                     style={{ "--tw-ring-color": accentColor } as any}
                     placeholder={field.placeholder || field.label}
-                    value={formData[field.name] || ""}
-                    onChange={(e) => handleInputChange(field.name, e.target.value)}
+                    value={formData[field.label || field.name] || ""}
+                    onChange={(e) => handleInputChange(field.label || field.name, e.target.value)}
                     onFocus={(e) => {
                       e.target.style.borderColor = accentColor;
                       e.target.style.boxShadow = `0 0 0 2px ${accentColor}22`;
@@ -304,11 +304,11 @@ export default function HostedFormPage() {
                   />
                 ) : field.type === "select" ? (
                   <select
-                    name={field.name}
+                    name={field.label || field.name}
                     required={field.required}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white transition-all text-sm text-gray-900"
-                    value={formData[field.name] || ""}
-                    onChange={(e) => handleInputChange(field.name, e.target.value)}
+                    value={formData[field.label || field.name] || ""}
+                    onChange={(e) => handleInputChange(field.label || field.name, e.target.value)}
                     onFocus={(e) => {
                       e.target.style.borderColor = accentColor;
                       e.target.style.boxShadow = `0 0 0 2px ${accentColor}22`;
@@ -332,11 +332,11 @@ export default function HostedFormPage() {
                       >
                         <input
                           type="radio"
-                          name={field.name}
+                          name={field.label || field.name}
                           required={field.required}
                           value={opt}
-                          checked={formData[field.name] === opt}
-                          onChange={(e) => handleInputChange(field.name, e.target.value)}
+                          checked={formData[field.label || field.name] === opt}
+                          onChange={(e) => handleInputChange(field.label || field.name, e.target.value)}
                           className="w-4 h-4"
                           style={{ accentColor }}
                         />
@@ -353,11 +353,11 @@ export default function HostedFormPage() {
                       >
                         <input
                           type="checkbox"
-                          name={`${field.name}[]`}
+                          name={`${field.label || field.name}[]`}
                           value={opt}
-                          checked={(formData[field.name] || []).includes(opt)}
+                          checked={(formData[field.label || field.name] || []).includes(opt)}
                           onChange={(e) =>
-                            handleCheckboxChange(field.name, opt, e.target.checked)
+                            handleCheckboxChange(field.label || field.name, opt, e.target.checked)
                           }
                           className="w-4 h-4 rounded"
                           style={{ accentColor }}
@@ -370,31 +370,31 @@ export default function HostedFormPage() {
                   <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
                     <input
                       type="range"
-                      name={field.name}
+                      name={field.label || field.name}
                       required={field.required}
                       min="1"
                       max="10"
                       className="flex-1 h-2 rounded-lg appearance-none cursor-pointer"
                       style={{ accentColor }}
-                      value={formData[field.name] || "5"}
-                      onChange={(e) => handleInputChange(field.name, e.target.value)}
+                      value={formData[field.label || field.name] || "5"}
+                      onChange={(e) => handleInputChange(field.label || field.name, e.target.value)}
                     />
                     <span
                       className="w-9 h-9 flex items-center justify-center font-bold rounded-lg text-sm shrink-0 text-white"
                       style={{ backgroundColor: accentColor }}
                     >
-                      {formData[field.name] || "5"}
+                      {formData[field.label || field.name] || "5"}
                     </span>
                   </div>
                 ) : (
                   <input
                     type={field.type}
-                    name={field.name}
+                    name={field.label || field.name}
                     required={field.required}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400"
                     placeholder={field.placeholder || field.label}
-                    value={formData[field.name] || ""}
-                    onChange={(e) => handleInputChange(field.name, e.target.value)}
+                    value={formData[field.label || field.name] || ""}
+                    onChange={(e) => handleInputChange(field.label || field.name, e.target.value)}
                     onFocus={(e) => {
                       e.target.style.borderColor = accentColor;
                       e.target.style.boxShadow = `0 0 0 2px ${accentColor}22`;
