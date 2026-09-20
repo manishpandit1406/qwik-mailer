@@ -39,6 +39,38 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  const isInboxSubdomain =
+    host === "inbox.qwikmailer.in" ||
+    host.startsWith("inbox.localhost");
+
+  if (isInboxSubdomain) {
+    const { pathname } = request.nextUrl;
+
+    if (pathname === "/") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/inbox-landing";
+      return NextResponse.rewrite(url);
+    }
+
+    if (pathname.startsWith("/dashboard")) {
+      const url = request.nextUrl.clone();
+      url.pathname = pathname.replace(/^\/dashboard/, "/inbox-dashboard");
+      return NextResponse.rewrite(url);
+    }
+
+    if (pathname === "/login") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/inbox-login";
+      return NextResponse.rewrite(url);
+    }
+
+    if (pathname === "/register") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/inbox-register";
+      return NextResponse.rewrite(url);
+    }
+  }
+
   return NextResponse.next();
 }
 

@@ -961,3 +961,49 @@ export const contactListMembersRelations = relations(contactListMembers, ({ one 
   list: one(contactLists, { fields: [contactListMembers.listId], references: [contactLists.id] }),
   contact: one(contacts, { fields: [contactListMembers.contactId], references: [contacts.id] }),
 }));
+
+export const connectedMailAccounts = pgTable("connected_mail_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  provider: varchar("provider", { length: 50 }).notNull(), // 'gmail', 'outlook', 'imap'
+  emailAddress: varchar("email_address", { length: 255 }).notNull(),
+  
+  // OAuth Tokens
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  expiresAt: timestamp("expires_at"),
+  
+  // Standard IMAP/SMTP (if not using OAuth)
+  imapHost: varchar("imap_host", { length: 255 }),
+  imapPort: integer("imap_port"),
+  smtpHost: varchar("smtp_host", { length: 255 }),
+  smtpPort: integer("smtp_port"),
+  appPassword: text("app_password"), // Encrypted or stored securely
+
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const connectedMailAccountsRelations = relations(connectedMailAccounts, ({ one }) => ({
+  team: one(teams, { fields: [connectedMailAccounts.teamId], references: [teams.id] }),
+  user: one(users, { fields: [connectedMailAccounts.userId], references: [users.id] }),
+}));
+
+export const emailTrackingLogs = pgTable("email_tracking_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  messageId: text("message_id").notNull(),
+  ipAddress: varchar("ip_address", { length: 64 }),
+  userAgent: text("user_agent"),
+  openedAt: timestamp("opened_at").defaultNow().notNull(),
+});
+
+export const emailClickLogs = pgTable("email_click_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  messageId: text("message_id").notNull(),
+  url: text("url").notNull(),
+  ipAddress: varchar("ip_address", { length: 64 }),
+  userAgent: text("user_agent"),
+  clickedAt: timestamp("clicked_at").defaultNow().notNull(),
+});

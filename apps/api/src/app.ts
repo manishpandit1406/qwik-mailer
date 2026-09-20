@@ -36,6 +36,7 @@ import { contactRoutes } from "./routes/contacts.js";
 import { sandboxRoutes } from "./routes/sandbox.js";
 import { validationRoutes } from "./routes/validation.js";
 import { billingRoutes } from "./routes/billing.js";
+import { inboxRoutes } from "./routes/inbox.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { db } from "@qwikmailer/db";
 import { sql } from "drizzle-orm";
@@ -207,6 +208,7 @@ export async function buildApp() {
   await app.register(contactRoutes, { prefix: "/v1/contacts" });
   await app.register(sandboxRoutes, { prefix: "/v1/sandbox" });
   await app.register(billingRoutes, { prefix: "/v1/billing" });
+  await app.register(inboxRoutes, { prefix: "/v1/inbox" });
 
   return app;
 }
