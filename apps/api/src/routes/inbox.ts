@@ -220,6 +220,11 @@ export async function inboxRoutes(app: FastifyInstance) {
           .replace(/"/g, "&quot;")
           .replace(/'/g, "&#039;")
           .replace(/\n/g, "<br>");
+          
+        // Auto-linkify raw URLs in text-only emails so they can be tracked
+        baseHtml = baseHtml.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+          return `<a href="${url}">${url}</a>`;
+        });
       }
 
       // Rewrite links for click tracking
