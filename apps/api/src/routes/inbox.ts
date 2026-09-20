@@ -204,8 +204,11 @@ export async function inboxRoutes(app: FastifyInstance) {
     });
 
     try {
+      const isProd = process.env.NODE_ENV === 'production';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || (isProd ? 'https://api.qwikmailer.in' : 'http://localhost:4000');
+      
       const generatedMessageId = require('crypto').randomUUID();
-      const trackingUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/v1/inbox/track/${generatedMessageId}.png`;
+      const trackingUrl = `${baseUrl}/v1/inbox/track/${generatedMessageId}.png`;
       const trackingPixel = `<img src="${trackingUrl}" width="1" height="1" style="display:none;" />`;
       
       let baseHtml = html;
@@ -220,7 +223,7 @@ export async function inboxRoutes(app: FastifyInstance) {
       }
 
       // Rewrite links for click tracking
-      const clickTrackingUrlBase = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/v1/inbox/click/${generatedMessageId}?url=`;
+      const clickTrackingUrlBase = `${baseUrl}/v1/inbox/click/${generatedMessageId}?url=`;
       if (baseHtml) {
         baseHtml = baseHtml.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (match, url) => {
           return `href="${clickTrackingUrlBase}${encodeURIComponent(url)}"`;
