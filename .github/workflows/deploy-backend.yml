@@ -118,6 +118,30 @@ jobs:
             CREATE INDEX IF NOT EXISTS form_submissions_created_at_idx ON form_submissions (created_at);
           " && echo "✅ form_submissions table OK"
 
+          # connected_mail_accounts table
+          sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
+            CREATE TABLE IF NOT EXISTS connected_mail_accounts (
+              id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+              team_id uuid NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+              user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              provider varchar(50) NOT NULL,
+              email_address varchar(255) NOT NULL,
+              access_token text,
+              refresh_token text,
+              expires_at timestamp,
+              imap_host varchar(255),
+              imap_port integer,
+              smtp_host varchar(255),
+              smtp_port integer,
+              app_password text,
+              is_active boolean DEFAULT true,
+              created_at timestamp NOT NULL DEFAULT now(),
+              updated_at timestamp NOT NULL DEFAULT now()
+            );
+            CREATE INDEX IF NOT EXISTS connected_mail_accounts_team_id_idx ON connected_mail_accounts (team_id);
+            CREATE INDEX IF NOT EXISTS connected_mail_accounts_user_id_idx ON connected_mail_accounts (user_id);
+          " && echo "✅ connected_mail_accounts table OK"
+
           # email_tracking_logs table
           sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
             CREATE TABLE IF NOT EXISTS email_tracking_logs (
