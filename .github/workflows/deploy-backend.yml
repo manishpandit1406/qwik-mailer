@@ -118,6 +118,31 @@ jobs:
             CREATE INDEX IF NOT EXISTS form_submissions_created_at_idx ON form_submissions (created_at);
           " && echo "✅ form_submissions table OK"
 
+          # email_tracking_logs table
+          sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
+            CREATE TABLE IF NOT EXISTS email_tracking_logs (
+              id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+              message_id varchar(255) NOT NULL,
+              opened_at timestamp NOT NULL DEFAULT now(),
+              ip_address varchar(100),
+              user_agent text
+            );
+            CREATE INDEX IF NOT EXISTS email_tracking_logs_message_id_idx ON email_tracking_logs (message_id);
+          " && echo "✅ email_tracking_logs table OK"
+
+          # email_click_logs table
+          sudo docker exec qwikmailer_postgres psql -U qwikmailer -d qwikmailer -c "
+            CREATE TABLE IF NOT EXISTS email_click_logs (
+              id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+              message_id varchar(255) NOT NULL,
+              url text NOT NULL,
+              clicked_at timestamp NOT NULL DEFAULT now(),
+              ip_address varchar(100),
+              user_agent text
+            );
+            CREATE INDEX IF NOT EXISTS email_click_logs_message_id_idx ON email_click_logs (message_id);
+          " && echo "✅ email_click_logs table OK"
+
           # ── Build API ─────────────────────────────────────────
           echo "Building API..."
           pnpm run build --filter=@qwikmailer/api
@@ -145,6 +170,12 @@ jobs:
           echo "Configuring Nginx for forms.qwikmailer.in..."
           sudo cp /home/ubuntu/qwikmailer/forms.qwikmailer.in.conf /etc/nginx/sites-available/forms.qwikmailer.in
           sudo ln -sf /etc/nginx/sites-available/forms.qwikmailer.in /etc/nginx/sites-enabled/forms.qwikmailer.in
+          
+          # ── Nginx: inbox.qwikmailer.in ────────────────────────
+          echo "Configuring Nginx for inbox.qwikmailer.in..."
+          sudo cp /home/ubuntu/qwikmailer/inbox.qwikmailer.in.conf /etc/nginx/sites-available/inbox.qwikmailer.in
+          sudo ln -sf /etc/nginx/sites-available/inbox.qwikmailer.in /etc/nginx/sites-enabled/inbox.qwikmailer.in
+          
           sudo nginx -t && sudo systemctl reload nginx && echo "✅ Nginx reloaded"
 
           # ── SSL for forms.qwikmailer.in ───────────────────────
@@ -154,6 +185,15 @@ jobs:
             sudo certbot --nginx -d forms.qwikmailer.in --non-interactive --agree-tos -m admin@qwikmailer.in && echo "✅ SSL cert issued"
           else
             echo "✅ SSL cert already exists for forms.qwikmailer.in"
+          fi
+          
+          # ── SSL for inbox.qwikmailer.in ───────────────────────
+          # Only request cert if not already issued
+          if [ ! -d "/etc/letsencrypt/live/inbox.qwikmailer.in" ]; then
+            echo "Requesting SSL cert for inbox.qwikmailer.in..."
+            sudo certbot --nginx -d inbox.qwikmailer.in --non-interactive --agree-tos -m admin@qwikmailer.in && echo "✅ SSL cert issued"
+          else
+            echo "✅ SSL cert already exists for inbox.qwikmailer.in"
           fi
 
           # ── Save PM2 state ────────────────────────────────────
