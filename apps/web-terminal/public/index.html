@@ -280,6 +280,59 @@
             border-color: var(--primary);
             color: #fff;
         }
+
+        /* ===================== DESKTOP UI (LAPTOP) ===================== */
+        @media (min-width: 768px) {
+            body {
+                background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            #login-screen {
+                position: relative;
+                background: transparent;
+                padding: 0;
+            }
+            .login-card {
+                box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                border: 1px solid rgba(255,255,255,0.1);
+            }
+
+            #terminal-screen {
+                position: relative !important;
+                width: 90vw;
+                height: 85vh;
+                max-width: 1200px;
+                border-radius: 12px;
+                border: 1px solid rgba(255,255,255,0.1);
+                box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+                overflow: hidden;
+            }
+
+            #top-bar {
+                background: rgba(22, 27, 34, 0.95);
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+                height: 48px;
+            }
+
+            /* Hide the Virtual Keyboard toggle button entirely on desktop */
+            #vk-toggle-btn {
+                display: none !important;
+            }
+
+            /* Give terminal a bit of breathing room */
+            #term-wrap {
+                padding: 16px;
+                background: #0d1117;
+            }
+
+            /* Hide VK Bar completely */
+            #vk-bar {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -500,13 +553,18 @@ let debounce = null;
 function updateLayout() {
     const vv = window.visualViewport;
     
-    // Sync the entire terminal screen to exactly match the visual viewport
-    if (vv) {
-        termScreen.style.height = vv.height + 'px';
-        termScreen.style.top = vv.offsetTop + 'px';
+    if (window.innerWidth >= 768) {
+        termScreen.style.height = '';
+        termScreen.style.top = '';
     } else {
-        termScreen.style.height = '100%';
-        termScreen.style.top = '0px';
+        // Sync the entire terminal screen to exactly match the visual viewport
+        if (vv) {
+            termScreen.style.height = vv.height + 'px';
+            termScreen.style.top = vv.offsetTop + 'px';
+        } else {
+            termScreen.style.height = '100%';
+            termScreen.style.top = '0px';
+        }
     }
 
     // Debounce the xterm resize to avoid lag during keyboard animation
