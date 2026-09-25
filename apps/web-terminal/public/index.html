@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Terminal | Qwik Mailer</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon.svg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: rgba(22, 27, 34, 0.85);
+            --primary: #58a6ff;
+            --success: #3fb950;
+            --error: #f85149;
+            --border: rgba(255,255,255,0.08);
+            --text: #e6edf3;
+            --muted: #8b949e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, sans-serif;
+            overscroll-behavior: none;
+        }
+
+        /* ===================== LOGIN SCREEN ===================== */
+        #login-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: var(--bg);
+            overflow-y: auto;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px 24px;
+            backdrop-filter: blur(20px);
+            animation: fadeUp 0.35s ease;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+        .login-logo svg { color: var(--primary); }
+        .login-logo span {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--primary), #a371f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-row { margin-bottom: 14px; }
+        .form-row label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-control::placeholder { color: rgba(139,148,158,0.5); }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(88,166,255,0.15);
+        }
+        textarea.form-control {
+            resize: none;
+            height: 70px;
+            font-family: monospace;
+            font-size: 0.78rem;
+        }
+        .form-inline { display: flex; gap: 10px; }
+        .form-inline .form-row { flex: 1; }
+
+        /* File upload */
+        .file-upload { position: relative; margin-bottom: 8px; }
+        .file-upload input[type="file"] {
+            position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2;
+        }
+        .file-upload-face {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 14px;
+            border: 1px dashed rgba(88,166,255,0.35);
+            border-radius: 10px;
+            color: var(--primary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            background: rgba(88,166,255,0.05);
+            transition: all 0.2s;
+        }
+        .file-upload:hover .file-upload-face {
+            background: rgba(88,166,255,0.12);
+            border-color: var(--primary);
+        }
+        .file-upload-face.loaded { color: var(--success); border-color: var(--success); }
+
+        .connect-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 6px;
+            box-shadow: 0 4px 15px rgba(88,166,255,0.3);
+            transition: all 0.2s;
+        }
+        .connect-btn:active { transform: scale(0.97); background: #388bfd; }
+
+        #status-msg {
+            margin-top: 12px;
+            text-align: center;
+            font-size: 0.85rem;
+            min-height: 18px;
+            font-weight: 500;
+        }
+        .err { color: var(--error); }
+        .ok  { color: var(--success); }
+
+        /* ===================== TERMINAL SCREEN ===================== */
+        #terminal-screen {
+            display: none;
+            position: fixed;
+            left: 0; right: 0;
+            /* top and height managed by JS to perfectly match visualViewport */
+            top: 0; height: 100%;
+            z-index: 100;
+            flex-direction: column;
+            background: #000;
+        }
+
+        /* Top bar — minimal, compact */
+        #top-bar {
+            position: relative;
+            flex: 0 0 auto;
+            height: 44px;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(13,17,23,0.92);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            /* Account for iOS safe area notch */
+            padding-top: env(safe-area-inset-top, 0px);
+        }
+        #top-bar.has-safe-area { height: calc(44px + env(safe-area-inset-top, 0px)); }
+
+        .host-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+            overflow: hidden;
+        }
+        .host-label span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 200px;
+        }
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 6px var(--success);
+            flex-shrink: 0;
+        }
+
+        .bar-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .bar-btn {
+            width: 34px; height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.06);
+            color: var(--muted);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+        .bar-btn:active { background: rgba(255,255,255,0.14); transform: scale(0.9); }
+        .bar-btn.red { color: var(--error); border-color: rgba(248,81,73,0.25); }
+        .bar-btn.red:active { background: rgba(248,81,73,0.15); }
+
+        /* ---- TERMINAL CONTAINER ---- */
+        #term-wrap {
+            position: relative;
+            flex: 1 1 auto;
+            min-height: 0;
+            background: #000;
+            overflow: hidden;
+            padding: 0 6px;
+        }
+
+        /* ---- VIRTUAL KEYS BAR ---- */
+        #vk-bar {
+            position: relative;
+            flex: 0 0 auto;
+            display: none; /* toggled to flex via JS */
+            gap: 5px;
+            padding: 7px 8px;
+            padding-bottom: max(7px, env(safe-area-inset-bottom, 7px));
+            background: rgba(13,17,23,0.97);
+            border-top: 1px solid var(--border);
+            overflow-x: auto;
+            scrollbar-width: none;
+            z-index: 150;
+            -webkit-overflow-scrolling: touch;
+        }
+        #vk-bar::-webkit-scrollbar { display: none; }
+
+        .vk {
+            flex-shrink: 0;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 7px;
+            color: #cdd9e5;
+            font-family: monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.1s;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .vk:active {
+            background: rgba(88,166,255,0.25);
+            border-color: var(--primary);
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<!-- =================== LOGIN SCREEN =================== -->
+<div id="login-screen">
+    <div class="login-card">
+        <div class="login-logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+            </svg>
+            <span>Qwik Terminal</span>
+        </div>
+
+        <div class="form-row">
+            <label>Master Password (Required)</label>
+            <input id="master-password" type="password" class="form-control" placeholder="Check your email">
+        </div>
+
+        <div class="form-row">
+            <label>Host</label>
+            <input id="host" type="text" class="form-control" placeholder="ec2-xx-xx.compute.amazonaws.com">
+        </div>
+
+        <div class="form-inline">
+            <div class="form-row">
+                <label>Username</label>
+                <input id="username" type="text" class="form-control" placeholder="ubuntu" value="ubuntu">
+            </div>
+            <div class="form-row">
+                <label>Password</label>
+                <input id="password" type="password" class="form-control" placeholder="optional">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <label>SSH Key (.pem)</label>
+            <div class="file-upload">
+                <input type="file" id="pem-file" accept=".pem,.key">
+                <div class="file-upload-face" id="pem-face">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span id="pem-label">Tap to upload .pem file</span>
+                </div>
+            </div>
+            <textarea id="pem-text" class="form-control" placeholder="Or paste key content here…"></textarea>
+        </div>
+
+        <button class="connect-btn" id="connect-btn">Connect</button>
+        <div id="status-msg"></div>
+    </div>
+</div>
+
+<!-- =================== TERMINAL SCREEN =================== -->
+<div id="terminal-screen">
+    <div id="top-bar">
+        <div class="host-label">
+            <div class="dot"></div>
+            <span id="host-label">Connected</span>
+        </div>
+        <div class="bar-actions">
+            <button class="bar-btn" id="vk-toggle-btn" title="Toggle keys">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+            </button>
+            <button class="bar-btn" title="Refresh" onclick="location.reload()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            </button>
+            <button class="bar-btn red" title="Disconnect" onclick="location.reload()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="term-wrap"></div>
+
+    <!-- =================== VIRTUAL KEYS =================== -->
+    <div id="vk-bar">
+        <button class="vk" onclick="sk('\x1b')">ESC</button>
+        <button class="vk" onclick="sk('\t')">TAB</button>
+        <button class="vk" onclick="sk('\x01')">Ctrl+A</button>
+        <button class="vk" onclick="sk('\x03')">Ctrl+C</button>
+        <button class="vk" onclick="sk('\x04')">Ctrl+D</button>
+        <button class="vk" onclick="sk('\x18')">Ctrl+X</button>
+        <button class="vk" onclick="sk('\x1a')">Ctrl+Z</button>
+        <button class="vk" onclick="sk('\x1b[A')">▲</button>
+        <button class="vk" onclick="sk('\x1b[B')">▼</button>
+        <button class="vk" onclick="sk('\x1b[D')">◀</button>
+        <button class="vk" onclick="sk('\x1b[C')">▶</button>
+        <button class="vk" onclick="sk('\x1b[H')">Home</button>
+        <button class="vk" onclick="sk('\x1b[F')">End</button>
+        <button class="vk" onclick="sk('\x7f')">DEL</button>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let term = null, fitAddon = null;
+
+// ── Elements ──────────────────────────────────────────
+const loginScreen   = document.getElementById('login-screen');
+const termScreen    = document.getElementById('terminal-screen');
+const topBar        = document.getElementById('top-bar');
+const termWrap      = document.getElementById('term-wrap');
+const vkBar         = document.getElementById('vk-bar');
+const vkToggleBtn   = document.getElementById('vk-toggle-btn');
+const statusMsg     = document.getElementById('status-msg');
+const pemFile       = document.getElementById('pem-file');
+const pemText       = document.getElementById('pem-text');
+const pemFace       = document.getElementById('pem-face');
+const pemLabel      = document.getElementById('pem-label');
+
+let vkVisible = false;  // virtual keys hidden by default (use toggle)
+
+// ── Restore saved connection details ────────────────────
+const savedHost = localStorage.getItem('ssh_host');
+const savedUser = localStorage.getItem('ssh_user');
+if (savedHost) document.getElementById('host').value = savedHost;
+if (savedUser) document.getElementById('username').value = savedUser;
+
+// ── PEM file upload ────────────────────────────────────
+pemFile.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    new FileReader().onload = ev => {
+        pemText.value = ev.target.result;
+        pemFace.classList.add('loaded');
+        pemLabel.textContent = file.name;
+    }, pemFile.onload = null;
+    const fr = new FileReader();
+    fr.onload = ev => { pemText.value = ev.target.result; };
+    fr.readAsText(file);
+    pemFace.classList.add('loaded');
+    pemLabel.textContent = file.name;
+});
+
+// ── Connect ────────────────────────────────────────────
+document.getElementById('connect-btn').addEventListener('click', () => {
+    const masterPass = document.getElementById('master-password').value.trim();
+    const host     = document.getElementById('host').value.trim();
+    const username = document.getElementById('username').value.trim();
+    const key      = pemText.value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!masterPass) {
+        statusMsg.textContent = 'Master Password is required.';
+        statusMsg.className = 'err';
+        return;
+    }
+    
+    if (!host || !username) {
+        statusMsg.textContent = 'Host and Username required.';
+        statusMsg.className = 'err';
+        return;
+    }
+    statusMsg.textContent = 'Connecting…';
+    statusMsg.className = '';
+
+    localStorage.setItem('ssh_host', host);
+    localStorage.setItem('ssh_user', username);
+
+    socket.emit('connect_ssh', {
+        masterPassword: masterPass,
+        host, username,
+        privateKey: key || undefined,
+        password: password || undefined,
+        cols: 80, rows: 24
+    });
+});
+
+// ── Socket events ──────────────────────────────────────
+socket.on('ssh_status', msg => {
+    if (msg === 'Connected!') {
+        const host = document.getElementById('host').value;
+        const user = document.getElementById('username').value;
+        document.getElementById('host-label').textContent = `${user}@${host}`;
+        loginScreen.style.display = 'none';
+        termScreen.style.display = 'flex';
+        initTerminal();
+    } else if (/close/i.test(msg)) {
+        loginScreen.style.display = 'flex';
+        termScreen.style.display = 'none';
+        vkBar.style.display = 'none';
+        vkVisible = false;
+        statusMsg.textContent = 'Session ended. Reconnect anytime.';
+        statusMsg.className = 'ok';
+        if (term) { term.clear(); }
+    } else {
+        statusMsg.textContent = msg;
+        statusMsg.className = 'err';
+    }
+});
+
+socket.on('ssh_error', msg => {
+    statusMsg.textContent = msg;
+    statusMsg.className = 'err';
+    if (term) term.write('\r\n\x1b[31m' + msg + '\x1b[0m\r\n');
+});
+
+socket.on('ssh_data', data => { if (term) term.write(data); });
+
+// ── Send special key ───────────────────────────────────
+function sk(key) {
+    if (term) { socket.emit('ssh_input', key); term.focus(); }
+}
+
+// ── Virtual keys toggle ────────────────────────────────
+vkToggleBtn.addEventListener('click', () => {
+    vkVisible = !vkVisible;
+    vkBar.style.display = vkVisible ? 'flex' : 'none';
+    vkToggleBtn.style.color = vkVisible ? 'var(--primary)' : 'var(--muted)';
+    updateLayout();
+});
+
+// ── Layout engine ──────────────────────────────────────
+let debounce = null;
+
+function updateLayout() {
+    const vv = window.visualViewport;
+    
+    // Sync the entire terminal screen to exactly match the visual viewport
+    if (vv) {
+        termScreen.style.height = vv.height + 'px';
+        termScreen.style.top = vv.offsetTop + 'px';
+    } else {
+        termScreen.style.height = '100%';
+        termScreen.style.top = '0px';
+    }
+
+    // Debounce the xterm resize to avoid lag during keyboard animation
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
+        if (!fitAddon) return;
+        try {
+            fitAddon.fit();
+            socket.emit('ssh_resize', { cols: term.cols, rows: term.rows });
+        } catch(e) {}
+    }, 150);
+}
+
+// ── Init terminal ──────────────────────────────────────
+function initTerminal() {
+    if (term) return;
+
+    term = new Terminal({
+        cursorBlink: true,
+        scrollback: 5000,
+        theme: {
+            background:          '#000000',
+            foreground:          '#cdd9e5',
+            cursor:              '#58a6ff',
+            selectionBackground: 'rgba(88,166,255,0.25)',
+            black:   '#484f58', red:     '#ff7b72',
+            green:   '#3fb950', yellow:  '#d29922',
+            blue:    '#58a6ff', magenta: '#bc8cff',
+            cyan:    '#39c5cf', white:   '#cdd9e5',
+        },
+        fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+        fontSize:   13,
+        lineHeight: 1.3,
+        allowTransparency: true,
+    });
+
+    fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(termWrap);
+
+    // Immediate layout then fit
+    updateLayout();
+    setTimeout(() => {
+        fitAddon.fit();
+        socket.emit('ssh_resize', { cols: term.cols, rows: term.rows });
+        term.focus();
+    }, 100);
+
+    term.onData(data => socket.emit('ssh_input', data));
+
+    // ── Viewport resize listener ────────────────────
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateLayout);
+        window.visualViewport.addEventListener('scroll', updateLayout);
+    } else {
+        window.addEventListener('resize', updateLayout);
+    }
+}
+
+// ── PWA Service Worker ─────────────────────────────────
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+}
+</script>
+</body>
+</html>
