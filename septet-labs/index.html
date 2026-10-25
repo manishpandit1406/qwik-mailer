@@ -181,6 +181,13 @@
       box-shadow: 0 0 0 1px #000000 !important;
     }
 
+    @media (max-width: 640px) {
+      .input {
+        font-size: 16px !important;
+        padding: 0.65rem 0.85rem !important;
+      }
+    }
+
     /* Status dot */
     .status-dot {
       width: 7px;
@@ -205,10 +212,10 @@
 
   <!-- ─── 1. Navigation Bar ──────────────────────────────────────────────────── -->
   <nav class="fixed top-0 inset-x-0 z-50 border-b bg-white/90 backdrop-blur-md" style="border-color: var(--border);">
-    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between relative">
       
       <!-- Brand & Provided Logo -->
-      <a href="#" class="flex items-center gap-2.5 font-bold text-lg group">
+      <a href="#" class="flex items-center gap-2.5 font-bold group shrink-0">
         <div class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-[#eaeaea] overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
           <img src="logo.png" alt="Septet Labs" class="w-full h-full object-contain p-0.5" />
         </div>
@@ -227,18 +234,26 @@
       </div>
 
       <!-- Right CTAs -->
-      <div class="flex items-center gap-3">
-        <button onclick="openChallengeModal()" class="btn-ghost hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="openChallengeModal()" class="btn-ghost hidden lg:inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
           <i data-lucide="terminal" class="w-3.5 h-3.5 text-[#2563EB]"></i>
           <span>The 48h Sprint</span>
         </button>
-        <button onclick="openJoinModal()" class="btn-primary flex items-center gap-1.5">
+
+        <!-- Desktop Button (visible on tablet/desktop) -->
+        <button onclick="openJoinModal()" class="btn-primary hidden sm:inline-flex items-center gap-1.5 whitespace-nowrap text-sm py-2 px-3.5">
           <span>Join the Squad</span>
           <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
         </button>
 
+        <!-- Mobile Quick CTA Pill (sleek, compact, perfectly centered vertically) -->
+        <button onclick="openJoinModal()" class="sm:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-black text-white hover:bg-gray-800 transition-colors whitespace-nowrap shadow-xs">
+          <span>Join</span>
+          <i data-lucide="arrow-right" class="w-3 h-3"></i>
+        </button>
+
         <!-- Mobile Menu Button -->
-        <button onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-md border border-[#eaeaea] text-gray-600 hover:text-black">
+        <button onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-lg border border-[#eaeaea] text-gray-700 hover:text-black hover:bg-gray-50 transition-colors" aria-label="Toggle navigation menu">
           <i data-lucide="menu" class="w-5 h-5"></i>
         </button>
       </div>
@@ -246,43 +261,48 @@
     </div>
 
     <!-- Mobile Navigation Drawer -->
-    <div id="mobileDrawer" class="hidden md:hidden px-6 py-4 border-b border-[#eaeaea] bg-white space-y-3">
-      <a href="#vision" onclick="toggleMobileMenu()" class="block text-sm font-medium text-gray-700 hover:text-black">Vision</a>
-      <a href="#manifesto" onclick="toggleMobileMenu()" class="block text-sm font-medium text-gray-700 hover:text-black">Manifesto</a>
-      <a href="#squad" onclick="toggleMobileMenu()" class="block text-sm font-medium text-gray-700 hover:text-black">The Squad (7 Pillars)</a>
-      <a href="#research" onclick="toggleMobileMenu()" class="block text-sm font-medium text-gray-700 hover:text-black">Research</a>
-      <a href="#challenge" onclick="toggleMobileMenu()" class="block text-sm font-medium text-gray-700 hover:text-black">48h Challenge Protocol</a>
-      <button onclick="toggleMobileMenu(); openJoinModal();" class="btn-primary w-full text-center">Join the Squad</button>
+    <div id="mobileDrawer" class="hidden md:hidden px-5 py-4 border-b border-[#eaeaea] bg-white shadow-lg space-y-2">
+      <a href="#vision" onclick="toggleMobileMenu()" class="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">Vision</a>
+      <a href="#manifesto" onclick="toggleMobileMenu()" class="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">Manifesto</a>
+      <a href="#squad" onclick="toggleMobileMenu()" class="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">The Squad (7 Pillars)</a>
+      <a href="#research" onclick="toggleMobileMenu()" class="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">Research</a>
+      <a href="#challenge" onclick="toggleMobileMenu()" class="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">48h Challenge Protocol</a>
+      <div class="pt-2 border-t border-gray-100">
+        <button onclick="toggleMobileMenu(); openJoinModal();" class="btn-primary w-full py-2.5 text-center flex items-center justify-center gap-1.5">
+          <span>Join the Squad</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
     </div>
   </nav>
 
   <!-- ─── 2. Hero Section ────────────────────────────────────────────────────── -->
-  <section id="vision" class="relative pt-36 pb-24 px-6">
+  <section id="vision" class="relative pt-28 sm:pt-36 pb-16 sm:pb-24 px-4 sm:px-6">
     <div class="max-w-4xl mx-auto text-center">
       
       <!-- Top Pill Badge -->
-      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold mb-8 uppercase tracking-wider bg-white border border-[#eaeaea] text-black shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-        <span class="w-2 h-2 rounded-full bg-[#2563EB]"></span>
-        <span>Deep-Tech Research &amp; 0-to-1 Startup Lab</span>
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] font-bold mb-6 sm:mb-8 uppercase tracking-wider bg-white border border-[#eaeaea] text-black shadow-[0_2px_8px_rgba(0,0,0,0.04)] max-w-full">
+        <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#2563EB] shrink-0"></span>
+        <span class="truncate">Deep-Tech Research &amp; 0-to-1 Startup Lab</span>
       </div>
 
       <!-- Crisp Large Headline -->
-      <h1 class="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight mb-6 leading-[1.08] text-black">
+      <h1 class="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight mb-4 sm:mb-6 leading-[1.1] text-black">
         Architecting the unseen.
       </h1>
 
       <!-- Subheadline -->
-      <p class="text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed text-[#666666]">
+      <p class="text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed text-[#666666]">
         An elite 7-member deep-tech squad building autonomous systems, AI-driven solutions, and zero-to-one startups through relentless execution.
       </p>
 
       <!-- Primary & Secondary Action CTAs -->
-      <div class="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-        <a href="#research" class="btn-cobalt flex items-center gap-2 justify-center">
+      <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-12 sm:mb-16 max-w-xs sm:max-w-none mx-auto">
+        <a href="#research" class="btn-cobalt flex items-center gap-2 justify-center py-3 text-sm sm:text-base">
           <span>Explore Research</span>
           <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </a>
-        <a href="#challenge" class="btn-secondary flex items-center gap-2 justify-center">
+        <a href="#challenge" class="btn-secondary flex items-center gap-2 justify-center py-3 text-sm sm:text-base">
           <i data-lucide="terminal" class="w-4 h-4 text-[#2563EB]"></i>
           <span>The 48-Hour Challenge</span>
         </a>
@@ -832,51 +852,56 @@
   </footer>
 
   <!-- ─── Modal 1: The 48-Hour Challenge ────────────────────────────────────── -->
-  <div id="challengeModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-    <div class="w-full max-w-2xl rounded-xl border border-[#eaeaea] bg-white text-black p-6 sm:p-8 relative shadow-2xl">
-      <button onclick="closeChallengeModal()" class="absolute top-5 right-5 p-1 rounded-md text-gray-400 hover:text-black">
-        <i data-lucide="x" class="w-5 h-5"></i>
-      </button>
-
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-6 h-6 rounded bg-black flex items-center justify-center">
-          <i data-lucide="terminal" class="w-3.5 h-3.5 text-white"></i>
+  <div id="challengeModal" class="hidden fixed inset-0 z-50 items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl border border-[#eaeaea] bg-white text-black p-5 sm:p-8 relative shadow-2xl">
+      
+      <!-- Top Header Row -->
+      <div class="flex items-center justify-between gap-3 mb-3">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-6 h-6 rounded bg-black flex items-center justify-center shrink-0">
+            <i data-lucide="terminal" class="w-3.5 h-3.5 text-white"></i>
+          </div>
+          <span class="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB] truncate">
+            SPRINT SPECIFICATION
+          </span>
         </div>
-        <span class="text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB]">SPRINT SPECIFICATION</span>
+        <button onclick="closeChallengeModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black flex items-center justify-center transition-colors shrink-0 -mr-1" aria-label="Close modal">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
       </div>
 
-      <h3 class="text-2xl font-black tracking-tight mb-2">The 48-Hour Challenge</h3>
-      <p class="text-sm text-[#666666] mb-6">
+      <h3 class="text-xl sm:text-2xl font-black tracking-tight mb-2">The 48-Hour Challenge</h3>
+      <p class="text-xs sm:text-sm text-[#666666] mb-5 leading-relaxed">
         Our protocol for converting an unsolved technical barrier into a tested, deployed zero-to-one artifact within a continuous 48-hour window.
       </p>
 
-      <div class="space-y-3 mb-8">
-        <div class="p-4 rounded-lg border border-[#eaeaea] bg-[#fafafa] flex items-start gap-4">
-          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">00:00 - 08:00</div>
+      <div class="space-y-3 mb-6">
+        <div class="p-3.5 sm:p-4 rounded-xl border border-[#eaeaea] bg-[#fafafa] flex flex-col sm:flex-row items-start gap-2.5 sm:gap-4">
+          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0">00:00 - 08:00</div>
           <div>
             <h4 class="text-xs font-bold text-black">Mathematical Framing &amp; Architectural Spec</h4>
             <p class="text-[11px] text-[#666666] mt-0.5">Team Lead &amp; Foundations Lead formalize constraints, benchmark targets, and interface contracts.</p>
           </div>
         </div>
 
-        <div class="p-4 rounded-lg border border-[#eaeaea] bg-[#fafafa] flex items-start gap-4">
-          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">08:00 - 24:00</div>
+        <div class="p-3.5 sm:p-4 rounded-xl border border-[#eaeaea] bg-[#fafafa] flex flex-col sm:flex-row items-start gap-2.5 sm:gap-4">
+          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0">08:00 - 24:00</div>
           <div>
             <h4 class="text-xs font-bold text-black">Core Infrastructure &amp; Pipeline Execution</h4>
             <p class="text-[11px] text-[#666666] mt-0.5">Systems builders construct low-latency runtime, concurrency harness, and baseline test suite.</p>
           </div>
         </div>
 
-        <div class="p-4 rounded-lg border border-[#eaeaea] bg-[#fafafa] flex items-start gap-4">
-          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">24:00 - 36:00</div>
+        <div class="p-3.5 sm:p-4 rounded-xl border border-[#eaeaea] bg-[#fafafa] flex flex-col sm:flex-row items-start gap-2.5 sm:gap-4">
+          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0">24:00 - 36:00</div>
           <div>
             <h4 class="text-xs font-bold text-black">Applied AI Integration &amp; Distillation</h4>
             <p class="text-[11px] text-[#666666] mt-0.5">Quantization, tool-calling validation, latency profiling, and stress-testing edge failures.</p>
           </div>
         </div>
 
-        <div class="p-4 rounded-lg border border-[#eaeaea] bg-[#fafafa] flex items-start gap-4">
-          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">36:00 - 48:00</div>
+        <div class="p-3.5 sm:p-4 rounded-xl border border-[#eaeaea] bg-[#fafafa] flex flex-col sm:flex-row items-start gap-2.5 sm:gap-4">
+          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0">36:00 - 48:00</div>
           <div>
             <h4 class="text-xs font-bold text-black">Deployment, Telemetry &amp; Open Demo</h4>
             <p class="text-[11px] text-[#666666] mt-0.5">Production rollout, automated verification, documentation, and live demonstration.</p>
@@ -884,29 +909,34 @@
         </div>
       </div>
 
-      <div class="flex justify-end gap-3">
-        <button onclick="closeChallengeModal()" class="btn-secondary">Close</button>
-        <button onclick="closeChallengeModal(); openJoinModal();" class="btn-cobalt">Apply for Next Sprint</button>
+      <div class="flex flex-col sm:flex-row justify-end gap-2.5 sm:gap-3">
+        <button onclick="closeChallengeModal()" class="btn-secondary w-full sm:w-auto py-2.5 text-xs sm:text-sm">Close</button>
+        <button onclick="closeChallengeModal(); openJoinModal();" class="btn-cobalt w-full sm:w-auto py-2.5 text-xs sm:text-sm">Apply for Next Sprint</button>
       </div>
     </div>
   </div>
 
   <!-- ─── Modal 2: Join the Squad Form ──────────────────────────────────────── -->
-  <div id="joinModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-    <div class="w-full max-w-lg rounded-xl border border-[#eaeaea] bg-white text-black p-6 sm:p-8 relative shadow-2xl">
-      <button onclick="closeJoinModal()" class="absolute top-5 right-5 p-1 rounded-md text-gray-400 hover:text-black">
-        <i data-lucide="x" class="w-5 h-5"></i>
-      </button>
-
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-6 h-6 rounded bg-black flex items-center justify-center">
-          <i data-lucide="send" class="w-3.5 h-3.5 text-white"></i>
+  <div id="joinModal" class="hidden fixed inset-0 z-50 items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl border border-[#eaeaea] bg-white text-black p-5 sm:p-8 relative shadow-2xl">
+      
+      <!-- Top Header Row: Badge on left, Close button on right (Clean flex, zero overlap) -->
+      <div class="flex items-center justify-between gap-3 mb-3">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-6 h-6 rounded bg-black flex items-center justify-center shrink-0">
+            <i data-lucide="send" class="w-3.5 h-3.5 text-white"></i>
+          </div>
+          <span class="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB] truncate">
+            APPRENTICESHIP &amp; TRANSMISSION
+          </span>
         </div>
-        <span class="text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB]">APPRENTICESHIP &amp; TRANSMISSION</span>
+        <button onclick="closeJoinModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black flex items-center justify-center transition-colors shrink-0 -mr-1" aria-label="Close modal">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
       </div>
 
-      <h3 class="text-2xl font-black tracking-tight mb-2">Join Septet Labs</h3>
-      <p class="text-xs text-[#666666] mb-6">
+      <h3 class="text-xl sm:text-2xl font-black tracking-tight mb-1.5">Join Septet Labs</h3>
+      <p class="text-xs text-[#666666] mb-5 leading-relaxed">
         We look for proof of work, compiler optimizations, original research, and relentless builders.
       </p>
 
@@ -923,7 +953,7 @@
         </div>
       </div>
 
-      <form id="joinForm" onsubmit="handleJoinSubmit(event)" class="space-y-4">
+      <form id="joinForm" onsubmit="handleJoinSubmit(event)" class="space-y-3.5 sm:space-y-4">
         <div>
           <label class="block text-xs font-semibold mb-1 text-gray-700">Your Name / Pseudonym</label>
           <input type="text" id="joinName" required placeholder="e.g. Ada Lovelace" class="input">
@@ -951,7 +981,7 @@
           <textarea id="joinProof" required rows="3" placeholder="Paste links to your best PRs, papers, or systems work..." class="input"></textarea>
         </div>
 
-        <button type="submit" id="joinSubmitBtn" class="btn-primary w-full py-3 mt-2">
+        <button type="submit" id="joinSubmitBtn" class="btn-primary w-full py-3 mt-1 sm:mt-2 text-sm font-semibold">
           Send Transmission
         </button>
 
@@ -1021,6 +1051,14 @@
       modal.classList.remove('flex');
       modal.classList.add('hidden');
     }
+
+    // Close modals on backdrop click
+    document.getElementById('joinModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'joinModal') closeJoinModal();
+    });
+    document.getElementById('challengeModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'challengeModal') closeChallengeModal();
+    });
 
     async function handleJoinSubmit(e) {
       e.preventDefault();

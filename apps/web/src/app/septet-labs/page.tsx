@@ -139,26 +139,38 @@ export default function SeptetLabsPage() {
           </div>
 
           {/* Right Action CTAs */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => setChallengeModalOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-600 hover:text-black px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
+              className="hidden lg:inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-600 hover:text-black px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
             >
               <Terminal size={14} className="text-[#2563EB]" />
               <span>The 48h Sprint</span>
             </button>
+            
+            {/* Desktop Button */}
             <button
               onClick={() => setJoinModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md font-semibold text-sm bg-black text-white hover:bg-gray-800 transition-colors shadow-sm"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md font-semibold text-sm bg-black text-white hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap"
             >
               <span>Join the Squad</span>
               <ArrowRight size={14} />
             </button>
 
+            {/* Mobile Quick CTA Pill */}
+            <button
+              onClick={() => setJoinModalOpen(true)}
+              className="sm:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-black text-white hover:bg-gray-800 transition-colors whitespace-nowrap shadow-xs"
+            >
+              <span>Join</span>
+              <ArrowRight size={12} />
+            </button>
+
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-md border border-[#eaeaea] text-gray-600 hover:text-black"
+              className="md:hidden p-2 rounded-lg border border-[#eaeaea] text-gray-700 hover:text-black hover:bg-gray-50 transition-colors"
+              aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
@@ -168,21 +180,24 @@ export default function SeptetLabsPage() {
 
         {/* Mobile Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden px-6 py-4 border-b border-[#eaeaea] bg-white space-y-3">
-            <a href="#vision" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-medium text-gray-700">Vision</a>
-            <a href="#manifesto" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-medium text-gray-700">Manifesto</a>
-            <a href="#squad" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-medium text-gray-700">The Squad (7 Pillars)</a>
-            <a href="#research" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-medium text-gray-700">Research</a>
-            <a href="#challenge" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-medium text-gray-700">48h Challenge Protocol</a>
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setJoinModalOpen(true);
-              }}
-              className="w-full py-2.5 rounded-md font-semibold text-sm bg-black text-white text-center"
-            >
-              Join the Squad
-            </button>
+          <div className="md:hidden px-5 py-4 border-b border-[#eaeaea] bg-white shadow-lg space-y-2">
+            <a href="#vision" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">Vision</a>
+            <a href="#manifesto" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">Manifesto</a>
+            <a href="#squad" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">The Squad (7 Pillars)</a>
+            <a href="#research" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">Research</a>
+            <a href="#challenge" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">48h Challenge Protocol</a>
+            <div className="pt-2 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setJoinModalOpen(true);
+                }}
+                className="w-full py-2.5 rounded-md font-semibold text-sm bg-black text-white text-center flex items-center justify-center gap-1.5"
+              >
+                <span>Join the Squad</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
           </div>
         )}
       </nav>
@@ -784,30 +799,36 @@ export default function SeptetLabsPage() {
 
       {/* ─── Modal 1: The 48-Hour Challenge ────────────────────────────────── */}
       {challengeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-xl border border-[#eaeaea] bg-white text-black p-6 sm:p-8 relative shadow-2xl">
-            <button
-              onClick={() => setChallengeModalOpen(false)}
-              className="absolute top-5 right-5 p-1 rounded-md text-gray-400 hover:text-black"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 rounded bg-black flex items-center justify-center">
-                <Terminal size={14} className="text-white" />
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setChallengeModalOpen(false); }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl border border-[#eaeaea] bg-white text-black p-5 sm:p-8 relative shadow-2xl">
+            {/* Header row */}
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded bg-black flex items-center justify-center shrink-0">
+                  <Terminal size={14} className="text-white" />
+                </div>
+                <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB] truncate">
+                  SPRINT SPECIFICATION
+                </span>
               </div>
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB]">
-                SPRINT SPECIFICATION
-              </span>
+              <button
+                onClick={() => setChallengeModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black flex items-center justify-center transition-colors shrink-0 -mr-1"
+                aria-label="Close modal"
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            <h3 className="text-2xl font-black tracking-tight mb-2">The 48-Hour Challenge</h3>
-            <p className="text-sm text-[#666666] mb-6">
+            <h3 className="text-xl sm:text-2xl font-black tracking-tight mb-2">The 48-Hour Challenge</h3>
+            <p className="text-xs sm:text-sm text-[#666666] mb-5 leading-relaxed">
               Our protocol for converting an unsolved technical barrier into a tested, deployed zero-to-one artifact within a continuous 48-hour window.
             </p>
 
-            <div className="space-y-3 mb-8">
+            <div className="space-y-3 mb-6">
               {[
                 {
                   time: "00:00 - 08:00",
@@ -832,9 +853,9 @@ export default function SeptetLabsPage() {
               ].map((step, idx) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-lg border border-[#eaeaea] bg-[#fafafa] flex items-start gap-4"
+                  className="p-3.5 sm:p-4 rounded-xl border border-[#eaeaea] bg-[#fafafa] flex flex-col sm:flex-row items-start gap-2.5 sm:gap-4"
                 >
-                  <div className="text-xs font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">
+                  <div className="text-xs font-mono font-bold text-[#2563EB] shrink-0">
                     {step.time}
                   </div>
                   <div>
@@ -845,10 +866,10 @@ export default function SeptetLabsPage() {
               ))}
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-col sm:flex-row justify-end gap-2.5 sm:gap-3">
               <button
                 onClick={() => setChallengeModalOpen(false)}
-                className="px-4 py-2 rounded-md font-semibold text-sm bg-white border border-[#eaeaea] text-black hover:bg-gray-50"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-md font-semibold text-xs sm:text-sm bg-white border border-[#eaeaea] text-black hover:bg-gray-50"
               >
                 Close
               </button>
@@ -857,7 +878,7 @@ export default function SeptetLabsPage() {
                   setChallengeModalOpen(false);
                   setJoinModalOpen(true);
                 }}
-                className="px-4 py-2 rounded-md font-semibold text-sm bg-[#2563EB] text-white hover:bg-[#1d4ed8]"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-md font-semibold text-xs sm:text-sm bg-[#2563EB] text-white hover:bg-[#1d4ed8]"
               >
                 Apply for Next Sprint
               </button>
@@ -868,26 +889,32 @@ export default function SeptetLabsPage() {
 
       {/* ─── Modal 2: Join the Squad Form ──────────────────────────────────── */}
       {joinModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-xl border border-[#eaeaea] bg-white text-black p-6 sm:p-8 relative shadow-2xl">
-            <button
-              onClick={() => setJoinModalOpen(false)}
-              className="absolute top-5 right-5 p-1 rounded-md text-gray-400 hover:text-black"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 rounded bg-black flex items-center justify-center">
-                <Send size={14} className="text-white" />
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setJoinModalOpen(false); }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl border border-[#eaeaea] bg-white text-black p-5 sm:p-8 relative shadow-2xl">
+            {/* Header row */}
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded bg-black flex items-center justify-center shrink-0">
+                  <Send size={14} className="text-white" />
+                </div>
+                <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB] truncate">
+                  APPRENTICESHIP &amp; TRANSMISSION
+                </span>
               </div>
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB]">
-                APPRENTICESHIP &amp; TRANSMISSION
-              </span>
+              <button
+                onClick={() => setJoinModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black flex items-center justify-center transition-colors shrink-0 -mr-1"
+                aria-label="Close modal"
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            <h3 className="text-2xl font-black tracking-tight mb-2">Join Septet Labs</h3>
-            <p className="text-xs text-[#666666] mb-6">
+            <h3 className="text-xl sm:text-2xl font-black tracking-tight mb-1.5">Join Septet Labs</h3>
+            <p className="text-xs text-[#666666] mb-5 leading-relaxed">
               We look for proof of work, compiler optimizations, original research, and relentless builders.
             </p>
 
@@ -912,7 +939,7 @@ export default function SeptetLabsPage() {
                 )}
               </div>
             ) : (
-              <form onSubmit={handleJoin} className="space-y-4">
+              <form onSubmit={handleJoin} className="space-y-3.5 sm:space-y-4">
                 <div>
                   <label className="block text-xs font-semibold mb-1 text-gray-700">Your Name / Pseudonym</label>
                   <input
@@ -921,7 +948,7 @@ export default function SeptetLabsPage() {
                     placeholder="e.g. Ada Lovelace"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-md border border-[#eaeaea] outline-none focus:border-black"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-lg border border-[#eaeaea] outline-none focus:border-black"
                   />
                 </div>
 
@@ -933,7 +960,7 @@ export default function SeptetLabsPage() {
                     placeholder="ada@example.com or @handle"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-md border border-[#eaeaea] outline-none focus:border-black"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-lg border border-[#eaeaea] outline-none focus:border-black"
                   />
                 </div>
 
@@ -942,7 +969,7 @@ export default function SeptetLabsPage() {
                   <select
                     value={form.role}
                     onChange={(e) => setForm({ ...form, role: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-md border border-[#eaeaea] outline-none focus:border-black bg-white"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-lg border border-[#eaeaea] outline-none focus:border-black bg-white"
                   >
                     <option value="Tech/Systems Builder">Tech / Systems Builder (Core Infra)</option>
                     <option value="Autonomous Systems">Autonomous Systems &amp; Platform</option>
@@ -961,14 +988,14 @@ export default function SeptetLabsPage() {
                     placeholder="Paste links to your best PRs, papers, or systems work..."
                     value={form.proof}
                     onChange={(e) => setForm({ ...form, proof: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-md border border-[#eaeaea] outline-none focus:border-black"
+                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-lg border border-[#eaeaea] outline-none focus:border-black"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-3 rounded-md font-semibold text-sm bg-black text-white hover:bg-gray-800 transition-colors mt-2 disabled:opacity-60"
+                  className="w-full py-3 rounded-lg font-semibold text-sm bg-black text-white hover:bg-gray-800 transition-colors mt-1 sm:mt-2 disabled:opacity-60"
                 >
                   {submitting ? "Transmitting..." : "Send Transmission"}
                 </button>
