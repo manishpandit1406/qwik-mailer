@@ -730,8 +730,8 @@ export default function SeptetLabsPage() {
       </section>
 
       {/* ─── 7. Call to Action ─────────────────────────────────────────────── */}
-      <section className="py-24 px-6 border-t border-gray-100 bg-[#fafafa]/50">
-        <div className="max-w-3xl mx-auto text-center p-14 rounded-lg border border-[#eaeaea] bg-white shadow-sm relative overflow-hidden">
+      <section className="py-12 sm:py-24 px-4 sm:px-6 border-t border-gray-100 bg-[#fafafa]/50">
+        <div className="max-w-3xl mx-auto text-center p-6 sm:p-10 md:p-14 rounded-2xl sm:rounded-3xl border border-[#eaeaea] bg-white shadow-sm relative overflow-hidden">
           
           <div
             className="absolute inset-0 opacity-20 pointer-events-none"
@@ -741,29 +741,29 @@ export default function SeptetLabsPage() {
           />
 
           <div className="relative z-10">
-            <div className="w-12 h-12 rounded-xl mx-auto mb-6 flex items-center justify-center bg-white border border-[#eaeaea] shadow-sm">
-              <img src="/septet-logo.png" alt="Septet Labs" className="w-8 h-8 object-contain" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl mx-auto mb-4 sm:mb-6 flex items-center justify-center bg-white border border-[#eaeaea] shadow-sm">
+              <img src="/septet-logo.png" alt="Septet Labs" className="w-6 h-6 sm:w-8 sm:h-8 object-contain" />
             </div>
 
-            <h2 className="text-4xl font-black mb-4 text-black tracking-tight">
-              Ready to architect <br />
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black mb-3 sm:mb-4 text-black tracking-tight leading-tight">
+              Ready to architect <br className="hidden sm:inline" />
               the unseen?
             </h2>
-            <p className="mb-8 max-w-xl mx-auto text-[#666666] text-base leading-relaxed">
+            <p className="mb-6 sm:mb-8 max-w-xl mx-auto text-[#666666] text-xs sm:text-base leading-relaxed">
               Partner with our 7-member deep-tech squad to transform complex technical bottlenecks into lean, scalable production software.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto">
               <button
                 onClick={() => setJoinModalOpen(true)}
-                className="inline-flex items-center justify-center gap-2 text-base px-8 py-3.5 rounded-md font-semibold text-white bg-[#2563EB] hover:bg-[#1d4ed8] shadow-[0_2px_8px_rgba(37,99,235,0.35)] transition-all"
+                className="inline-flex items-center justify-center gap-2 text-xs sm:text-base w-full sm:w-auto px-6 py-3 rounded-md font-semibold text-white bg-[#2563EB] hover:bg-[#1d4ed8] shadow-[0_2px_8px_rgba(37,99,235,0.35)] transition-all"
               >
                 <span>Initiate Transmission</span>
                 <ArrowRight size={16} />
               </button>
               <a
                 href="#challenge"
-                className="inline-flex items-center justify-center gap-2 text-base px-8 py-3.5 rounded-md font-semibold text-black bg-white border border-[#eaeaea] hover:bg-gray-50 transition-colors shadow-sm"
+                className="inline-flex items-center justify-center gap-2 text-xs sm:text-base w-full sm:w-auto px-6 py-3 rounded-md font-semibold text-black bg-white border border-[#eaeaea] hover:bg-gray-50 transition-colors shadow-sm"
               >
                 <Terminal size={16} className="text-[#2563EB]" />
                 <span>The 48-Hour Protocol</span>
@@ -775,14 +775,14 @@ export default function SeptetLabsPage() {
       </section>
 
       {/* ─── 8. Footer ─────────────────────────────────────────────────────── */}
-      <footer className="py-14 px-6 border-t border-[#eaeaea] bg-white">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      <footer className="py-10 sm:py-14 px-4 sm:px-6 border-t border-[#eaeaea] bg-white">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6 text-center md:text-left">
           
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-white border border-[#eaeaea]">
+            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-white border border-[#eaeaea] shrink-0">
               <img src="/septet-logo.png" alt="Septet Labs" className="w-5 h-5 object-contain" />
             </div>
-            <div>
+            <div className="text-left">
               <span className="font-extrabold text-sm tracking-tight text-black">
                 Septet <span className="text-[#2563EB]">Labs</span>
               </span>
