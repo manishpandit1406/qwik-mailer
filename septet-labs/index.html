@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Septet Labs — Architecting the unseen.</title>
+  <meta name="description" content="An elite 7-member deep-tech squad building autonomous systems, AI-driven solutions, and zero-to-one startups through relentless execution.">
+  
+  <!-- Favicon / Logo -->
+  <link rel="icon" type="image/png" href="logo.png">
+
+  <!-- Typography: Inter (Clean geometric sans-serif) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            cobalt: '#2563EB',
+            'cobalt-hover': '#1d4ed8',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ─── Ultra-Minimalist Deep-Tech Design Tokens ───────────────────────── */
+    :root {
+      --bg-primary:   #ffffff;
+      --bg-secondary: #fafafa;
+      --border:       #eaeaea;
+      --border-subtle: #f5f5f5;
+      --accent:       #000000;
+      --text-primary: #000000;
+      --text-secondary: #666666;
+      --text-muted:   #999999;
+      --cobalt:       #2563EB;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    ::selection {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    /* Minimalist Card */
+    .tech-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+    .tech-card:hover {
+      border-color: #bbbbbb;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Primary Stark Black Button */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.65rem 1.35rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      background: #000000;
+      color: #ffffff;
+      border: 1px solid #000000;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .btn-primary:hover {
+      background: #1a1a1a;
+      border-color: #1a1a1a;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+    }
+
+    /* Electric Cobalt Button with Glow */
+    .btn-cobalt {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem 1.6rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.9375rem;
+      background: #2563EB;
+      color: #ffffff;
+      border: 1px solid #2563EB;
+      box-shadow: 0 2px 10px rgba(37, 99, 235, 0.3);
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .btn-cobalt:hover {
+      background: #1d4ed8;
+      border-color: #1d4ed8;
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.45);
+    }
+
+    /* Minimalist Secondary Button */
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem 1.6rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.9375rem;
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .btn-secondary:hover {
+      background: #fafafa;
+      border-color: #cccccc;
+    }
+
+    /* Ghost Button */
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 0.85rem;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.875rem;
+      color: #666666;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .btn-ghost:hover {
+      background: #f5f5f5;
+      color: #000000;
+    }
+
+    /* Inputs */
+    .input {
+      width: 100%;
+      padding: 0.65rem 0.875rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      background: #ffffff;
+      border: 1px solid var(--border) !important;
+      color: #000000;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .input:focus {
+      border-color: #000000 !important;
+      box-shadow: 0 0 0 1px #000000 !important;
+    }
+
+    /* Status dot */
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+      background: #10b981;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Dot Grid */
+    .dot-grid {
+      background-image: radial-gradient(#000000 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+  </style>
+</head>
+<body class="min-h-screen font-sans selection:bg-black selection:text-white bg-white text-black relative">
+
+  <!-- Subtle Dot Grid Background -->
+  <div class="absolute inset-0 z-0 opacity-[0.035] pointer-events-none dot-grid"></div>
+
+  <!-- ─── 1. Navigation Bar ──────────────────────────────────────────────────── -->
+  <nav class="fixed top-0 inset-x-0 z-50 border-b bg-white/90 backdrop-blur-md" style="border-color: var(--border);">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between relative">
+      
+      <!-- Brand & Provided Logo -->
+      <a href="#" class="flex items-center gap-2.5 font-bold text-lg group">
+        <div class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-[#eaeaea] overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
+          <img src="logo.png" alt="Septet Labs" class="w-full h-full object-contain p-0.5" />
+        </div>
+        <div class="flex items-center">
+          <span class="text-black tracking-tight font-extrabold text-base">Septet <span class="text-[#2563EB]">Labs</span></span>
+        </div>
+      </a>
+
+      <!-- Center Nav Links -->
+      <div class="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+        <a href="#vision" class="text-sm font-medium transition-colors border-b-2 pb-1 text-black border-black">Vision</a>
+        <a href="#manifesto" class="text-sm font-medium transition-colors border-b-2 pb-1 text-gray-500 border-transparent hover:text-black">Manifesto</a>
+        <a href="#squad" class="text-sm font-medium transition-colors border-b-2 pb-1 text-gray-500 border-transparent hover:text-black">The Squad</a>
+        <a href="#research" class="text-sm font-medium transition-colors border-b-2 pb-1 text-gray-500 border-transparent hover:text-black">Research</a>
+        <a href="#challenge" class="text-sm font-medium transition-colors border-b-2 pb-1 text-gray-500 border-transparent hover:text-black">48h Challenge</a>
+      </div>
+
+      <!-- Right CTAs -->
+      <div class="flex items-center gap-3">
+        <button onclick="openChallengeModal()" class="btn-ghost hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
+          <i data-lucide="terminal" class="w-3.5 h-3.5 text-[#2563EB]"></i>
+          <span>The 48h Sprint</span>
+        </button>
+        <button onclick="openJoinModal()" class="btn-primary flex items-center gap-1.5">
+          <span>Join the Squad</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+        </button>
+
+        <!-- Mobile Menu Button -->
+        <button onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-md border border-[#eaeaea] text-gray-600 hover:text-black">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobileDrawer" class="hidden md:hidden px-6 py-4 border-b border-[#eaeaea] bg-white space-y-3">
+      <a href="#vision" onclick="toggleMobileMenu()" class="block text-sm font-medium text-gray-700 hover:text-black">Vision</a>
+      <a href="#manifesto" onclick="toggleMobileMenu()" class="block text-sm font-medium text-gray-700 hover:text-black">Manifesto</a>
+      <a href="#squad" onclick="toggleMobileMenu()" class="block text-sm font-medium text-gray-700 hover:text-black">The Squad (7 Pillars)</a>
+      <a href="#research" onclick="toggleMobileMenu()" class="block text-sm font-medium text-gray-700 hover:text-black">Research</a>
+      <a href="#challenge" onclick="toggleMobileMenu()" class="block text-sm font-medium text-gray-700 hover:text-black">48h Challenge Protocol</a>
+      <button onclick="toggleMobileMenu(); openJoinModal();" class="btn-primary w-full text-center">Join the Squad</button>
+    </div>
+  </nav>
+
+  <!-- ─── 2. Hero Section ────────────────────────────────────────────────────── -->
+  <section id="vision" class="relative pt-36 pb-24 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+      
+      <!-- Top Pill Badge -->
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold mb-8 uppercase tracking-wider bg-white border border-[#eaeaea] text-black shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+        <span class="w-2 h-2 rounded-full bg-[#2563EB]"></span>
+        <span>Deep-Tech Research &amp; 0-to-1 Startup Lab</span>
+      </div>
+
+      <!-- Crisp Large Headline -->
+      <h1 class="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight mb-6 leading-[1.08] text-black">
+        Architecting the unseen.
+      </h1>
+
+      <!-- Subheadline -->
+      <p class="text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed text-[#666666]">
+        An elite 7-member deep-tech squad building autonomous systems, AI-driven solutions, and zero-to-one startups through relentless execution.
+      </p>
+
+      <!-- Primary & Secondary Action CTAs -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+        <a href="#research" class="btn-cobalt flex items-center gap-2 justify-center">
+          <span>Explore Research</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
+        <a href="#challenge" class="btn-secondary flex items-center gap-2 justify-center">
+          <i data-lucide="terminal" class="w-4 h-4 text-[#2563EB]"></i>
+          <span>The 48-Hour Challenge</span>
+        </a>
+      </div>
+
+      <!-- Core Lab Capabilities Matrix -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left pt-8 border-t border-gray-100 max-w-3xl mx-auto">
+        <div class="p-4 rounded-lg bg-[#fafafa] border border-[#eaeaea]">
+          <div class="text-[10px] font-mono font-bold text-[#2563EB] uppercase mb-1">FOUNDATION</div>
+          <div class="font-bold text-sm text-black">Autonomous Systems</div>
+          <div class="text-xs text-gray-500 mt-1">Multi-agent cognitive engines with deterministic execution bounds.</div>
+        </div>
+        <div class="p-4 rounded-lg bg-[#fafafa] border border-[#eaeaea]">
+          <div class="text-[10px] font-mono font-bold text-[#2563EB] uppercase mb-1">RESEARCH VECTOR</div>
+          <div class="font-bold text-sm text-black">High-Density AI Models</div>
+          <div class="text-xs text-gray-500 mt-1">Extreme quantization and latency compression for edge hardware.</div>
+        </div>
+        <div class="p-4 rounded-lg bg-[#fafafa] border border-[#eaeaea]">
+          <div class="text-[10px] font-mono font-bold text-[#2563EB] uppercase mb-1">VENTURE ENGINE</div>
+          <div class="font-bold text-sm text-black">Zero-to-One Startups</div>
+          <div class="text-xs text-gray-500 mt-1">From whitepaper to production codebases in 48-hour sprint cycles.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── 3. Core Ideology / Manifesto (The 3 Pillar Cards) ──────────────────── -->
+  <section id="manifesto" class="py-24 px-6 border-t border-gray-100 bg-[#fafafa]/40">
+    <div class="max-w-6xl mx-auto">
+      
+      <!-- Section Header -->
+      <div class="text-center mb-16">
+        <p class="text-xs font-bold uppercase tracking-widest mb-3 text-gray-500">
+          Core Ideology &amp; Manifesto
+        </p>
+        <h2 class="text-4xl font-black mb-4 text-black tracking-tight">
+          Engineered for asymmetric output
+        </h2>
+        <p class="text-lg max-w-2xl mx-auto text-[#666666]">
+          Traditional organizations suffer from coordination drag, endless meetings, and political overhead. Septet Labs operates as a synchronized 7-member unit.
+        </p>
+      </div>
+
+      <!-- 3 Pillar Cards (Exact required items) -->
+      <div class="grid md:grid-cols-3 gap-6">
+        
+        <!-- Pillar 1: Execution over Talk -->
+        <div class="tech-card p-8 group">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center mb-5 bg-[#f5f5f5] text-black border border-[#eaeaea] group-hover:scale-105 transition-transform">
+            <i data-lucide="terminal" class="w-5 h-5 text-black"></i>
+          </div>
+          <div class="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2563EB] mb-1">PILLAR 01</div>
+          <h3 class="font-bold text-xl mb-3 text-black">Execution over Talk</h3>
+          <p class="text-sm leading-relaxed text-[#666666] mb-6">
+            Building working prototypes and functional code over endless discussions. We believe working software and real latency benchmarks invalidate thousands of words of theory.
+          </p>
+          <div class="pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 font-mono">
+            <span>CORE FOCUS</span>
+            <span class="font-bold text-black">COMPILED PROTOTYPES</span>
+          </div>
+        </div>
+
+        <!-- Pillar 2: Interdependence -->
+        <div class="tech-card p-8 group">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center mb-5 bg-[#f5f5f5] text-black border border-[#eaeaea] group-hover:scale-105 transition-transform">
+            <i data-lucide="git-branch" class="w-5 h-5 text-black"></i>
+          </div>
+          <div class="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2563EB] mb-1">PILLAR 02</div>
+          <h3 class="font-bold text-xl mb-3 text-black">Interdependence</h3>
+          <p class="text-sm leading-relaxed text-[#666666] mb-6">
+            A synchronized 7-member unit where every role powers the whole. Zero hierarchy drag—systems engineers, AI researchers, product architects, and growth leads operate as a single cognitive mesh.
+          </p>
+          <div class="pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 font-mono">
+            <span>SYNAPSE TOPOLOGY</span>
+            <span class="font-bold text-black">100% SYNCHRONIZED</span>
+          </div>
+        </div>
+
+        <!-- Pillar 3: Radical Resourcefulness -->
+        <div class="tech-card p-8 group">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center mb-5 bg-[#f5f5f5] text-black border border-[#eaeaea] group-hover:scale-105 transition-transform">
+            <i data-lucide="zap" class="w-5 h-5 text-black"></i>
+          </div>
+          <div class="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2563EB] mb-1">PILLAR 03</div>
+          <h3 class="font-bold text-xl mb-3 text-black">Radical Resourcefulness</h3>
+          <p class="text-sm leading-relaxed text-[#666666] mb-6">
+            Turning complex technical bottlenecks into scalable systems. Rather than throwing massive compute at problems, we engineer lighter quantization, leaner runtimes, and elegant protocols.
+          </p>
+          <div class="pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 font-mono">
+            <span>EFFICIENCY RATIO</span>
+            <span class="font-bold text-black">&lt; 1% OVERHEAD</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── 4. The Squad Breakdown (7-Member Architecture Matrix) ─────────────── -->
+  <section id="squad" class="py-24 px-6 border-t border-gray-100">
+    <div class="max-w-7xl mx-auto">
+      
+      <!-- Section Header -->
+      <div class="text-center mb-16">
+        <p class="text-xs font-bold uppercase tracking-widest mb-3 text-gray-500">
+          The Squad Architecture
+        </p>
+        <h2 class="text-4xl font-black mb-4 text-black tracking-tight">
+          7 Pillars. Zero redundant layers.
+        </h2>
+        <p class="text-lg max-w-2xl mx-auto text-[#666666]">
+          An elite unit composed of 1 Team Lead, 2 Tech/Systems Builders, 2 AI/R&amp;D Specialists, 1 Product Manager, and 1 Growth/Outreach Lead.
+        </p>
+      </div>
+
+      <!-- 7 Pillars Grid -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        
+        <!-- Node 01: Team Lead -->
+        <div class="tech-card p-6 flex flex-col justify-between border-2 border-black relative shadow-sm">
+          <div class="absolute -top-3 left-4">
+            <span class="bg-black text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md">
+              Lead Architect
+            </span>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mt-2 mb-3">
+              <span class="text-xs font-mono font-bold text-[#2563EB]">PILLAR // 01</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">ACTIVE</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-0.5">Team Lead</h3>
+            <p class="text-xs font-semibold text-gray-500 mb-3">Founding Lead &amp; Systems Synthesis</p>
+            <p class="text-xs text-gray-600 leading-relaxed mb-4">
+              Mission Orchestration, Systems Architecture &amp; Capital Velocity. Coordinates technical vectors and preserves zero-to-one velocity.
+            </p>
+            <div class="space-y-1.5 pt-3 border-t border-gray-100 text-xs text-gray-700">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Overall System Architecture</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>0-to-1 Venture Formulation</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Node 02: Tech / Systems Builder (Core) -->
+        <div class="tech-card p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-[#2563EB]">PILLAR // 02</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">ACTIVE</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-0.5">Tech / Systems Builder</h3>
+            <p class="text-xs font-semibold text-gray-500 mb-3">Core Distributed Systems &amp; Infra</p>
+            <p class="text-xs text-gray-600 leading-relaxed mb-4">
+              Constructs bare-metal pipelines, micro-kernels, concurrent primitives, and fault-tolerant low-latency infrastructure.
+            </p>
+            <div class="space-y-1.5 pt-3 border-t border-gray-100 text-xs text-gray-700">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Rust, C++ &amp; Memory Safety</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>High-Throughput Streaming Engine</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Node 03: Tech / Systems Builder (Applied) -->
+        <div class="tech-card p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-[#2563EB]">PILLAR // 03</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">ACTIVE</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-0.5">Tech / Systems Builder</h3>
+            <p class="text-xs font-semibold text-gray-500 mb-3">Autonomous Platforms &amp; Runtimes</p>
+            <p class="text-xs text-gray-600 leading-relaxed mb-4">
+              Bridges low-level runtimes into scalable APIs, live worker meshes, edge compute, and production software platforms.
+            </p>
+            <div class="space-y-1.5 pt-3 border-t border-gray-100 text-xs text-gray-700">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Real-Time Event Meshes</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Autonomous Agent Pipelines</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Node 04: AI / R&D Specialist (Foundations) -->
+        <div class="tech-card p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-[#2563EB]">PILLAR // 04</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">ACTIVE</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-0.5">AI / R&amp;D Specialist</h3>
+            <p class="text-xs font-semibold text-gray-500 mb-3">Foundational Models &amp; Optimization</p>
+            <p class="text-xs text-gray-600 leading-relaxed mb-4">
+              Pushes mathematical boundaries on compact reasoning architectures, parameter-efficient quantization, and neural optimization.
+            </p>
+            <div class="space-y-1.5 pt-3 border-t border-gray-100 text-xs text-gray-700">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Deep Learning &amp; Quantization</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Neural Architecture Search</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Node 05: AI / R&D Specialist (Applied) -->
+        <div class="tech-card p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-[#2563EB]">PILLAR // 05</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">ACTIVE</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-0.5">AI / R&amp;D Specialist</h3>
+            <p class="text-xs font-semibold text-gray-500 mb-3">Cognitive Intelligence &amp; Multi-Modal</p>
+            <p class="text-xs text-gray-600 leading-relaxed mb-4">
+              Translates fundamental AI breakthroughs into autonomous workflows, real-time perception trees, and multi-modal tool use.
+            </p>
+            <div class="space-y-1.5 pt-3 border-t border-gray-100 text-xs text-gray-700">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Multi-Modal Inference &amp; Vision</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Autonomous Agentic Loops</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Node 06: Product Manager -->
+        <div class="tech-card p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-[#2563EB]">PILLAR // 06</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">ACTIVE</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-0.5">Product Manager</h3>
+            <p class="text-xs font-semibold text-gray-500 mb-3">Deep-Tech Product Lead</p>
+            <p class="text-xs text-gray-600 leading-relaxed mb-4">
+              Cuts through abstract research to crystallize intuitive developer tools, specifications, user ergonomics, and rapid prototypes.
+            </p>
+            <div class="space-y-1.5 pt-3 border-t border-gray-100 text-xs text-gray-700">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Technical Specifications &amp; Specs</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Developer Ergonomics &amp; Roadmaps</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Node 07: Growth / Outreach Lead -->
+        <div class="tech-card p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-[#2563EB]">PILLAR // 07</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">ACTIVE</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-0.5">Growth / Outreach Lead</h3>
+            <p class="text-xs font-semibold text-gray-500 mb-3">Ecosystem &amp; Distribution Lead</p>
+            <p class="text-xs text-gray-600 leading-relaxed mb-4">
+              Distributes Septet Labs technologies to world-class builders, orchestrating open-source adoption and narrative velocity.
+            </p>
+            <div class="space-y-1.5 pt-3 border-t border-gray-100 text-xs text-gray-700">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Developer Ecosystem &amp; DevRel</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-black shrink-0"></i>
+                <span>Deep-Tech Research Dissemination</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Node 08: Apprenticeship / Join Callout -->
+        <div class="tech-card p-6 flex flex-col justify-between border-dashed border-gray-300 bg-gray-50/50">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-mono font-bold text-[#2563EB]">OPEN VECTOR</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">INVITE ONLY</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-0.5">Are you an outlier?</h3>
+            <p class="text-xs font-semibold text-gray-500 mb-3">Guest Builder Sprint Seat</p>
+            <p class="text-xs text-gray-600 leading-relaxed mb-4">
+              We periodically sponsor exceptional guest builders to join our 48-hour sprints. No resume—only GitHub PRs and working code.
+            </p>
+          </div>
+          <button onclick="openJoinModal()" class="w-full text-center py-2.5 rounded-md text-xs font-bold uppercase tracking-wider bg-white border border-gray-300 text-black hover:bg-black hover:text-white transition-all">
+            Submit Proof of Work
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── 5. Research & Autonomous Systems ───────────────────────────────────── -->
+  <section id="research" class="py-24 px-6 border-t border-gray-100 bg-[#fafafa]/40">
+    <div class="max-w-6xl mx-auto">
+      
+      <!-- Section Header -->
+      <div class="text-center mb-16">
+        <p class="text-xs font-bold uppercase tracking-widest mb-3 text-gray-500">
+          Active R&amp;D Initiatives
+        </p>
+        <h2 class="text-4xl font-black mb-4 text-black tracking-tight">
+          Frontier research testbeds
+        </h2>
+        <p class="text-lg max-w-2xl mx-auto text-[#666666]">
+          Real deep-tech systems and zero-to-one experiments evaluated against strict mathematical and latency bounds.
+        </p>
+      </div>
+
+      <!-- Research Cards -->
+      <div class="grid md:grid-cols-3 gap-6">
+        
+        <!-- Experiment 1 -->
+        <div class="tech-card p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[10px] font-mono font-bold text-[#2563EB]">SYS // 01</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">OPEN SPEC</span>
+            </div>
+            <h3 class="text-lg font-bold text-black mb-2">Hyperion Agent Runtime</h3>
+            <p class="text-xs text-[#666666] leading-relaxed mb-6">
+              Deterministic agent state runtime with zero-copy memory transfers, sub-millisecond thread scheduling, and hardware-accelerated memory paging.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-gray-100">
+            <div class="flex flex-wrap gap-1.5">
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-[#eaeaea] text-gray-600 bg-white">Rust</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-[#eaeaea] text-gray-600 bg-white">Bare Metal</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-[#eaeaea] text-gray-600 bg-white">Zero-Copy</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Experiment 2 -->
+        <div class="tech-card p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[10px] font-mono font-bold text-[#2563EB]">AI // 02</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">BENCHMARKING</span>
+            </div>
+            <h3 class="text-lg font-bold text-black mb-2">NeuralFold Quantizer</h3>
+            <p class="text-xs text-[#666666] leading-relaxed mb-6">
+              Lossless 2.4-bit model distillation designed for consumer edge hardware, enabling autonomous perception trees with minimal power draw.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-gray-100">
+            <div class="flex flex-wrap gap-1.5">
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-[#eaeaea] text-gray-600 bg-white">CUDA</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-[#eaeaea] text-gray-600 bg-white">Matrix Distillation</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-[#eaeaea] text-gray-600 bg-white">PyTorch</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Experiment 3 -->
+        <div class="tech-card p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[10px] font-mono font-bold text-[#2563EB]">NET // 03</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">TESTBED PILOT</span>
+            </div>
+            <h3 class="text-lg font-bold text-black mb-2">Chronos Consensus Mesh</h3>
+            <p class="text-xs text-[#666666] leading-relaxed mb-6">
+              Decentralized state verification for autonomous multi-agent swarms with zero-overhead proof generation and peer-to-peer agreement.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-gray-100">
+            <div class="flex flex-wrap gap-1.5">
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-[#eaeaea] text-gray-600 bg-white">Zero-Knowledge</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-[#eaeaea] text-gray-600 bg-white">gRPC</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border border-[#eaeaea] text-gray-600 bg-white">Go</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── 6. The 48-Hour Challenge Section (Dedicated Technical Cadence) ─────── -->
+  <section id="challenge" class="py-24 px-6 border-t border-gray-100">
+    <div class="max-w-4xl mx-auto">
+      
+      <div class="text-center mb-16">
+        <p class="text-xs font-bold uppercase tracking-widest mb-3 text-gray-500">
+          The 48-Hour Challenge Protocol
+        </p>
+        <h2 class="text-4xl font-black mb-4 text-black tracking-tight">
+          From abstract hypothesis to production in 48 hours
+        </h2>
+        <p class="text-lg max-w-2xl mx-auto text-[#666666]">
+          The signature execution mechanism of Septet Labs. We eliminate corporate lag by delivering a functional zero-to-one artifact within a continuous 48-hour cadence.
+        </p>
+      </div>
+
+      <!-- Phase Timeline Breakdown -->
+      <div class="space-y-4">
+        
+        <div class="tech-card p-6 flex flex-col sm:flex-row sm:items-start gap-4">
+          <div class="text-sm font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">
+            00:00 — 08:00
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-black mb-1">Mathematical Framing &amp; Architecture Specification</h3>
+            <p class="text-xs text-[#666666] leading-relaxed">
+              Team Lead &amp; Foundations Lead formalize mathematical constraints, benchmark targets, memory budgets, and interface contracts.
+            </p>
+          </div>
+        </div>
+
+        <div class="tech-card p-6 flex flex-col sm:flex-row sm:items-start gap-4">
+          <div class="text-sm font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">
+            08:00 — 24:00
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-black mb-1">Core Distributed Infrastructure &amp; Runtime Build</h3>
+            <p class="text-xs text-[#666666] leading-relaxed">
+              Systems builders construct the low-latency runtime, concurrency harness, bare-metal memory safety layers, and automated test suite.
+            </p>
+          </div>
+        </div>
+
+        <div class="tech-card p-6 flex flex-col sm:flex-row sm:items-start gap-4">
+          <div class="text-sm font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">
+            24:00 — 36:00
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-black mb-1">Applied AI Integration &amp; Model Distillation</h3>
+            <p class="text-xs text-[#666666] leading-relaxed">
+              AI specialists execute parameter-efficient fine-tuning, tool-calling validation, latency profiling, and stress-testing edge failures.
+            </p>
+          </div>
+        </div>
+
+        <div class="tech-card p-6 flex flex-col sm:flex-row sm:items-start gap-4">
+          <div class="text-sm font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">
+            36:00 — 48:00
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-black mb-1">Production Rollout, Telemetry &amp; Public Demonstration</h3>
+            <p class="text-xs text-[#666666] leading-relaxed">
+              Automated verification, deployment to bare-metal clusters, documentation synthesis, and live demonstration of the zero-to-one artifact.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="text-center mt-10">
+        <button onclick="openJoinModal()" class="btn-cobalt">
+          Apply to Participate in Next Sprint
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── 7. Call to Action ─────────────────────────────────────────────────── -->
+  <section class="py-24 px-6 border-t border-gray-100 bg-[#fafafa]/50">
+    <div class="max-w-3xl mx-auto text-center tech-card p-14 relative overflow-hidden bg-white shadow-sm">
+      
+      <!-- Subtle Radial Glow -->
+      <div class="absolute inset-0 opacity-20 pointer-events-none" style="background: radial-gradient(circle at center, rgba(37,99,235,0.25), transparent 70%);"></div>
+
+      <div class="relative z-10">
+        <!-- Logo Stamp -->
+        <div class="w-12 h-12 rounded-xl mx-auto mb-6 flex items-center justify-center bg-white border border-[#eaeaea] shadow-sm">
+          <img src="logo.png" alt="Septet Labs" class="w-8 h-8 object-contain" />
+        </div>
+
+        <h2 class="text-4xl font-black mb-4 text-black tracking-tight">
+          Ready to architect <br />
+          the unseen?
+        </h2>
+        <p class="mb-8 max-w-xl mx-auto text-[#666666] text-base leading-relaxed">
+          Partner with our 7-member deep-tech squad to transform complex technical bottlenecks into lean, scalable production software.
+        </p>
+
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <button onclick="openJoinModal()" class="btn-cobalt flex items-center gap-2">
+            <span>Initiate Transmission</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+          <a href="#challenge" class="btn-secondary flex items-center gap-2">
+            <i data-lucide="terminal" class="w-4 h-4 text-[#2563EB]"></i>
+            <span>The 48-Hour Protocol</span>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── 8. Footer ─────────────────────────────────────────────────────────── -->
+  <footer class="py-14 px-6 border-t border-[#eaeaea] bg-white">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      
+      <!-- Left: Logo & Tagline -->
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-md flex items-center justify-center bg-white border border-[#eaeaea]">
+          <img src="logo.png" alt="Septet Labs" class="w-5 h-5 object-contain" />
+        </div>
+        <div>
+          <span class="font-extrabold text-sm tracking-tight text-black">Septet <span class="text-[#2563EB]">Labs</span></span>
+          <p class="text-xs text-[#666666]">Quiet progress, loud results.</p>
+        </div>
+      </div>
+
+      <!-- Right Copyright -->
+      <div class="text-xs text-[#999999] font-mono">
+        © 2026 Septet Labs. All rights reserved.
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- ─── Modal 1: The 48-Hour Challenge ────────────────────────────────────── -->
+  <div id="challengeModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-2xl rounded-xl border border-[#eaeaea] bg-white text-black p-6 sm:p-8 relative shadow-2xl">
+      <button onclick="closeChallengeModal()" class="absolute top-5 right-5 p-1 rounded-md text-gray-400 hover:text-black">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-6 h-6 rounded bg-black flex items-center justify-center">
+          <i data-lucide="terminal" class="w-3.5 h-3.5 text-white"></i>
+        </div>
+        <span class="text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB]">SPRINT SPECIFICATION</span>
+      </div>
+
+      <h3 class="text-2xl font-black tracking-tight mb-2">The 48-Hour Challenge</h3>
+      <p class="text-sm text-[#666666] mb-6">
+        Our protocol for converting an unsolved technical barrier into a tested, deployed zero-to-one artifact within a continuous 48-hour window.
+      </p>
+
+      <div class="space-y-3 mb-8">
+        <div class="p-4 rounded-lg border border-[#eaeaea] bg-[#fafafa] flex items-start gap-4">
+          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">00:00 - 08:00</div>
+          <div>
+            <h4 class="text-xs font-bold text-black">Mathematical Framing &amp; Architectural Spec</h4>
+            <p class="text-[11px] text-[#666666] mt-0.5">Team Lead &amp; Foundations Lead formalize constraints, benchmark targets, and interface contracts.</p>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-lg border border-[#eaeaea] bg-[#fafafa] flex items-start gap-4">
+          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">08:00 - 24:00</div>
+          <div>
+            <h4 class="text-xs font-bold text-black">Core Infrastructure &amp; Pipeline Execution</h4>
+            <p class="text-[11px] text-[#666666] mt-0.5">Systems builders construct low-latency runtime, concurrency harness, and baseline test suite.</p>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-lg border border-[#eaeaea] bg-[#fafafa] flex items-start gap-4">
+          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">24:00 - 36:00</div>
+          <div>
+            <h4 class="text-xs font-bold text-black">Applied AI Integration &amp; Distillation</h4>
+            <p class="text-[11px] text-[#666666] mt-0.5">Quantization, tool-calling validation, latency profiling, and stress-testing edge failures.</p>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-lg border border-[#eaeaea] bg-[#fafafa] flex items-start gap-4">
+          <div class="text-xs font-mono font-bold text-[#2563EB] shrink-0 pt-0.5">36:00 - 48:00</div>
+          <div>
+            <h4 class="text-xs font-bold text-black">Deployment, Telemetry &amp; Open Demo</h4>
+            <p class="text-[11px] text-[#666666] mt-0.5">Production rollout, automated verification, documentation, and live demonstration.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button onclick="closeChallengeModal()" class="btn-secondary">Close</button>
+        <button onclick="closeChallengeModal(); openJoinModal();" class="btn-cobalt">Apply for Next Sprint</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Modal 2: Join the Squad Form ──────────────────────────────────────── -->
+  <div id="joinModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-lg rounded-xl border border-[#eaeaea] bg-white text-black p-6 sm:p-8 relative shadow-2xl">
+      <button onclick="closeJoinModal()" class="absolute top-5 right-5 p-1 rounded-md text-gray-400 hover:text-black">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-6 h-6 rounded bg-black flex items-center justify-center">
+          <i data-lucide="send" class="w-3.5 h-3.5 text-white"></i>
+        </div>
+        <span class="text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB]">APPRENTICESHIP &amp; TRANSMISSION</span>
+      </div>
+
+      <h3 class="text-2xl font-black tracking-tight mb-2">Join Septet Labs</h3>
+      <p class="text-xs text-[#666666] mb-6">
+        We look for proof of work, compiler optimizations, original research, and relentless builders.
+      </p>
+
+      <div id="joinSuccessState" class="hidden py-8 text-center">
+        <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center mb-4 border border-emerald-200">
+          <i data-lucide="check-circle-2" class="w-7 h-7"></i>
+        </div>
+        <h4 class="text-lg font-bold mb-1">Transmission Received</h4>
+        <p class="text-xs text-gray-500 mb-6">Our team lead reviews all submissions within 24 hours.</p>
+        <div id="joinSuccessBrandingContainer" class="pt-4 text-center">
+          <a id="joinSuccessBrandingLink" href="https://forms.qwikmailer.in" target="_blank" rel="noopener noreferrer" class="text-xs text-gray-400 hover:text-black transition-colors font-medium inline-block">
+            Powered by <strong class="font-semibold text-gray-700">QwikForms</strong>
+          </a>
+        </div>
+      </div>
+
+      <form id="joinForm" onsubmit="handleJoinSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-gray-700">Your Name / Pseudonym</label>
+          <input type="text" id="joinName" required placeholder="e.g. Ada Lovelace" class="input">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-gray-700">Contact Email / Telegram / Matrix</label>
+          <input type="text" id="joinEmail" required placeholder="ada@example.com or @handle" class="input">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-gray-700">Core Vector of Interest</label>
+          <select id="joinRole" class="input bg-white">
+            <option value="Tech/Systems Builder">Tech / Systems Builder (Core Infra)</option>
+            <option value="Autonomous Systems">Autonomous Systems &amp; Platform</option>
+            <option value="AI R&D Foundations">AI Foundations &amp; Deep Learning</option>
+            <option value="Cognitive Intelligence">Cognitive Agents &amp; Multi-Modal</option>
+            <option value="Product Manager">Deep-Tech Product Manager</option>
+            <option value="Growth Lead">Ecosystem &amp; Technical Growth</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-gray-700">Proof of Work (GitHub, Arxiv paper, live system link)</label>
+          <textarea id="joinProof" required rows="3" placeholder="Paste links to your best PRs, papers, or systems work..." class="input"></textarea>
+        </div>
+
+        <button type="submit" id="joinSubmitBtn" class="btn-primary w-full py-3 mt-2">
+          Send Transmission
+        </button>
+
+        <div id="joinBrandingContainer" class="pt-3 text-center">
+          <a id="joinBrandingLink" href="https://forms.qwikmailer.in" target="_blank" rel="noopener noreferrer" class="text-xs text-gray-400 hover:text-black transition-colors font-medium inline-block">
+            Powered by <strong class="font-semibold text-black">QwikForms</strong>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Fetch branding dynamically from QwikMailer API
+    (function loadFormBranding() {
+      const FORM_ID = '53e54dc1-4836-47aa-bdd6-b38a56f04ab5';
+      fetch(`https://api.qwikmailer.in/v1/forms/${FORM_ID}/public`)
+        .then(res => res.json())
+        .then(json => {
+          if (json?.data?.design?.branding) {
+            const b = json.data.design.branding;
+            const brandName = (b.text || 'Powered by QwikForms').replace(/^Powered by\s*/i, '');
+            const formLink = document.getElementById('joinBrandingLink');
+            const successLink = document.getElementById('joinSuccessBrandingLink');
+            if (formLink) {
+              formLink.href = b.url || 'https://forms.qwikmailer.in';
+              formLink.innerHTML = `Powered by <strong class="font-semibold text-black">${brandName}</strong>`;
+            }
+            if (successLink) {
+              successLink.href = b.url || 'https://forms.qwikmailer.in';
+              successLink.innerHTML = `Powered by <strong class="font-semibold text-gray-700">${brandName}</strong>`;
+            }
+          }
+        })
+        .catch(() => {});
+    })();
+
+    // Mobile Menu
+    function toggleMobileMenu() {
+      document.getElementById('mobileDrawer').classList.toggle('hidden');
+    }
+
+    // Modals
+    function openChallengeModal() {
+      const modal = document.getElementById('challengeModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+    function closeChallengeModal() {
+      const modal = document.getElementById('challengeModal');
+      modal.classList.remove('flex');
+      modal.classList.add('hidden');
+    }
+
+    function openJoinModal() {
+      const modal = document.getElementById('joinModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.getElementById('joinSuccessState').classList.add('hidden');
+      document.getElementById('joinForm').classList.remove('hidden');
+    }
+    function closeJoinModal() {
+      const modal = document.getElementById('joinModal');
+      modal.classList.remove('flex');
+      modal.classList.add('hidden');
+    }
+
+    async function handleJoinSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('joinSubmitBtn');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Transmitting...';
+      }
+
+      const name = document.getElementById('joinName') ? document.getElementById('joinName').value : '';
+      const email = document.getElementById('joinEmail') ? document.getElementById('joinEmail').value : '';
+      const role = document.getElementById('joinRole') ? document.getElementById('joinRole').value : '';
+      const proof = document.getElementById('joinProof') ? document.getElementById('joinProof').value : '';
+
+      const FORM_ID = '53e54dc1-4836-47aa-bdd6-b38a56f04ab5';
+      const endpoints = [
+        `https://api.qwikmailer.in/v1/forms/${FORM_ID}/submit`,
+        `http://localhost:4000/v1/forms/${FORM_ID}/submit`,
+        `http://127.0.0.1:4000/v1/forms/${FORM_ID}/submit`
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              data: { name, email, role, proof }
+            })
+          });
+          if (res.ok) break;
+        } catch (err) {
+          // Fallback to next endpoint
+        }
+      }
+
+      document.getElementById('joinForm').classList.add('hidden');
+      document.getElementById('joinSuccessState').classList.remove('hidden');
+      lucide.createIcons();
+      setTimeout(() => {
+        closeJoinModal();
+        e.target.reset();
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Send Transmission';
+        }
+      }, 2500);
+    }
+  </script>
+</body>
+</html>

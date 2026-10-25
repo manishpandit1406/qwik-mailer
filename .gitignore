@@ -69,3 +69,7 @@ test_*.ts
 make-admin.ts
 make-admin.js
 packages/db/make-admin.js
+
+# Brag video assets
+brag-*/
+
