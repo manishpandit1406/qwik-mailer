@@ -171,10 +171,12 @@ jobs:
           echo "Building API..."
           pnpm run build --filter=@qwikmailer/api
 
-          # Restart API + Worker
+          # Restart API + Worker (always delete & recreate to pick up correct start command)
           cd apps/api
-          pm2 restart api || pm2 start dist/server.js --name api --node-args="--import tsx --env-file=../../.env"
-          pm2 restart worker || pm2 start dist/worker.js --name worker --node-args="--import tsx --env-file=../../.env"
+          pm2 delete api 2>/dev/null || true
+          pm2 delete worker 2>/dev/null || true
+          NODE_ENV=production pm2 start dist/server.js --name api
+          NODE_ENV=production pm2 start dist/worker.js --name worker
           cd ../..
 
           # ── Build Web (Next.js) ───────────────────────────────
@@ -191,9 +193,10 @@ jobs:
           export NEXT_PUBLIC_FORMS_URL=https://forms.qwikmailer.in
           pnpm run build --filter=@qwikmailer/web
 
-          # Restart Next.js with PM2
+          # Restart Next.js with PM2 (always use next start — never next dev in production)
           cd apps/web
-          pm2 restart web || pm2 start "npx next start -p 3000" --name web
+          pm2 delete web 2>/dev/null || true
+          pm2 start "npx next start -p 3000" --name web
           cd ../..
 
           # ── Nginx: forms.qwikmailer.in ────────────────────────
