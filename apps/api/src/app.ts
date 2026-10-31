@@ -58,6 +58,10 @@ async function createResilientRedis(): Promise<IORedis | null> {
     lazyConnect: true,
   });
 
+  redis.on("error", () => {
+    // Suppress unhandled error event when redis is offline in dev
+  });
+
   try {
     await redis.connect();
     await redis.ping();

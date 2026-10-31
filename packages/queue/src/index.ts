@@ -9,7 +9,7 @@ import type {
 // ─── Redis Connection ─────────────────────────────────────────────────────────
 
 export function createRedisConnection() {
-  return new IORedis(process.env.REDIS_URL!, {
+  const redis = new IORedis(process.env.REDIS_URL!, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
     // Limit retry flood — cap at 5s intervals, give up after 10 attempts
@@ -18,6 +18,12 @@ export function createRedisConnection() {
       return Math.min(times * 500, 5000);
     },
   });
+
+  redis.on("error", () => {
+    // Suppress unhandled error event when redis is offline in dev
+  });
+
+  return redis;
 }
 
 // ─── Queue Names ──────────────────────────────────────────────────────────────
