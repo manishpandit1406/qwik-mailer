@@ -146,19 +146,19 @@ export async function inboxRoutes(app: FastifyInstance) {
     try {
       const lock = await client.getMailboxLock(folder);
       
-      const emails = [];
+      const emails: any[] = [];
       try {
-        const total = client.mailbox.exists;
+        const total = (client.mailbox as any)?.exists || 0;
         if (total > 0) {
           const start = Math.max(1, total - 19);
           for await (let message of client.fetch(`${start}:*`, { envelope: true, flags: true }, { uid: true })) {
               emails.push({
                 uid: message.uid,
-                subject: message.envelope.subject,
-                from: message.envelope.from[0]?.address,
-                fromName: message.envelope.from[0]?.name,
-                to: message.envelope.to ? message.envelope.to.map(t => t.address).join(', ') : '',
-                date: message.envelope.date,
+                subject: message.envelope?.subject,
+                from: message.envelope?.from?.[0]?.address,
+                fromName: message.envelope?.from?.[0]?.name,
+                to: message.envelope?.to ? message.envelope.to.map((t: any) => t.address).join(', ') : '',
+                date: message.envelope?.date,
                 flags: Array.from(message.flags || []),
               });
           }
@@ -222,7 +222,7 @@ export async function inboxRoutes(app: FastifyInstance) {
           .replace(/\n/g, "<br>");
           
         // Auto-linkify raw URLs in text-only emails so they can be tracked
-        baseHtml = baseHtml.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+        baseHtml = baseHtml.replace(/(https?:\/\/[^\s<]+)/g, (url: string) => {
           return `<a href="${url}">${url}</a>`;
         });
       }
@@ -230,7 +230,7 @@ export async function inboxRoutes(app: FastifyInstance) {
       // Rewrite links for click tracking
       const clickTrackingUrlBase = `${baseUrl}/v1/inbox/click/${generatedMessageId}?url=`;
       if (baseHtml) {
-        baseHtml = baseHtml.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (match, url) => {
+        baseHtml = baseHtml.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (match: string, url: string) => {
           return `href="${clickTrackingUrlBase}${encodeURIComponent(url)}"`;
         });
       }
