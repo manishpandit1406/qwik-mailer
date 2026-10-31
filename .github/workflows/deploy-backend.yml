@@ -171,11 +171,12 @@ jobs:
           echo "Building API..."
           pnpm run build --filter=@qwikmailer/api
 
-          # Restart API + Worker
-          cd apps/api
-          pm2 restart api || pm2 start dist/server.js --name api --node-args="--import tsx --env-file=../../.env"
-          pm2 restart worker || pm2 start dist/worker.js --name worker --node-args="--import tsx --env-file=../../.env"
-          cd ../..
+          # ── Restart Services with PM2 ─────────────────────────
+          cd /home/ubuntu/qwikmailer
+          pm2 delete api 2>/dev/null || true
+          pm2 delete worker 2>/dev/null || true
+          pm2 start "pnpm --filter=@qwikmailer/api exec tsx --env-file=/home/ubuntu/qwikmailer/.env src/server.ts" --name api
+          pm2 start "pnpm --filter=@qwikmailer/api exec tsx --env-file=/home/ubuntu/qwikmailer/.env src/worker.ts" --name worker
 
           # ── Build Web (Next.js) ───────────────────────────────
           echo "Building Web..."
