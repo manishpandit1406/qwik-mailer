@@ -309,7 +309,7 @@ export default function HostedFormPage() {
     }
   }
 
-  function handleInputChange(name: string, value: string) {
+  function handleInputChange(name: string, value: any) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   }
 
@@ -558,10 +558,15 @@ export default function HostedFormPage() {
                   className="animate-fade-up"
                   style={{ animationDelay: `${80 + idx * 50}ms` }}
                 >
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
                     {field.label}{" "}
                     {field.required && <span style={{ color: accentColor }}>*</span>}
                   </label>
+                  {field.helperText && (
+                    <p className="text-xs text-gray-500 mb-2 leading-relaxed">
+                      {field.helperText}
+                    </p>
+                  )}
 
                   {field.type === "textarea" ? (
                     <textarea
@@ -664,6 +669,51 @@ export default function HostedFormPage() {
                       >
                         {formData[field.label || field.name] || "5"}
                       </span>
+                    </div>
+                  ) : field.type === "file" ? (
+                    <div className="space-y-2">
+                      <div className="border-2 border-dashed border-gray-200 hover:border-indigo-400 rounded-xl p-4 transition-colors bg-gray-50/50 hover:bg-gray-50 flex flex-col items-center justify-center text-center">
+                        <input
+                          type="file"
+                          accept={field.accept || ".pdf"}
+                          name={field.label || field.name}
+                          required={field.required && !formData[field.label || field.name]}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 10 * 1024 * 1024) {
+                              alert("File exceeds maximum allowed size of 10 MB.");
+                              e.target.value = "";
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              handleInputChange(field.label || field.name, {
+                                name: file.name,
+                                size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+                                type: file.type,
+                                data: reader.result,
+                              });
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                          className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                        />
+                      </div>
+                      {formData[field.label || field.name]?.name && (
+                        <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center justify-between">
+                          <span className="font-medium truncate">
+                            📄 {formData[field.label || field.name].name} ({formData[field.label || field.name].size})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleInputChange(field.label || field.name, "")}
+                            className="text-red-500 hover:text-red-700 font-bold ml-2"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <input
