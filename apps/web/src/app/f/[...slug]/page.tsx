@@ -168,10 +168,11 @@ export default function HostedFormPage() {
     const container = document.getElementById("google-gsi-button-container");
     if (container) {
       container.innerHTML = "";
+      const containerWidth = Math.min(280, container.clientWidth || 280);
       (window as any).google.accounts.id.renderButton(container, {
         theme: "outline",
         size: "large",
-        width: 280,
+        width: Math.max(220, containerWidth),
         text: "continue_with",
         shape: "pill",
       });
@@ -328,11 +329,11 @@ export default function HostedFormPage() {
   }
 
   function getCardClass(cardStyle: string | undefined) {
-    if (cardStyle === "fullscreen") return "w-full min-h-screen p-8 sm:p-14";
+    if (cardStyle === "fullscreen") return "w-full min-h-screen p-4 sm:p-8 md:p-14";
     if (cardStyle === "minimal")
-      return "bg-white/70 backdrop-blur-sm p-6 sm:p-10 rounded-2xl shadow-sm border border-white/60 max-w-lg w-full";
+      return "bg-white/70 backdrop-blur-sm p-4 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-sm border border-white/60 max-w-lg w-full";
     // default: card
-    return "bg-white p-6 sm:p-10 rounded-3xl shadow-2xl border border-gray-100 max-w-lg w-full";
+    return "bg-white p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-xl sm:shadow-2xl border border-gray-100 max-w-lg w-full";
   }
 
   function getAccent(design: any) {
@@ -435,14 +436,14 @@ export default function HostedFormPage() {
       )}
 
       <div
-        className="min-h-screen flex items-center justify-center p-4 sm:p-8"
+        className="min-h-screen flex items-center justify-center p-3 sm:p-6 md:p-8"
         style={{ ...bgStyle, fontFamily }}
       >
         <div className={isFullscreen ? "w-full max-w-lg mx-auto" : cardClass}>
           {/* Form header */}
           {design.title && (
             <h1
-              className="text-3xl font-bold text-gray-900 mb-3 animate-fade-up"
+              className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3 animate-fade-up leading-tight"
               style={{ animationDelay: "0ms" }}
             >
               {design.title}
@@ -450,7 +451,7 @@ export default function HostedFormPage() {
           )}
           {design.description && (
             <p
-              className="text-gray-500 mb-8 leading-relaxed animate-fade-up"
+              className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-8 leading-relaxed animate-fade-up"
               style={{ animationDelay: "40ms" }}
             >
               {design.description}
@@ -458,7 +459,7 @@ export default function HostedFormPage() {
           )}
 
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
+            <div className="mb-6 p-3.5 sm:p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0" />
               {error}
             </div>
@@ -466,35 +467,35 @@ export default function HostedFormPage() {
 
           {/* If Google sign-in is required and respondent is NOT signed in: Display Sign-In Screen */}
           {requiresGoogle && !respondent ? (
-            <div className="py-8 px-4 text-center animate-fade-up bg-gray-50/70 border border-gray-200/80 rounded-2xl">
-              <div className="w-14 h-14 bg-white border border-gray-200/80 shadow-xs rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <GoogleIcon className="w-7 h-7" />
+            <div className="py-6 sm:py-8 px-3 sm:px-6 text-center animate-fade-up bg-gray-50/70 border border-gray-200/80 rounded-2xl w-full">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white border border-gray-200/80 shadow-xs rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <GoogleIcon className="w-6 h-6 sm:w-7 sm:h-7" />
               </div>
 
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
                 Sign in with Google to continue
               </h2>
-              <p className="text-xs sm:text-sm text-gray-500 max-w-sm mx-auto mb-6 leading-relaxed">
+              <p className="text-xs sm:text-sm text-gray-500 max-w-sm mx-auto mb-5 sm:mb-6 leading-relaxed">
                 The creator of this form requires respondents to authenticate with Google before filling it out. Your email will be recorded with your submission.
               </p>
 
-              <div className="flex flex-col items-center justify-center gap-3">
-                <div id="google-gsi-button-container" className="min-h-[44px] flex items-center justify-center">
+              <div className="flex flex-col items-center justify-center gap-3 w-full">
+                <div id="google-gsi-button-container" className="min-h-[44px] w-full max-w-[280px] flex items-center justify-center overflow-hidden">
                   <button
                     type="button"
                     onClick={handleGoogleLoginClick}
-                    className="inline-flex items-center gap-3 px-6 py-2.5 bg-white border border-gray-300 hover:border-gray-400 rounded-full text-sm font-semibold text-gray-700 shadow-xs hover:shadow transition-all"
+                    className="w-full inline-flex items-center justify-center gap-3 px-4 sm:px-6 py-2.5 bg-white border border-gray-300 hover:border-gray-400 rounded-full text-xs sm:text-sm font-semibold text-gray-700 shadow-xs hover:shadow transition-all"
                   >
-                    <GoogleIcon className="w-5 h-5 shrink-0" />
+                    <GoogleIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                     Continue with Google
                   </button>
                 </div>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-gray-200/60 flex items-center justify-center gap-2 text-[11px] text-gray-400">
+              <div className="mt-5 sm:mt-6 pt-3.5 sm:pt-4 border-t border-gray-200/60 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-gray-400">
                 <span>Form-only authentication</span>
-                <span>&bull;</span>
-                <span>Does not log into Qwik Mailer platform</span>
+                <span className="hidden xs:inline">&bull;</span>
+                <span>Does not log into platform</span>
               </div>
             </div>
           ) : (
