@@ -20,8 +20,10 @@ export default function SeptetLabsPage() {
   const [submitted, setSubmitted] = useState(false);
   const [branding, setBranding] = useState<{ text: string; url: string } | null>(null);
 
+  const FORM_ID = "53e54dc1-4836-47aa-bdd6-b38a56f04ab5";
+  const hostedFormUrl = `https://forms.qwikmailer.in/f/septet-labs-join-the-squad/${FORM_ID}`;
+
   useEffect(() => {
-    const FORM_ID = "53e54dc1-4836-47aa-bdd6-b38a56f04ab5";
     fetch(`https://api.qwikmailer.in/v1/forms/${FORM_ID}/public`)
       .then((res) => res.json())
       .then((json) => {
@@ -887,133 +889,51 @@ export default function SeptetLabsPage() {
         </div>
       )}
 
-      {/* ─── Modal 2: Join the Squad Form ──────────────────────────────────── */}
+      {/* ─── Modal 2: Join the Squad Form (Integrated QwikForm with Google Sign-In) ── */}
       {joinModalOpen && (
         <div 
           onClick={(e) => { if (e.target === e.currentTarget) setJoinModalOpen(false); }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm"
         >
-          <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl border border-[#eaeaea] bg-white text-black p-5 sm:p-8 relative shadow-2xl">
+          <div className="w-full max-w-xl h-[92vh] max-h-[820px] rounded-2xl border border-[#eaeaea] bg-white text-black relative shadow-2xl flex flex-col overflow-hidden">
             {/* Header row */}
-            <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-gray-100 bg-white shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-6 h-6 rounded bg-black flex items-center justify-center shrink-0">
-                  <Send size={14} className="text-white" />
+                  <Send size={13} className="text-white" />
                 </div>
-                <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB] truncate">
+                <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB] truncate">
                   APPRENTICESHIP &amp; TRANSMISSION
                 </span>
               </div>
-              <button
-                onClick={() => setJoinModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black flex items-center justify-center transition-colors shrink-0 -mr-1"
-                aria-label="Close modal"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <a
+                  href={hostedFormUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-gray-500 hover:text-black font-medium underline flex items-center gap-1"
+                >
+                  Open in Tab ↗
+                </a>
+                <button
+                  onClick={() => setJoinModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black flex items-center justify-center transition-colors shrink-0"
+                  aria-label="Close modal"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
-            <h3 className="text-xl sm:text-2xl font-black tracking-tight mb-1.5">Join Septet Labs</h3>
-            <p className="text-xs text-[#666666] mb-5 leading-relaxed">
-              We look for proof of work, compiler optimizations, original research, and relentless builders.
-            </p>
-
-            {submitted ? (
-              <div className="py-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center mb-4 border border-emerald-200">
-                  <span className="text-xl font-bold">✓</span>
-                </div>
-                <h4 className="text-lg font-bold mb-1">Transmission Received</h4>
-                <p className="text-xs text-gray-500 mb-6">Our team lead reviews all submissions within 24 hours.</p>
-                {branding && (
-                  <div className="pt-4 text-center">
-                    <a
-                      href={branding.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-gray-400 hover:text-black transition-colors font-medium inline-block"
-                    >
-                      Powered by <strong className="font-semibold text-gray-700">{branding.text.replace(/^Powered by\s*/i, "")}</strong>
-                    </a>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <form onSubmit={handleJoin} className="space-y-3.5 sm:space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-gray-700">Your Name / Pseudonym</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Ada Lovelace"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-lg border border-[#eaeaea] outline-none focus:border-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-gray-700">Contact Email / Telegram / Matrix</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="ada@example.com or @handle"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-lg border border-[#eaeaea] outline-none focus:border-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-gray-700">Core Vector of Interest</label>
-                  <select
-                    value={form.role}
-                    onChange={(e) => setForm({ ...form, role: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-lg border border-[#eaeaea] outline-none focus:border-black bg-white"
-                  >
-                    <option value="Tech/Systems Builder">Tech / Systems Builder (Core Infra)</option>
-                    <option value="Autonomous Systems">Autonomous Systems &amp; Platform</option>
-                    <option value="AI R&amp;D Foundations">AI Foundations &amp; Deep Learning</option>
-                    <option value="Cognitive Intelligence">Cognitive Agents &amp; Multi-Modal</option>
-                    <option value="Product Manager">Deep-Tech Product Manager</option>
-                    <option value="Growth Lead">Ecosystem &amp; Technical Growth</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold mb-1 text-gray-700">Proof of Work (GitHub, Arxiv paper, live system link)</label>
-                  <textarea
-                    required
-                    rows={3}
-                    placeholder="Paste links to your best PRs, papers, or systems work..."
-                    value={form.proof}
-                    onChange={(e) => setForm({ ...form, proof: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-base sm:text-sm rounded-lg border border-[#eaeaea] outline-none focus:border-black"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full py-3 rounded-lg font-semibold text-sm bg-black text-white hover:bg-gray-800 transition-colors mt-1 sm:mt-2 disabled:opacity-60"
-                >
-                  {submitting ? "Transmitting..." : "Send Transmission"}
-                </button>
-
-                {branding && (
-                  <div className="pt-3 text-center">
-                    <a
-                      href={branding.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-gray-400 hover:text-black transition-colors font-medium inline-block"
-                    >
-                      Powered by <strong className="font-semibold text-black">{branding.text.replace(/^Powered by\s*/i, "")}</strong>
-                    </a>
-                  </div>
-                )}
-              </form>
-            )}
+            {/* Embedded Live Hosted Form */}
+            <div className="flex-1 w-full bg-gray-50 overflow-hidden relative">
+              <iframe
+                src={hostedFormUrl}
+                title="Join Septet Labs"
+                className="w-full h-full border-0"
+                allow="camera; microphone; autoplay; encrypted-media; fullscreen"
+              />
+            </div>
           </div>
         </div>
       )}

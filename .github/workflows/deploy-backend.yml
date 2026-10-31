@@ -210,6 +210,13 @@ jobs:
           sudo cp /home/ubuntu/qwikmailer/inbox.qwikmailer.in.conf /etc/nginx/sites-available/inbox.qwikmailer.in
           sudo ln -sf /etc/nginx/sites-available/inbox.qwikmailer.in /etc/nginx/sites-enabled/inbox.qwikmailer.in
           
+          # ── Nginx: septet.qwikmailer.in ───────────────────────
+          if [ -f "/home/ubuntu/qwikmailer/septet.qwikmailer.in.conf" ]; then
+            echo "Configuring Nginx for septet.qwikmailer.in..."
+            sudo cp /home/ubuntu/qwikmailer/septet.qwikmailer.in.conf /etc/nginx/sites-available/septet.qwikmailer.in
+            sudo ln -sf /etc/nginx/sites-available/septet.qwikmailer.in /etc/nginx/sites-enabled/septet.qwikmailer.in
+          fi
+
           sudo nginx -t && sudo systemctl reload nginx && echo "✅ Nginx reloaded"
 
           # ── SSL for forms.qwikmailer.in ───────────────────────
@@ -228,6 +235,14 @@ jobs:
             sudo certbot --nginx -d inbox.qwikmailer.in --non-interactive --agree-tos -m admin@qwikmailer.in && echo "✅ SSL cert issued"
           else
             echo "✅ SSL cert already exists for inbox.qwikmailer.in"
+          fi
+
+          # ── SSL for septet.qwikmailer.in (Attempt only if DNS resolves) ──
+          if [ ! -d "/etc/letsencrypt/live/septet.qwikmailer.in" ]; then
+            echo "Requesting SSL cert for septet.qwikmailer.in..."
+            sudo certbot --nginx -d septet.qwikmailer.in --non-interactive --agree-tos -m admin@qwikmailer.in 2>/dev/null || echo "⚠️ septet.qwikmailer.in DNS not pointed yet"
+          else
+            echo "✅ SSL cert already exists for septet.qwikmailer.in"
           fi
 
           # ── Save PM2 state ────────────────────────────────────

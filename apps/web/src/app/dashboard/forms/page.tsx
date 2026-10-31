@@ -1,7 +1,8 @@
 "use client";
 import { formatIST } from "@/lib/dateUtils";
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Edit3, Share2, ClipboardList, RefreshCw, BarChart2, X, Mail, Users, MessageSquare, Bug, Calendar, Video, Briefcase, FileText, Sparkles, Link as LinkIcon, Check, Download } from "lucide-react";
+import { Plus, Trash2, Edit3, Share2, ClipboardList, RefreshCw, BarChart2, X, Mail, Users, MessageSquare, Bug, Calendar, Video, Briefcase, FileText, Sparkles, Link as LinkIcon, Check, Download, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useRole } from "@/lib/useRole";
@@ -127,6 +128,7 @@ export default function FormsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const { isViewer } = useRole();
 
   // Group templates by category
@@ -214,6 +216,87 @@ export default function FormsPage() {
       URL.revokeObjectURL(url);
     } catch { alert("Export failed"); }
     finally { setExportingCsv(false); }
+  }
+
+  async function exportExcel(form: any) {
+    if (!form) return;
+    setExportingExcel(true);
+    try {
+      // Fetch all submissions (up to 1000) for full export
+      const res = await fetch(`${API}/v1/forms/${form.id}/submissions?page=1&limit=1000`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const json = await res.json();
+      if (!json.success || !json.data || json.data.length === 0) {
+        alert("No submissions to export");
+        return;
+      }
+      const allSubs = json.data;
+
+      // Extract schema keys
+      const schema: any[] = form.schema || [];
+      const schemaLabels = schema.map((f: any) => f.label || f.name).filter(Boolean);
+      const nameToLabelMap: Record<string, string> = {};
+      schema.forEach((f: any) => {
+        if (f.name && f.label && f.name !== f.label) {
+          nameToLabelMap[f.name] = f.label;
+        }
+      });
+
+      const rawKeySet = new Set<string>();
+      allSubs.forEach((sub: any) => {
+        Object.keys(sub.data ?? {}).forEach(k => rawKeySet.add(k));
+      });
+
+      const headers: string[] = ["Submitted At"];
+      if (rawKeySet.has("Verified Google Email")) headers.push("Verified Google Email");
+      if (rawKeySet.has("Google Account Name")) headers.push("Google Account Name");
+
+      schemaLabels.forEach(lbl => {
+        if (!headers.includes(lbl)) headers.push(lbl);
+      });
+
+      rawKeySet.forEach(k => {
+        if (
+          k !== "Verified Google Email" &&
+          k !== "Google Account Name" &&
+          !nameToLabelMap[k] &&
+          !headers.includes(k)
+        ) {
+          headers.push(k);
+        }
+      });
+
+      const rows = allSubs.map((sub: any) => {
+        const rowObj: Record<string, any> = {};
+        rowObj["Submitted At"] = formatIST(sub.createdAt, true);
+
+        headers.forEach(h => {
+          if (h === "Submitted At") return;
+          let val = sub.data?.[h];
+          if (val === undefined || val === null || val === "") {
+            const schemaField = schema.find((f: any) => (f.label || f.name) === h);
+            if (schemaField?.name && sub.data?.[schemaField.name] !== undefined) {
+              val = sub.data[schemaField.name];
+            }
+          }
+          rowObj[h] = Array.isArray(val) ? val.join(", ") : (val ?? "");
+        });
+
+        return rowObj;
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Submissions");
+      const safeName = (form.name || "form").replace(/[^a-z0-9_-]/gi, "_");
+      XLSX.writeFile(wb, `${safeName}_submissions.xlsx`);
+    } catch (e) {
+      console.error("Excel export error", e);
+      alert("Failed to export Excel file");
+    } finally {
+      setExportingExcel(false);
+    }
   }
 
   async function deleteSubmission(formId: string, subId: string) {
@@ -586,14 +669,26 @@ export default function FormsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {!isViewer && (
-                    <button
-                      onClick={() => exportCSV(viewingForm.id, viewingForm.name)}
-                      disabled={exportingCsv || submissions.length === 0}
-                      className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3"
-                    >
-                      {exportingCsv ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />}
-                      Export CSV
-                    </button>
+                    <>
+                      <button
+                        onClick={() => exportCSV(viewingForm.id, viewingForm.name)}
+                        disabled={exportingCsv || submissions.length === 0}
+                        className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3"
+                        title="Download Submissions as CSV"
+                      >
+                        {exportingCsv ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />}
+                        Export CSV
+                      </button>
+                      <button
+                        onClick={() => exportExcel(viewingForm)}
+                        disabled={exportingExcel || submissions.length === 0}
+                        className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
+                        title="Download Submissions as Excel (.xlsx)"
+                      >
+                        {exportingExcel ? <RefreshCw size={13} className="animate-spin" /> : <FileSpreadsheet size={13} />}
+                        Export Excel
+                      </button>
+                    </>
                   )}
                   <button onClick={() => setViewingForm(null)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
                     <X size={18} />

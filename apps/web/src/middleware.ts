@@ -71,6 +71,19 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  const isSeptetSubdomain =
+    host === "septet.qwikmailer.in" ||
+    host.startsWith("septet.localhost");
+
+  if (isSeptetSubdomain) {
+    const { pathname } = request.nextUrl;
+    if (pathname === "/") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/septet-labs";
+      return NextResponse.rewrite(url);
+    }
+  }
+
   return NextResponse.next();
 }
 
