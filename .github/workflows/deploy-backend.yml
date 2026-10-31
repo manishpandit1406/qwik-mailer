@@ -34,11 +34,13 @@ jobs:
 
           cd /home/ubuntu/qwikmailer
 
-          # Discard local changes (e.g. accidental .env edits)
-          git stash
+          # Discard any local modifications and untracked build artifacts
+          git reset --hard HEAD
+          git clean -fd
 
           # Pull latest code
-          git pull origin main
+          git fetch origin main
+          git reset --hard origin/main
 
           # ── Load NVM ─────────────────────────────────────────
           export NVM_DIR="$HOME/.nvm"
@@ -191,10 +193,10 @@ jobs:
           export NEXT_PUBLIC_APP_URL=https://qwikmailer.in
           export NEXT_PUBLIC_FORMS_URL=https://forms.qwikmailer.in
           export NEXT_PUBLIC_GOOGLE_CLIENT_ID="${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-568514672565-3ch09h4e7ms4biftkbk6fi06khqb1mud.apps.googleusercontent.com}"
-          pnpm run build --filter=@qwikmailer/web
-
-          # Restart Next.js with PM2 (always use next start — never next dev in production)
+          
           cd apps/web
+          rm -rf .next
+          pnpm run build
           pm2 delete web 2>/dev/null || true
           pm2 start "npx next start -p 3000" --name web
           cd ../..
