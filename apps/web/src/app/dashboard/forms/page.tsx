@@ -522,15 +522,16 @@ export default function FormsPage() {
                       <div className="text-[11px] text-gray-500 font-medium mb-0.5">Views</div>
                       <div className="text-lg font-bold text-gray-900">{form.views.toLocaleString()}</div>
                     </div>
-                    <button 
-                      onClick={() => openSubmissions(form)}
-                      className="flex-1 bg-indigo-50 rounded-lg p-2.5 border border-indigo-100 hover:bg-indigo-100 transition-colors text-left cursor-pointer block"
+                    <Link 
+                      href={`/dashboard/forms/${form.id}/submissions`}
+                      className="flex-1 bg-indigo-50 rounded-lg p-2.5 border border-indigo-100 hover:bg-indigo-100 transition-colors text-left cursor-pointer block group/sub"
                     >
-                      <div className="text-[11px] text-indigo-600 font-medium mb-0.5">
-                        Submissions
+                      <div className="text-[11px] text-indigo-600 font-medium mb-0.5 flex items-center justify-between">
+                        <span>Submissions</span>
+                        <span className="opacity-0 group-hover/sub:opacity-100 transition-opacity text-[10px]">View →</span>
                       </div>
                       <div className="text-lg font-bold text-indigo-900">{form.submissions.toLocaleString()}</div>
-                    </button>
+                    </Link>
                   </div>
                   
                   {form.views > 0 ? (
@@ -543,6 +544,13 @@ export default function FormsPage() {
                 
                 <div className="border-t border-gray-100 bg-gray-50 p-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
+                    <Link
+                      href={`/dashboard/forms/${form.id}/submissions`}
+                      title="View All Submissions"
+                      className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors bg-white border border-gray-200"
+                    >
+                      <ClipboardList size={16} />
+                    </Link>
                     {!isViewer && (
                       <Link href={`/dashboard/forms/builder?id=${form.id}`} title="Edit Form" className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors bg-white border border-gray-200">
                         <Edit3 size={16} />
