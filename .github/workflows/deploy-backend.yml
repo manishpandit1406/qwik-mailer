@@ -179,6 +179,12 @@ jobs:
 
           # ── Build Web (Next.js) ───────────────────────────────
           echo "Building Web..."
+          # Load server .env if present (e.g. NEXT_PUBLIC_GOOGLE_CLIENT_ID)
+          if [ -f "/home/ubuntu/qwikmailer/.env" ]; then
+            set -a
+            source /home/ubuntu/qwikmailer/.env
+            set +a
+          fi
           # Inject production env vars for Next.js build
           export NEXT_PUBLIC_API_URL=https://api.qwikmailer.in
           export NEXT_PUBLIC_APP_URL=https://qwikmailer.in

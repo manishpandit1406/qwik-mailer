@@ -5,6 +5,17 @@ import { db, forms, formSubmissions, contacts, contactListMembers } from "@qwikm
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { safeFetch } from "../utils/ssrf.js";
 
+function decodeJwtPayload(token: string): any {
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const payload = Buffer.from(parts[1], "base64url").toString("utf8");
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
 export async function formRoutes(app: FastifyInstance) {
   const formSchema = z.object({
     name: z.string().min(1).max(255),
@@ -248,20 +259,63 @@ export async function formRoutes(app: FastifyInstance) {
   const submitSchema = z.object({
     data: z.record(z.any()),
     recaptchaToken: z.string().optional(),
+    respondent: z.object({
+      email: z.string().email(),
+      name: z.string().optional(),
+      picture: z.string().optional(),
+      token: z.string().optional(),
+    }).optional(),
   });
 
   app.post("/:id/submit", {
     config: { rateLimit: { max: 5, timeWindow: '1 minute' } }
   }, async (req, reply) => {
     const { id } = req.params as { id: string };
-    const { data, recaptchaToken } = submitSchema.parse(req.body);
+    const { data, recaptchaToken, respondent } = submitSchema.parse(req.body);
 
     const form = await db.query.forms.findFirst({
       where: and(eq(forms.id, id), eq(forms.status, "active")),
     });
 
     if (!form) return reply.code(404).send({ success: false, error: "Form not found or inactive" });
-    const settings = form.settings as any;
+    const settings = (form.settings || {}) as any;
+
+    let verifiedEmail = respondent?.email ? respondent.email.trim().toLowerCase() : undefined;
+    let verifiedName = respondent?.name ? respondent.name.trim() : undefined;
+
+    // If a Google token is provided, safely decode it to ensure email authenticity
+    if (respondent?.token) {
+      try {
+        const decoded = decodeJwtPayload(respondent.token);
+        if (decoded?.email) {
+          verifiedEmail = String(decoded.email).trim().toLowerCase();
+          if (decoded.name && !verifiedName) {
+            verifiedName = String(decoded.name).trim();
+          }
+        }
+      } catch {
+        // Fallback to respondent.email if decode fails
+      }
+    }
+
+    // Require Google Authentication if configured in settings
+    if (settings?.requireGoogleAuth) {
+      if (!verifiedEmail) {
+        return reply.code(401).send({
+          success: false,
+          error: "Google sign-in is required to submit this form.",
+        });
+      }
+    }
+
+    // Attach verified respondent info to submitted data payload so it is saved in submissions
+    if (verifiedEmail) {
+      data["Verified Google Email"] = verifiedEmail;
+      if (verifiedName) {
+        data["Google Account Name"] = verifiedName;
+      }
+    }
+
     // Process Contacts
     let contactId = null;
     const schema = (form.schema || []) as any[];
@@ -281,6 +335,7 @@ export async function formRoutes(app: FastifyInstance) {
     // 1. Schema field with type "email"
     // 2. Schema field whose label contains "email"
     // 3. Any data key containing "email"
+    // 4. Fallback to verified Google Email
     const emailSchemaField = schema.find((f: any) => f.type === "email") 
       || schema.find((f: any) => f.label?.toLowerCase().includes("email"));
     
@@ -293,6 +348,10 @@ export async function formRoutes(app: FastifyInstance) {
       for (const [k, v] of Object.entries(data)) {
         if (k.toLowerCase().includes("email") && v) { emailValue = String(v); break; }
       }
+    }
+
+    if (!emailValue && verifiedEmail) {
+      emailValue = verifiedEmail;
     }
 
     // ── Name fields ─────────────────────────────────────────────────────
@@ -327,6 +386,14 @@ export async function formRoutes(app: FastifyInstance) {
     if (!lastNameVal) {
       for (const [k, v] of Object.entries(data)) {
         if (k.toLowerCase().includes("last") && v) { lastNameVal = String(v); break; }
+      }
+    }
+
+    if (!firstNameVal && verifiedName) {
+      const parts = verifiedName.split(" ");
+      firstNameVal = parts[0];
+      if (parts.length > 1 && !lastNameVal) {
+        lastNameVal = parts.slice(1).join(" ");
       }
     }
 

@@ -31,9 +31,21 @@ lerna-debug.log*
 
 # OS / Editor
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
 *.swp
+*.swo
 .idea/
 .vscode/
+
+# Testing & Coverage
+coverage/
+*.lcov
+*.tsbuildinfo
 
 # Security risks / Large Test Data / Binaries / Keys
 *.csv
@@ -49,7 +61,7 @@ test_*.js
 send-*-test.ts
 send-test-*.ts
 check_dns*.js
-scratch_*.ts
+scratch_*
 generate_*.js
 fix-date.js
 revert-date.js
@@ -69,6 +81,13 @@ test_*.ts
 make-admin.ts
 make-admin.js
 packages/db/make-admin.js
+
+# Presentation, Reports & Demo Artifacts
+MINI_PROJECT_REPORT.*
+PPT_SLIDE_CONTENT.*
+screenshots/
+/*.png
+/*.svg
 
 # Brag video assets
 brag-*/
