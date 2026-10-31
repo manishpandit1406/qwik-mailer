@@ -135,7 +135,7 @@ function BuilderContent() {
     targetLists: [],
     recaptcha: { enabled: false },
     successMessage: "Thank you for subscribing!",
-    requireGoogleAuth: false,
+    requireGoogleAuth: true,
   });
 
   const [activeTab, setActiveTab] = useState<"fields" | "design" | "settings">("fields");
@@ -183,7 +183,7 @@ function BuilderContent() {
           targetLists: [],
           recaptcha: { enabled: false },
           successMessage: "Thank you for subscribing!",
-          requireGoogleAuth: false,
+          requireGoogleAuth: json.data.settings?.requireGoogleAuth !== false,
           ...(json.data.settings || {})
         });
       } else {
@@ -652,14 +652,14 @@ func main() {
                       <input
                         type="checkbox"
                         className="sr-only peer"
-                        checked={!!settings.requireGoogleAuth}
+                        checked={settings.requireGoogleAuth !== false}
                         onChange={e => setSettings({ ...settings, requireGoogleAuth: e.target.checked })}
                       />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                     </label>
                   </div>
 
-                  {settings.requireGoogleAuth && (
+                  {settings.requireGoogleAuth !== false && (
                     <div className="mt-3.5 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50/60 px-3 py-2 rounded-xl">
                       <CheckCircle2 size={14} className="text-indigo-600 shrink-0" />
                       <span>Form authentication only. Respondents are not logged into your Qwik Mailer account.</span>

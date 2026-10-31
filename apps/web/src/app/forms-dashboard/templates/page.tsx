@@ -136,7 +136,10 @@ export default function TemplatesPage() {
         body: JSON.stringify({
           name: template.name === "Blank Form" ? "Untitled Form" : template.name,
           status: "draft",
-          schema: template.schema
+          schema: template.schema,
+          settings: {
+            requireGoogleAuth: true,
+          },
         })
       });
       const json = await res.json();

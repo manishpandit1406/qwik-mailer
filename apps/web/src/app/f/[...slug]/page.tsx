@@ -124,7 +124,8 @@ export default function HostedFormPage() {
 
   // Initialize Google Identity Services (GSI) script if Google auth is required
   useEffect(() => {
-    if (!form?.settings?.requireGoogleAuth || respondent || typeof window === "undefined") return;
+    const isGoogleRequired = form ? form.settings?.requireGoogleAuth !== false : false;
+    if (!isGoogleRequired || respondent || typeof window === "undefined") return;
 
     if (GOOGLE_CLIENT_ID) {
       const scriptId = "google-gsi-client-script";
@@ -142,7 +143,7 @@ export default function HostedFormPage() {
         setupGsiButton();
       }
     }
-  }, [form?.settings?.requireGoogleAuth, respondent]);
+  }, [form, respondent]);
 
   function setupGsiButton() {
     if (typeof window === "undefined" || !(window as any).google?.accounts?.id || !GOOGLE_CLIENT_ID) return;
@@ -249,7 +250,8 @@ export default function HostedFormPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (form?.settings?.requireGoogleAuth && !respondent) {
+    const isGoogleRequired = form ? form.settings?.requireGoogleAuth !== false : false;
+    if (isGoogleRequired && !respondent) {
       setError("Please sign in with Google to submit this form.");
       return;
     }
@@ -377,7 +379,7 @@ export default function HostedFormPage() {
   const bgStyle = getBgStyle(design);
   const cardClass = getCardClass(cardStyle);
   const isFullscreen = cardStyle === "fullscreen";
-  const requiresGoogle = !!settings?.requireGoogleAuth;
+  const requiresGoogle = form ? form.settings?.requireGoogleAuth !== false : false;
 
   // ── Success ────────────────────────────────────────────────────────────────
 

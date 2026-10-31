@@ -42,6 +42,10 @@ export async function formRoutes(app: FastifyInstance) {
     const [newForm] = await db.insert(forms).values({
       teamId,
       ...body,
+      settings: {
+        requireGoogleAuth: true,
+        ...(body.settings || {}),
+      },
     }).returning();
     return reply.code(201).send({ success: true, data: newForm });
   });
@@ -298,8 +302,8 @@ export async function formRoutes(app: FastifyInstance) {
       }
     }
 
-    // Require Google Authentication if configured in settings
-    if (settings?.requireGoogleAuth) {
+    // Require Google Authentication if configured in settings (default true unless explicitly false)
+    if (settings?.requireGoogleAuth !== false) {
       if (!verifiedEmail) {
         return reply.code(401).send({
           success: false,
