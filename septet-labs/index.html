@@ -916,81 +916,44 @@
     </div>
   </div>
 
-  <!-- ─── Modal 2: Join the Squad Form ──────────────────────────────────────── -->
-  <div id="joinModal" class="hidden fixed inset-0 z-50 items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
-    <div class="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl border border-[#eaeaea] bg-white text-black p-5 sm:p-8 relative shadow-2xl">
+  <!-- ─── Modal 2: Join the Squad Form (Integrated QwikForm with Google Sign-In) ── -->
+  <div id="joinModal" class="hidden fixed inset-0 z-50 items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-xl h-[92vh] max-h-[820px] rounded-2xl border border-[#eaeaea] bg-white text-black relative shadow-2xl flex flex-col overflow-hidden">
       
-      <!-- Top Header Row: Badge on left, Close button on right (Clean flex, zero overlap) -->
-      <div class="flex items-center justify-between gap-3 mb-3">
+      <!-- Top Header Row -->
+      <div class="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-gray-100 bg-white shrink-0">
         <div class="flex items-center gap-2 min-w-0">
           <div class="w-6 h-6 rounded bg-black flex items-center justify-center shrink-0">
             <i data-lucide="send" class="w-3.5 h-3.5 text-white"></i>
           </div>
-          <span class="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB] truncate">
+          <span class="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB] truncate">
             APPRENTICESHIP &amp; TRANSMISSION
           </span>
         </div>
-        <button onclick="closeJoinModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black flex items-center justify-center transition-colors shrink-0 -mr-1" aria-label="Close modal">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-
-      <h3 class="text-xl sm:text-2xl font-black tracking-tight mb-1.5">Join Septet Labs</h3>
-      <p class="text-xs text-[#666666] mb-5 leading-relaxed">
-        We look for proof of work, compiler optimizations, original research, and relentless builders.
-      </p>
-
-      <div id="joinSuccessState" class="hidden py-8 text-center">
-        <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center mb-4 border border-emerald-200">
-          <i data-lucide="check-circle-2" class="w-7 h-7"></i>
-        </div>
-        <h4 class="text-lg font-bold mb-1">Transmission Received</h4>
-        <p class="text-xs text-gray-500 mb-6">Our team lead reviews all submissions within 24 hours.</p>
-        <div id="joinSuccessBrandingContainer" class="pt-4 text-center">
-          <a id="joinSuccessBrandingLink" href="https://forms.qwikmailer.in" target="_blank" rel="noopener noreferrer" class="text-xs text-gray-400 hover:text-black transition-colors font-medium inline-block">
-            Powered by <strong class="font-semibold text-gray-700">QwikForms</strong>
+        <div class="flex items-center gap-2">
+          <a
+            href="https://forms.qwikmailer.in/f/septet-labs-join-the-squad/53e54dc1-4836-47aa-bdd6-b38a56f04ab5"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs text-gray-500 hover:text-black font-medium underline flex items-center gap-1"
+          >
+            Open in Tab ↗
           </a>
+          <button onclick="closeJoinModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black flex items-center justify-center transition-colors shrink-0" aria-label="Close modal">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
         </div>
       </div>
 
-      <form id="joinForm" onsubmit="handleJoinSubmit(event)" class="space-y-3.5 sm:space-y-4">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-gray-700">Your Name / Pseudonym</label>
-          <input type="text" id="joinName" required placeholder="e.g. Ada Lovelace" class="input">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-gray-700">Contact Email / Telegram / Matrix</label>
-          <input type="text" id="joinEmail" required placeholder="ada@example.com or @handle" class="input">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-gray-700">Core Vector of Interest</label>
-          <select id="joinRole" class="input bg-white">
-            <option value="Tech/Systems Builder">Tech / Systems Builder (Core Infra)</option>
-            <option value="Autonomous Systems">Autonomous Systems &amp; Platform</option>
-            <option value="AI R&D Foundations">AI Foundations &amp; Deep Learning</option>
-            <option value="Cognitive Intelligence">Cognitive Agents &amp; Multi-Modal</option>
-            <option value="Product Manager">Deep-Tech Product Manager</option>
-            <option value="Growth Lead">Ecosystem &amp; Technical Growth</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-gray-700">Proof of Work (GitHub, Arxiv paper, live system link)</label>
-          <textarea id="joinProof" required rows="3" placeholder="Paste links to your best PRs, papers, or systems work..." class="input"></textarea>
-        </div>
-
-        <button type="submit" id="joinSubmitBtn" class="btn-primary w-full py-3 mt-1 sm:mt-2 text-sm font-semibold">
-          Send Transmission
-        </button>
-
-        <div id="joinBrandingContainer" class="pt-3 text-center">
-          <a id="joinBrandingLink" href="https://forms.qwikmailer.in" target="_blank" rel="noopener noreferrer" class="text-xs text-gray-400 hover:text-black transition-colors font-medium inline-block">
-            Powered by <strong class="font-semibold text-black">QwikForms</strong>
-          </a>
-        </div>
-      </form>
+      <!-- Embedded Live Hosted Form -->
+      <div class="flex-1 w-full bg-gray-50 overflow-hidden relative">
+        <iframe
+          src="https://forms.qwikmailer.in/f/septet-labs-join-the-squad/53e54dc1-4836-47aa-bdd6-b38a56f04ab5"
+          title="Join Septet Labs"
+          class="w-full h-full border-0"
+          allow="camera; microphone; autoplay; encrypted-media; fullscreen"
+        ></iframe>
+      </div>
     </div>
   </div>
 
@@ -1043,8 +1006,6 @@
       const modal = document.getElementById('joinModal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
-      document.getElementById('joinSuccessState').classList.add('hidden');
-      document.getElementById('joinForm').classList.remove('hidden');
     }
     function closeJoinModal() {
       const modal = document.getElementById('joinModal');
