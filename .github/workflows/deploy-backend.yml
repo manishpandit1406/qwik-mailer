@@ -193,13 +193,12 @@ jobs:
           export NEXT_PUBLIC_APP_URL=https://qwikmailer.in
           export NEXT_PUBLIC_FORMS_URL=https://forms.qwikmailer.in
           export NEXT_PUBLIC_GOOGLE_CLIENT_ID="${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-568514672565-3ch09h4e7ms4biftkbk6fi06khqb1mud.apps.googleusercontent.com}"
+          pnpm run build --filter=@qwikmailer/web
           
-          cd apps/web
-          rm -rf .next
-          pnpm run build
+          # Restart Next.js with PM2
+          cd /home/ubuntu/qwikmailer
           pm2 delete web 2>/dev/null || true
-          pm2 start "npx next start -p 3000" --name web
-          cd ../..
+          pm2 start "pnpm --filter=@qwikmailer/web start" --name web
 
           # ── Nginx: forms.qwikmailer.in ────────────────────────
           echo "Configuring Nginx for forms.qwikmailer.in..."
