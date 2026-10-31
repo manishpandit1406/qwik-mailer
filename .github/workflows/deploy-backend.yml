@@ -190,6 +190,7 @@ jobs:
           export NEXT_PUBLIC_API_URL=https://api.qwikmailer.in
           export NEXT_PUBLIC_APP_URL=https://qwikmailer.in
           export NEXT_PUBLIC_FORMS_URL=https://forms.qwikmailer.in
+          export NEXT_PUBLIC_GOOGLE_CLIENT_ID="${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-568514672565-3ch09h4e7ms4biftkbk6fi06khqb1mud.apps.googleusercontent.com}"
           pnpm run build --filter=@qwikmailer/web
 
           # Restart Next.js with PM2 (always use next start — never next dev in production)
