@@ -521,6 +521,11 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
                                   </svg>
                                   <span className="truncate">{String(val)}</span>
                                 </span>
+                              ) : typeof val === "object" && val !== null && val.data && val.name ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200">
+                                  <span>📄</span>
+                                  <span className="truncate max-w-[140px]">{val.name}</span>
+                                </span>
                               ) : (
                                 <span className="text-gray-900 text-xs block truncate">
                                   {Array.isArray(val)
@@ -667,7 +672,34 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
                       <div key={col} className="p-3.5 rounded-xl border border-gray-200 bg-white shadow-xs">
                         <label className="block text-xs font-bold text-gray-600 mb-1">{col}</label>
                         <div className="text-sm text-gray-900 whitespace-pre-wrap break-words">
-                          {Array.isArray(val)
+                          {typeof val === "object" && val !== null && val.data && val.name ? (
+                            <div className="p-3 bg-indigo-50/60 border border-indigo-200/80 rounded-xl flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="text-2xl">📄</span>
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-gray-900 truncate text-xs">{val.name}</div>
+                                  <div className="text-[11px] text-gray-500">{val.size || "PDF Document"}</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <a
+                                  href={val.data}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 bg-white text-indigo-700 hover:bg-indigo-50"
+                                >
+                                  <Eye size={13} /> View PDF
+                                </a>
+                                <a
+                                  href={val.data}
+                                  download={val.name}
+                                  className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5"
+                                >
+                                  <Download size={13} /> Download
+                                </a>
+                              </div>
+                            </div>
+                          ) : Array.isArray(val)
                             ? val.join(", ")
                             : val !== "" && val !== undefined && val !== null
                               ? String(val)
@@ -709,3 +741,4 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
     </div>
   );
 }
+
