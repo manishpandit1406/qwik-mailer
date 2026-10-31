@@ -82,6 +82,7 @@ export default function HostedFormPage() {
           const parsed = JSON.parse(cached);
           if (parsed?.email) {
             setRespondent(parsed);
+            recordGoogleView(parsed.email);
           }
         }
       } catch {
@@ -179,11 +180,25 @@ export default function HostedFormPage() {
     }
   }
 
+  function recordGoogleView(email: string) {
+    if (!id || !email) return;
+    try {
+      fetch(`${API}/v1/forms/${id}/view`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ respondentEmail: email }),
+      }).catch(() => {});
+    } catch {}
+  }
+
   function saveRespondent(resp: FormRespondent) {
     setRespondent(resp);
     try {
       localStorage.setItem(`qm_form_respondent_${id}`, JSON.stringify(resp));
     } catch {}
+    if (resp.email) {
+      recordGoogleView(resp.email);
+    }
   }
 
   function handleSignOutRespondent() {

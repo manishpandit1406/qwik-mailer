@@ -224,7 +224,7 @@ export async function formRoutes(app: FastifyInstance) {
   // GET /v1/forms/:id/public (No Auth)
   app.get("/:id/public", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const { preview, sessionId } = req.query as { preview?: string, sessionId?: string };
+    const { preview, sessionId, respondentEmail } = req.query as { preview?: string, sessionId?: string, respondentEmail?: string };
     const form = await db.query.forms.findFirst({
       where: preview === 'true' ? eq(forms.id, id) : and(eq(forms.id, id), eq(forms.status, "active")),
       columns: {
@@ -238,25 +238,76 @@ export async function formRoutes(app: FastifyInstance) {
     
     if (!form) return reply.code(404).send({ success: false, error: "Form not found or inactive" });
 
-    // Increment views (Unique per IP per 24 hours)
+    const isGoogleRequired = (form.settings as any)?.requireGoogleAuth !== false;
+
+    // View tracking rules:
+    // If form requires Google Sign-In: Only count view when authenticated Google ID is present, and count exactly 1 unique view per Google ID
+    // If preview: Never count view
     if (preview !== 'true') {
       const redis = (app as any).redis;
-      if (redis) {
-        const viewerId = sessionId || req.ip || "unknown";
-        const viewKey = `form_view:${id}:${viewerId}`;
-        const hasViewed = await redis.get(viewKey);
-        
-        if (!hasViewed) {
-          await redis.set(viewKey, "1", "EX", 86400); // 24 hours TTL
-          db.execute(sql`UPDATE forms SET views = views + 1 WHERE id = ${id}`).catch(console.error);
+      const cleanEmail = respondentEmail ? respondentEmail.trim().toLowerCase() : null;
+
+      if (isGoogleRequired) {
+        // Only count view if verified/logged in google account is provided
+        if (cleanEmail) {
+          const viewKey = `form_view_google:${id}:${cleanEmail}`;
+          if (redis) {
+            const hasViewed = await redis.get(viewKey);
+            if (!hasViewed) {
+              await redis.set(viewKey, "1"); // Permanent 1 view per Google Account
+              db.execute(sql`UPDATE forms SET views = views + 1 WHERE id = ${id}`).catch(console.error);
+            }
+          } else {
+            // Fallback using memory/direct execution
+            db.execute(sql`UPDATE forms SET views = views + 1 WHERE id = ${id}`).catch(console.error);
+          }
         }
       } else {
-        // Fallback if no redis
-        db.execute(sql`UPDATE forms SET views = views + 1 WHERE id = ${id}`).catch(console.error);
+        // For forms that don't require Google Login: count unique viewer per 24 hours
+        if (redis) {
+          const viewerId = sessionId || req.ip || "unknown";
+          const viewKey = `form_view:${id}:${viewerId}`;
+          const hasViewed = await redis.get(viewKey);
+          
+          if (!hasViewed) {
+            await redis.set(viewKey, "1", "EX", 86400); // 24 hours TTL
+            db.execute(sql`UPDATE forms SET views = views + 1 WHERE id = ${id}`).catch(console.error);
+          }
+        } else {
+          db.execute(sql`UPDATE forms SET views = views + 1 WHERE id = ${id}`).catch(console.error);
+        }
       }
     }
 
     return reply.send({ success: true, data: form });
+  });
+
+  // POST /v1/forms/:id/view — Explicit view ping once Google login completes
+  app.post("/:id/view", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { respondentEmail } = (req.body as any) || {};
+
+    if (!respondentEmail || !respondentEmail.includes("@")) {
+      return reply.code(400).send({ success: false, error: "Valid respondent email required" });
+    }
+
+    const cleanEmail = respondentEmail.trim().toLowerCase();
+    const redis = (app as any).redis;
+    const viewKey = `form_view_google:${id}:${cleanEmail}`;
+
+    if (redis) {
+      const hasViewed = await redis.get(viewKey);
+      if (!hasViewed) {
+        await redis.set(viewKey, "1");
+        await db.execute(sql`UPDATE forms SET views = views + 1 WHERE id = ${id}`);
+        return reply.send({ success: true, counted: true });
+      }
+    } else {
+      await db.execute(sql`UPDATE forms SET views = views + 1 WHERE id = ${id}`);
+      return reply.send({ success: true, counted: true });
+    }
+
+    return reply.send({ success: true, counted: false, message: "Already counted" });
   });
 
   // POST /v1/forms/:id/submit (No Auth)
@@ -468,9 +519,9 @@ export async function formRoutes(app: FastifyInstance) {
     // Increment submissions count
     await db.execute(sql`UPDATE forms SET submissions = submissions + 1 WHERE id = ${form.id}`);
 
-    // Clear the view cache so if the same IP views the form again to submit another response, it counts as a new view
+    // If Google login was used, view is bound to Google ID permanently. For IP-based view, clear cache.
     const redis = (app as any).redis;
-    if (redis) {
+    if (redis && !verifiedEmail) {
       await redis.del(`form_view:${form.id}:${req.ip || "unknown"}`);
     }
 

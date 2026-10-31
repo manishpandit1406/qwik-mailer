@@ -497,12 +497,67 @@ export default function FormsPage() {
       {/* Submissions Modal */}
       {viewingForm && (() => {
         // Derive column keys from all submissions
-        const allKeys = Array.from(
-          submissions.reduce((s, sub) => {
-            Object.keys(sub.data ?? {}).forEach(k => s.add(k));
-            return s;
-          }, new Set<string>())
-        ) as string[];
+        // Smart Schema-Aware Column Ordering:
+        // Match schema field labels and names (e.g. "Your Name / Pseudonym" matches schema "name")
+        const schema = (viewingForm?.schema || []) as any[];
+        const nameToLabelMap: Record<string, string> = {};
+        const schemaLabels: string[] = [];
+        
+        schema.forEach((f: any) => {
+          const lbl = f.label || f.name;
+          if (lbl) schemaLabels.push(lbl);
+          if (f.name && f.label && f.name !== f.label) {
+            nameToLabelMap[f.name] = f.label;
+          }
+        });
+
+        // Collect all keys present across submissions
+        const rawKeySet = new Set<string>();
+        submissions.forEach(sub => {
+          Object.keys(sub.data ?? {}).forEach(k => rawKeySet.add(k));
+        });
+
+        // Normalize matching keys (e.g., if submission has "name", map it to "Your Name / Pseudonym")
+        const normalizedKeys: string[] = [];
+        if (rawKeySet.has("Verified Google Email")) {
+          normalizedKeys.push("Verified Google Email");
+        }
+        if (rawKeySet.has("Google Account Name")) {
+          normalizedKeys.push("Google Account Name");
+        }
+
+        // Add schema fields in their exact defined form order
+        schemaLabels.forEach(lbl => {
+          if (!normalizedKeys.includes(lbl)) {
+            normalizedKeys.push(lbl);
+          }
+        });
+
+        // Add any remaining extra custom keys not in schema
+        rawKeySet.forEach(k => {
+          if (
+            k !== "Verified Google Email" &&
+            k !== "Google Account Name" &&
+            !nameToLabelMap[k] &&
+            !normalizedKeys.includes(k)
+          ) {
+            normalizedKeys.push(k);
+          }
+        });
+
+        const allKeys = normalizedKeys;
+
+        // Helper to extract value from sub.data trying label, name, or fallback
+        const getSubValue = (sub: any, key: string) => {
+          if (!sub?.data) return "";
+          if (sub.data[key] !== undefined && sub.data[key] !== null) return sub.data[key];
+          // Check if key is a label mapped from a schema name
+          const schemaField = schema.find((f: any) => (f.label || f.name) === key);
+          if (schemaField?.name && sub.data[schemaField.name] !== undefined) {
+            return sub.data[schemaField.name];
+          }
+          return "";
+        };
 
         // Client-side search filter
         const filtered = submissionsSearch.trim()
@@ -591,27 +646,32 @@ export default function FormsPage() {
                             <td className="text-xs text-gray-500 whitespace-nowrap">
                               {formatIST(sub.createdAt, true)}
                             </td>
-                            {allKeys.map(k => (
-                              <td key={k} className="max-w-[200px]">
-                                {k === "Verified Google Email" && sub.data?.[k] ? (
-                                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
-                                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                                    </svg>
-                                    <span className="truncate">{String(sub.data[k])}</span>
-                                  </span>
-                                ) : (
-                                  <span className="block truncate text-sm">
-                                    {Array.isArray(sub.data?.[k])
-                                      ? (sub.data[k] as string[]).join(", ")
-                                      : String(sub.data?.[k] ?? "")}
-                                  </span>
-                                )}
-                              </td>
-                            ))}
+                            {allKeys.map(k => {
+                              const cellVal = getSubValue(sub, k);
+                              return (
+                                <td key={k} className="max-w-[200px]">
+                                  {k === "Verified Google Email" && cellVal ? (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                                      </svg>
+                                      <span className="truncate">{String(cellVal)}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="block truncate text-sm">
+                                      {Array.isArray(cellVal)
+                                        ? (cellVal as string[]).join(", ")
+                                        : cellVal !== "" && cellVal !== undefined && cellVal !== null
+                                          ? String(cellVal)
+                                          : <span className="text-gray-300">&mdash;</span>}
+                                    </span>
+                                  )}
+                                </td>
+                              );
+                            })}
                             {!isViewer && (
                               <td className="text-center" onClick={e => e.stopPropagation()}>
                                 <button
