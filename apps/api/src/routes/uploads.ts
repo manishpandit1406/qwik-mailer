@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth.js";
-import { uploadBufferToS3 } from "../services/s3.service.js";
+import { uploadBufferToS3, getPresignedGetUrl } from "../services/s3.service.js";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -120,6 +120,26 @@ export async function uploadRoutes(app: FastifyInstance) {
     } catch (err) {
       req.log.error(err, "S3 upload failed for submission-file");
       return reply.status(500).send({ success: false, error: "Upload failed. Please try again." });
+    }
+  });
+
+  /**
+   * GET /v1/uploads/file
+   * Query params: ?key=<s3-key>
+   * Permanently valid URL! Dynamically generates a fresh presigned S3 URL
+   * and 302 redirects to S3. Zero load on API server, works forever.
+   */
+  app.get("/file", async (req, reply) => {
+    const { key } = (req.query || {}) as { key?: string };
+    if (!key) {
+      return reply.status(400).send({ success: false, error: "Missing key parameter" });
+    }
+    try {
+      const freshUrl = getPresignedGetUrl(key, 86400); // 24 hours
+      return reply.redirect(freshUrl, 302);
+    } catch (err) {
+      req.log.error(err, "Failed to generate presigned URL for key: " + key);
+      return reply.status(500).send({ success: false, error: "Failed to generate download link" });
     }
   });
 }

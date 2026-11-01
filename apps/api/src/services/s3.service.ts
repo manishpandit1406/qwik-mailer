@@ -60,8 +60,8 @@ export async function uploadBufferToS3(params: {
         res.on("data", (d) => (body += d));
         res.on("end", () => {
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            // Generate clean permanent Presigned URL (1 year expiration)
-            const publicUrl = getPresignedGetUrl(key, 31536000); // 365 days
+            // Generate clean Presigned URL (AWS max allowed is 7 days / 604,800 seconds)
+            const publicUrl = getPresignedGetUrl(key, 604800);
             resolve(publicUrl);
           } else {
             reject(new Error(`S3 upload failed with status ${res.statusCode}: ${body}`));

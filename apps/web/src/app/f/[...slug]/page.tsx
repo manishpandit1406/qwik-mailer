@@ -735,12 +735,16 @@ export default function HostedFormPage() {
                                 }),
                               });
                               const json = await res.json();
-                              if (json.success && json.url) {
+                              if (json.success && (json.url || json.key)) {
+                                const permanentUrl = json.key
+                                  ? `${API}/v1/uploads/file?key=${encodeURIComponent(json.key)}`
+                                  : json.url;
                                 handleInputChange(fieldKey, {
                                   name: file.name,
                                   size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
                                   type: file.type,
-                                  url: json.url,
+                                  url: permanentUrl,
+                                  key: json.key,
                                 });
                                 setFileUploadState((prev) => ({ ...prev, [fieldKey]: "done" }));
                               } else {

@@ -173,8 +173,8 @@ function BuilderContent() {
     });
 
     const json = await res.json();
-    if (json.success && json.url) {
-      return json.url;
+    if (json.success && (json.url || json.key)) {
+      return json.key ? `${API}/v1/uploads/file?key=${encodeURIComponent(json.key)}` : json.url;
     } else {
       throw new Error(json.error || "Upload failed");
     }
