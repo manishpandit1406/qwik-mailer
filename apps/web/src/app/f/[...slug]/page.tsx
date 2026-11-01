@@ -70,9 +70,6 @@ export default function HostedFormPage() {
 
   // Form respondent state (Isolated to this form only - does NOT authenticate to platform)
   const [respondent, setRespondent] = useState<FormRespondent | null>(null);
-  const [showFallbackAuthModal, setShowFallbackAuthModal] = useState(false);
-  const [fallbackEmail, setFallbackEmail] = useState("");
-  const [fallbackName, setFallbackName] = useState("");
 
   useEffect(() => {
     if (id) {
@@ -220,31 +217,9 @@ export default function HostedFormPage() {
   function handleGoogleLoginClick() {
     if (GOOGLE_CLIENT_ID && (window as any).google?.accounts?.id) {
       try {
-        (window as any).google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            setShowFallbackAuthModal(true);
-          }
-        });
-      } catch {
-        setShowFallbackAuthModal(true);
-      }
-    } else {
-      setShowFallbackAuthModal(true);
+        (window as any).google.accounts.id.prompt();
+      } catch {}
     }
-  }
-
-  function handleFallbackLoginSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!fallbackEmail || !fallbackEmail.includes("@")) return;
-    const cleanEmail = fallbackEmail.trim().toLowerCase();
-    const cleanName = fallbackName.trim() || cleanEmail.split("@")[0];
-    const newRespondent: FormRespondent = {
-      email: cleanEmail,
-      name: cleanName,
-      picture: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanEmail)}`,
-    };
-    saveRespondent(newRespondent);
-    setShowFallbackAuthModal(false);
   }
 
   async function fetchForm() {
@@ -543,14 +518,6 @@ export default function HostedFormPage() {
                     Continue with Google
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowFallbackAuthModal(true)}
-                  className="text-xs text-gray-500 hover:text-indigo-600 underline font-medium transition-colors"
-                >
-                  Trouble signing in? Enter Google email manually
-                </button>
               </div>
 
               <div className="mt-5 sm:mt-6 pt-3.5 sm:pt-4 border-t border-gray-200/60 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-gray-400">
@@ -867,75 +834,6 @@ export default function HostedFormPage() {
           </div>
         </div>
       </div>
-
-      {/* Dev / Test Fallback Google Sign-In Modal */}
-      {showFallbackAuthModal && (
-        <div
-          className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
-          onClick={() => setShowFallbackAuthModal(false)}
-        >
-          <div
-            className="bg-white rounded-3xl shadow-2xl border border-gray-100 max-w-md w-full p-6 sm:p-8 animate-fade-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-12 h-12 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <GoogleIcon className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 text-center mb-1">
-              Google Sign-In
-            </h3>
-            <p className="text-xs text-gray-500 text-center mb-6 leading-relaxed">
-              Enter your Google email to authenticate for this form response.
-            </p>
-
-            <form onSubmit={handleFallbackLoginSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Google Email Address <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="user@gmail.com"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  value={fallbackEmail}
-                  onChange={(e) => setFallbackEmail(e.target.value)}
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Your Name"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  value={fallbackName}
-                  onChange={(e) => setFallbackName(e.target.value)}
-                />
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowFallbackAuthModal(false)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-xs"
-                >
-                  Continue as Google User
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 }
