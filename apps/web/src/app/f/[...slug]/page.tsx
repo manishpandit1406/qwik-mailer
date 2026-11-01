@@ -525,9 +525,9 @@ export default function HostedFormPage() {
   function getCardClass(cardStyle: string | undefined) {
     if (cardStyle === "fullscreen") return "w-full min-h-screen p-4 sm:p-8 md:p-14";
     if (cardStyle === "minimal")
-      return "bg-white/70 backdrop-blur-sm p-4 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-sm border border-white/60 max-w-lg w-full";
+      return "bg-white/70 backdrop-blur-sm p-4 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-sm border border-white/60 w-full max-w-xl sm:max-w-2xl lg:max-w-3xl";
     // default: card
-    return "bg-white p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-xl sm:shadow-2xl border border-gray-100 max-w-lg w-full";
+    return "bg-white p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-xl sm:shadow-2xl border border-gray-100 w-full max-w-xl sm:max-w-2xl lg:max-w-3xl";
   }
 
   function getAccent(design: any) {
@@ -605,14 +605,25 @@ export default function HostedFormPage() {
               Submitted as <span className="font-semibold text-gray-600">{respondent.email}</span>
             </p>
           )}
-          <a
-            href={`${FORMS_URL}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block mt-8 text-xs text-gray-300 hover:text-gray-500 transition-colors"
-          >
-            Powered by <b>QwikForms</b>
-          </a>
+          {isSeptet ? (
+            <a
+              href="https://septetlabs.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-8 text-xs text-gray-400 hover:text-black transition-colors"
+            >
+              Created by <b>Septet Labs</b>
+            </a>
+          ) : (
+            <a
+              href={`${FORMS_URL}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-8 text-xs text-gray-300 hover:text-gray-500 transition-colors"
+            >
+              Powered by <b>QwikForms</b>
+            </a>
+          )}
         </div>
       </div>
     );
@@ -630,26 +641,62 @@ export default function HostedFormPage() {
         className="min-h-screen flex items-center justify-center p-3 sm:p-6 md:p-8"
         style={{ ...bgStyle, fontFamily }}
       >
-        <div className={isFullscreen ? "w-full max-w-lg mx-auto" : cardClass}>
-          {/* Form Banner */}
+        <div className={isFullscreen ? "w-full max-w-xl sm:max-w-2xl lg:max-w-3xl mx-auto" : cardClass}>
+          {/* Form Banner - Full uncropped image */}
           {design.bannerUrl && (
-            <div className="w-full -mt-2 mb-6 overflow-hidden rounded-2xl border border-gray-100 shadow-xs max-h-56 animate-fade-up">
+            <div className="w-full -mt-2 mb-6 sm:mb-8 overflow-hidden rounded-2xl border border-gray-100 shadow-xs bg-gray-50 flex items-center justify-center animate-fade-up">
               <img
                 src={design.bannerUrl}
                 alt={design.title || "Form Banner"}
-                className="w-full h-44 sm:h-52 object-cover"
+                className="w-full h-auto max-h-[460px] object-contain rounded-2xl block"
               />
             </div>
           )}
 
-          {/* Form Logo */}
-          {(design.logoUrl || isSeptet) && (
-            <div className="mb-4 animate-fade-up">
-              <img
-                src={design.logoUrl || "/septet-logo.png"}
-                alt="Logo"
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-contain border border-gray-100 shadow-xs p-1 bg-white"
-              />
+          {/* Header Row: Logo & Form Title Side-by-Side (Step 0) */}
+          {currentStep === 0 ? (
+            <div className="mb-5 sm:mb-6 animate-fade-up">
+              <div className="flex items-center gap-3.5 sm:gap-4.5 mb-3 sm:mb-4">
+                {(design.logoUrl || isSeptet) && (
+                  <div className="shrink-0">
+                    <img
+                      src={design.logoUrl || "/septet-logo.png"}
+                      alt="Logo"
+                      className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-contain border border-gray-100 shadow-xs p-1 bg-white"
+                    />
+                  </div>
+                )}
+                {design.title && (
+                  <h1
+                    className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight"
+                    style={{ animationDelay: "0ms" }}
+                  >
+                    {design.title}
+                  </h1>
+                )}
+              </div>
+
+              {design.description && (
+                <div
+                  className="text-sm sm:text-base text-gray-600 leading-relaxed whitespace-pre-line space-y-2"
+                  style={{ animationDelay: "40ms" }}
+                >
+                  {design.description}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mb-6 pb-4 border-b border-gray-100 animate-fade-up">
+              {activeSection?.title && (
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1.5">
+                  {activeSection.title}
+                </h2>
+              )}
+              {activeSection?.description && (
+                <div className="text-xs sm:text-sm text-gray-600 whitespace-pre-line leading-relaxed">
+                  {activeSection.description}
+                </div>
+              )}
             </div>
           )}
 
@@ -674,41 +721,6 @@ export default function HostedFormPage() {
                   }}
                 />
               </div>
-            </div>
-          )}
-
-          {/* Step 0: Main Title & Description | Step > 0: Section Title & Description */}
-          {currentStep === 0 ? (
-            <>
-              {design.title && (
-                <h1
-                  className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3 animate-fade-up leading-tight"
-                  style={{ animationDelay: "0ms" }}
-                >
-                  {design.title}
-                </h1>
-              )}
-              {design.description && (
-                <div
-                  className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed animate-fade-up whitespace-pre-line space-y-2"
-                  style={{ animationDelay: "40ms" }}
-                >
-                  {design.description}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="mb-6 pb-4 border-b border-gray-100 animate-fade-up">
-              {activeSection?.title && (
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1.5">
-                  {activeSection.title}
-                </h2>
-              )}
-              {activeSection?.description && (
-                <div className="text-xs sm:text-sm text-gray-600 whitespace-pre-line leading-relaxed">
-                  {activeSection.description}
-                </div>
-              )}
             </div>
           )}
 
@@ -1266,14 +1278,25 @@ export default function HostedFormPage() {
 
           {/* Branding badge */}
           <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-            <a
-              href={FORMS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-gray-400 font-medium hover:text-gray-600 transition-colors"
-            >
-              Powered by <b>QwikForms</b>
-            </a>
+            {isSeptet ? (
+              <a
+                href="https://septetlabs.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-gray-400 font-medium hover:text-black transition-colors"
+              >
+                Created by <b>Septet Labs</b>
+              </a>
+            ) : (
+              <a
+                href={FORMS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-gray-400 font-medium hover:text-gray-600 transition-colors"
+              >
+                Powered by <b>QwikForms</b>
+              </a>
+            )}
           </div>
         </div>
       </div>

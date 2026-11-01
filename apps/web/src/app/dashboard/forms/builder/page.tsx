@@ -726,8 +726,8 @@ func main() {
                   </div>
 
                   {design.bannerUrl ? (
-                    <div className="relative rounded-lg overflow-hidden border border-gray-200 h-28 bg-white">
-                      <img src={design.bannerUrl} alt="Banner Preview" className="w-full h-full object-cover" />
+                    <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 max-h-36 flex items-center justify-center p-1">
+                      <img src={design.bannerUrl} alt="Banner Preview" className="w-full h-auto max-h-32 object-contain" />
                     </div>
                   ) : (
                     <label className="border-2 border-dashed border-gray-300 hover:border-indigo-500 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer bg-white transition-colors">
@@ -1026,8 +1026,8 @@ func main() {
             {/* Form Header */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               {design.bannerUrl && (
-                <div className="relative w-full h-44 group bg-gray-100 border-b border-gray-100">
-                  <img src={design.bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+                <div className="relative w-full group bg-gray-50 border-b border-gray-100 flex items-center justify-center overflow-hidden">
+                  <img src={design.bannerUrl} alt="Banner" className="w-full h-auto max-h-72 object-contain" />
                   <button
                     type="button"
                     onClick={() => setDesign({ ...design, bannerUrl: "" })}
@@ -1039,26 +1039,28 @@ func main() {
                 </div>
               )}
               <div className="p-8">
-                {design.logoUrl && (
-                  <div className="relative inline-block mb-4 group">
-                    <img src={design.logoUrl} alt="Logo" className="w-14 h-14 rounded-xl object-contain border border-gray-200 p-1 shadow-xs bg-white" />
-                    <button
-                      type="button"
-                      onClick={() => setDesign({ ...design, logoUrl: "" })}
-                      className="absolute -top-2 -right-2 p-1 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors shadow-xs"
-                      title="Remove Logo"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                )}
-                <input 
-                  type="text" 
-                  className="w-full text-4xl font-bold text-gray-900 border-none bg-transparent focus:ring-0 p-0 mb-4 focus:outline-none placeholder-gray-300"
-                  placeholder="Form Title"
-                  value={design.title || ""} 
-                  onChange={e => setDesign({...design, title: e.target.value})} 
-                />
+                <div className="flex items-center gap-4 mb-4">
+                  {design.logoUrl && (
+                    <div className="relative shrink-0 group">
+                      <img src={design.logoUrl} alt="Logo" className="w-14 h-14 rounded-xl object-contain border border-gray-200 p-1 shadow-xs bg-white" />
+                      <button
+                        type="button"
+                        onClick={() => setDesign({ ...design, logoUrl: "" })}
+                        className="absolute -top-2 -right-2 p-1 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors shadow-xs"
+                        title="Remove Logo"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
+                  <input 
+                    type="text" 
+                    className="w-full text-3xl sm:text-4xl font-bold text-gray-900 border-none bg-transparent focus:ring-0 p-0 focus:outline-none placeholder-gray-300"
+                    placeholder="Form Title"
+                    value={design.title || ""} 
+                    onChange={e => setDesign({...design, title: e.target.value})} 
+                  />
+                </div>
                 <textarea 
                   className="w-full text-gray-600 text-sm border-none bg-transparent focus:ring-0 p-0 resize-none focus:outline-none placeholder-gray-400 overflow-hidden min-h-[40px]"
                   placeholder="Form Description"
