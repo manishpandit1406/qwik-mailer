@@ -27,7 +27,7 @@ import * as XLSX from "xlsx";
 import { formatIST } from "@/lib/dateUtils";
 import { useRole } from "@/lib/useRole";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
 const FORMS_URL = process.env.NEXT_PUBLIC_FORMS_URL ?? "https://forms.qwikmailer.in";
 
 function getToken() {

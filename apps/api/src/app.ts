@@ -126,7 +126,10 @@ export async function buildApp() {
   app.decorate("redis", redis);
 
   // ─── Plugins ────────────────────────────────────────────────────────────
-  await app.register(helmet, { global: true });
+  await app.register(helmet, {
+    global: true,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  });
 
   await app.register(cors, {
     origin: (origin, cb) => {

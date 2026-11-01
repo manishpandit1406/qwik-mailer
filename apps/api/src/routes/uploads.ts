@@ -1,3 +1,4 @@
+import https from "https";
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth.js";
 import { uploadBufferToS3, getPresignedGetUrl } from "../services/s3.service.js";
@@ -125,21 +126,69 @@ export async function uploadRoutes(app: FastifyInstance) {
 
   /**
    * GET /v1/uploads/file
-   * Query params: ?key=<s3-key>
-   * Permanently valid URL! Dynamically generates a fresh presigned S3 URL
-   * and 302 redirects to S3. Zero load on API server, works forever.
+   * Query params: ?key=<s3-key>&download=1
+   * Streams the S3 object directly to client with correct Content-Type,
+   * caching, and cross-origin headers. Works seamlessly in <img>, <iframe>, and downloads.
    */
   app.get("/file", async (req, reply) => {
-    const { key } = (req.query || {}) as { key?: string };
+    let { key, download } = (req.query || {}) as { key?: string; download?: string };
     if (!key) {
       return reply.status(400).send({ success: false, error: "Missing key parameter" });
     }
+
     try {
-      const freshUrl = getPresignedGetUrl(key, 86400); // 24 hours
-      return reply.redirect(freshUrl, 302);
+      key = decodeURIComponent(key);
+    } catch {}
+
+    try {
+      // 5-minute presigned GET URL for internal stream fetch
+      const freshUrl = getPresignedGetUrl(key, 300);
+
+      https
+        .get(freshUrl, (s3Res) => {
+          if (!s3Res.statusCode || s3Res.statusCode >= 400) {
+            reply.raw.statusCode = s3Res.statusCode || 404;
+            reply.raw.setHeader("Content-Type", "application/json");
+            reply.raw.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+            reply.raw.setHeader("Access-Control-Allow-Origin", "*");
+            reply.raw.end(JSON.stringify({ success: false, error: "File not found in S3" }));
+            return;
+          }
+
+          reply.raw.statusCode = 200;
+          reply.raw.setHeader(
+            "Content-Type",
+            s3Res.headers["content-type"] || "application/octet-stream"
+          );
+          if (s3Res.headers["content-length"]) {
+            reply.raw.setHeader("Content-Length", s3Res.headers["content-length"]);
+          }
+          reply.raw.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+          reply.raw.setHeader("Access-Control-Allow-Origin", "*");
+          reply.raw.setHeader("Cache-Control", "public, max-age=604800, immutable");
+
+          if (download === "1") {
+            const filename = key.split("/").pop() || "download";
+            reply.raw.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+          } else {
+            reply.raw.setHeader("Content-Disposition", "inline");
+          }
+
+          s3Res.pipe(reply.raw);
+        })
+        .on("error", (err) => {
+          req.log.error(err, "Failed to stream file from S3: " + key);
+          if (!reply.raw.headersSent) {
+            reply.raw.statusCode = 500;
+            reply.raw.setHeader("Content-Type", "application/json");
+            reply.raw.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+            reply.raw.setHeader("Access-Control-Allow-Origin", "*");
+            reply.raw.end(JSON.stringify({ success: false, error: "Failed to stream file" }));
+          }
+        });
     } catch (err) {
       req.log.error(err, "Failed to generate presigned URL for key: " + key);
-      return reply.status(500).send({ success: false, error: "Failed to generate download link" });
+      return reply.status(500).send({ success: false, error: "Failed to stream file" });
     }
   });
 }
