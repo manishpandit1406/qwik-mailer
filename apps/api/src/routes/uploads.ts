@@ -140,56 +140,60 @@ export async function uploadRoutes(app: FastifyInstance) {
       key = decodeURIComponent(key);
     } catch {}
 
-    try {
-      // 5-minute presigned GET URL for internal stream fetch
-      const freshUrl = getPresignedGetUrl(key, 300);
+    const freshUrl = getPresignedGetUrl(key, 300);
 
+    return new Promise<void>((resolve, reject) => {
       https
         .get(freshUrl, (s3Res) => {
           if (!s3Res.statusCode || s3Res.statusCode >= 400) {
-            reply.raw.statusCode = s3Res.statusCode || 404;
-            reply.raw.setHeader("Content-Type", "application/json");
-            reply.raw.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-            reply.raw.setHeader("Access-Control-Allow-Origin", "*");
-            reply.raw.end(JSON.stringify({ success: false, error: "File not found in S3" }));
-            return;
+            reply
+              .status(s3Res.statusCode || 404)
+              .header("Cross-Origin-Resource-Policy", "cross-origin")
+              .header("Access-Control-Allow-Origin", "*")
+              .send({ success: false, error: "File not found in S3" });
+            return resolve();
           }
 
-          reply.raw.statusCode = 200;
-          reply.raw.setHeader(
-            "Content-Type",
-            s3Res.headers["content-type"] || "application/octet-stream"
-          );
+          reply
+            .status(200)
+            .header(
+              "Content-Type",
+              s3Res.headers["content-type"] || "application/octet-stream"
+            )
+            .header("Cross-Origin-Resource-Policy", "cross-origin")
+            .header("Access-Control-Allow-Origin", "*")
+            .header("Cache-Control", "public, max-age=604800, immutable");
+
           if (s3Res.headers["content-length"]) {
-            reply.raw.setHeader("Content-Length", s3Res.headers["content-length"]);
+            reply.header("Content-Length", s3Res.headers["content-length"]);
           }
-          reply.raw.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-          reply.raw.setHeader("Access-Control-Allow-Origin", "*");
-          reply.raw.setHeader("Cache-Control", "public, max-age=604800, immutable");
 
           if (download === "1") {
-            const filename = key.split("/").pop() || "download";
-            reply.raw.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+            const filename = (key as string).split("/").pop() || "download";
+            reply.header("Content-Disposition", `attachment; filename="${filename}"`);
           } else {
-            reply.raw.setHeader("Content-Disposition", "inline");
+            reply.header("Content-Disposition", "inline");
           }
 
-          s3Res.pipe(reply.raw);
+          reply.send(s3Res);
+          s3Res.on("end", () => resolve());
+          s3Res.on("error", (err) => {
+            req.log.error(err, "Stream error for: " + key);
+            resolve();
+          });
         })
         .on("error", (err) => {
           req.log.error(err, "Failed to stream file from S3: " + key);
-          if (!reply.raw.headersSent) {
-            reply.raw.statusCode = 500;
-            reply.raw.setHeader("Content-Type", "application/json");
-            reply.raw.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-            reply.raw.setHeader("Access-Control-Allow-Origin", "*");
-            reply.raw.end(JSON.stringify({ success: false, error: "Failed to stream file" }));
+          if (!reply.sent) {
+            reply
+              .status(500)
+              .header("Cross-Origin-Resource-Policy", "cross-origin")
+              .header("Access-Control-Allow-Origin", "*")
+              .send({ success: false, error: "Failed to stream file" });
           }
+          resolve();
         });
-    } catch (err) {
-      req.log.error(err, "Failed to generate presigned URL for key: " + key);
-      return reply.status(500).send({ success: false, error: "Failed to stream file" });
-    }
+    });
   });
 }
 
