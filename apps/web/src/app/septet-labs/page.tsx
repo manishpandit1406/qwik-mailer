@@ -22,6 +22,18 @@ export default function SeptetLabsPage() {
   const hostedFormUrl = `https://apply.septetlabs.in/septet-labs-remote-internship-application`;
 
   useEffect(() => {
+    document.title = "Septet Labs — Architecting the Unseen";
+    const existingIcons = document.querySelectorAll("link[rel*='icon']");
+    existingIcons.forEach((el) => el.setAttribute("href", "/septet-logo.png"));
+    if (existingIcons.length === 0) {
+      const link = document.createElement("link");
+      link.rel = "icon";
+      link.href = "/septet-logo.png";
+      document.head.appendChild(link);
+    }
+  }, []);
+
+  useEffect(() => {
     fetch(`https://api.qwikmailer.in/v1/forms/${FORM_ID}/public`)
       .then((res) => res.json())
       .then((json) => {

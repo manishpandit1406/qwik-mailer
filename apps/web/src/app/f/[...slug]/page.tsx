@@ -95,6 +95,44 @@ export default function HostedFormPage() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const fontInjectedRef = useRef<string | null>(null);
 
+  const isSeptet = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.location.hostname.includes("septetlabs") ||
+      window.location.pathname.includes("septet") ||
+      id === "ab27b2af-2811-4ad1-8c62-1aaa1523d27c" ||
+      form?.design?.theme === "septet-labs"
+    );
+  }, [id, form?.design?.theme]);
+
+  // Set tab title and favicon dynamically (custom brand / Septet Labs support)
+  useEffect(() => {
+    if (isSeptet) {
+      document.title =
+        form?.design?.title ||
+        form?.title ||
+        "Septet Labs — Remote Internship Application";
+
+      const existingIcons = document.querySelectorAll("link[rel*='icon']");
+      existingIcons.forEach((el) => el.setAttribute("href", "/septet-logo.png"));
+      if (existingIcons.length === 0) {
+        const link = document.createElement("link");
+        link.rel = "icon";
+        link.href = "/septet-logo.png";
+        document.head.appendChild(link);
+      }
+    } else if (form) {
+      const title = form?.design?.title || form?.title;
+      if (title) {
+        document.title = `${title} | QwikForms`;
+      }
+      if (form?.design?.logoUrl) {
+        const existingIcons = document.querySelectorAll("link[rel*='icon']");
+        existingIcons.forEach((el) => el.setAttribute("href", form.design.logoUrl));
+      }
+    }
+  }, [form, id, isSeptet]);
+
   // Form respondent state (Isolated to this form only - does NOT authenticate to platform)
   const [respondent, setRespondent] = useState<FormRespondent | null>(null);
 
@@ -605,10 +643,10 @@ export default function HostedFormPage() {
           )}
 
           {/* Form Logo */}
-          {design.logoUrl && (
+          {(design.logoUrl || isSeptet) && (
             <div className="mb-4 animate-fade-up">
               <img
-                src={design.logoUrl}
+                src={design.logoUrl || "/septet-logo.png"}
                 alt="Logo"
                 className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-contain border border-gray-100 shadow-xs p-1 bg-white"
               />
