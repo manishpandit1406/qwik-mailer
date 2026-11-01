@@ -465,12 +465,12 @@ export default function HostedFormPage() {
             </h1>
           )}
           {design.description && (
-            <p
-              className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-8 leading-relaxed animate-fade-up"
+            <div
+              className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed animate-fade-up whitespace-pre-line space-y-2"
               style={{ animationDelay: "40ms" }}
             >
               {design.description}
-            </p>
+            </div>
           )}
 
           {error && (
@@ -515,29 +515,31 @@ export default function HostedFormPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Google Respondent Banner (Like Google Forms) */}
+              {/* Google Respondent Banner (Clean, Modern Card with Zero Truncation Glitches) */}
               {requiresGoogle && respondent && (
-                <div className="mb-6 p-3.5 bg-gray-50/90 border border-gray-200/90 rounded-2xl flex items-center justify-between gap-3 text-xs animate-fade-up">
-                  <div className="flex items-center gap-2.5 min-w-0">
+                <div className="mb-6 p-3 sm:p-3.5 bg-gray-50/90 hover:bg-gray-50 border border-gray-200/90 rounded-2xl flex flex-col xs:flex-row sm:items-center justify-between gap-3 text-xs animate-fade-up transition-colors">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     {respondent.picture ? (
                       <img
                         src={respondent.picture}
                         alt={respondent.name || respondent.email}
-                        className="w-8 h-8 rounded-full border border-gray-200 shrink-0 object-cover"
+                        className="w-9 h-9 rounded-full border border-gray-200 shrink-0 object-cover ring-2 ring-white shadow-xs"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center shrink-0 text-xs">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white font-bold flex items-center justify-center shrink-0 text-xs shadow-xs">
                         {(respondent.name || respondent.email)[0].toUpperCase()}
                       </div>
                     )}
-                    <div className="min-w-0">
-                      <div className="text-gray-900 font-semibold truncate flex items-center gap-1.5">
-                        <span className="truncate">{respondent.email}</span>
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                          <CheckCircle2 size={10} /> Verified
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <span className="text-gray-900 font-semibold text-xs sm:text-sm break-all leading-snug">
+                          {respondent.email}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                          <CheckCircle2 size={11} className="text-emerald-600" /> Verified
                         </span>
                       </div>
-                      <div className="text-gray-500 text-[11px] truncate">
+                      <div className="text-gray-500 text-[11px] mt-0.5">
                         Google account recorded on submission
                       </div>
                     </div>
@@ -545,7 +547,7 @@ export default function HostedFormPage() {
                   <button
                     type="button"
                     onClick={handleSignOutRespondent}
-                    className="text-indigo-600 hover:text-indigo-800 font-medium shrink-0 hover:underline px-2 py-1 text-xs"
+                    className="self-end xs:self-center text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/70 border border-indigo-100 px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
                   >
                     Switch account
                   </button>
