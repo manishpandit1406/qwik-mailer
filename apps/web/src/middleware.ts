@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const host = request.headers.get("host") ?? "";
+  const rawHost = request.headers.get("host") ?? "";
+  const host = rawHost.split(":")[0].toLowerCase();
 
   // Match forms.qwikmailer.in in production, or forms.localhost in dev
   const isFormsSubdomain =
@@ -71,18 +72,27 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Apply subdomain -> directly routes to the Internship Application form
+  // Apply subdomain -> routes to the Internship Application form with clean named slug in URL
   const isApplySubdomain =
     host === "apply.septetlabs.in" ||
     host.startsWith("apply.localhost");
 
   if (isApplySubdomain) {
     const { pathname } = request.nextUrl;
+    const formSlug = "septet-labs-remote-internship-application";
+    const formId = "ab27b2af-2811-4ad1-8c62-1aaa1523d27c";
+
+    // 1. If visiting root "/" -> redirect so the browser address bar shows "/septet-labs-remote-internship-application"
     if (pathname === "/" || pathname === "") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/f/septet-labs-remote-internship-application/ab27b2af-2811-4ad1-8c62-1aaa1523d27c";
-      return NextResponse.rewrite(url);
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = `/${formSlug}`;
+      return NextResponse.redirect(redirectUrl);
     }
+
+    // 2. Rewrite named path or any form path internally to the hosted form page
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = `/f/${formSlug}/${formId}`;
+    return NextResponse.rewrite(rewriteUrl);
   }
 
   // Septet Labs main website -> routes to /septet-labs
@@ -94,7 +104,7 @@ export function middleware(request: NextRequest) {
 
   if (isSeptetLabs) {
     const { pathname } = request.nextUrl;
-    if (pathname === "/") {
+    if (pathname === "/" || pathname === "") {
       const url = request.nextUrl.clone();
       url.pathname = "/septet-labs";
       return NextResponse.rewrite(url);

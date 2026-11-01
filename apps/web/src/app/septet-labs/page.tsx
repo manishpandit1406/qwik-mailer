@@ -20,8 +20,8 @@ export default function SeptetLabsPage() {
   const [submitted, setSubmitted] = useState(false);
   const [branding, setBranding] = useState<{ text: string; url: string } | null>(null);
 
-  const FORM_ID = "53e54dc1-4836-47aa-bdd6-b38a56f04ab5";
-  const hostedFormUrl = `https://forms.qwikmailer.in/f/septet-labs-join-the-squad/${FORM_ID}`;
+  const FORM_ID = "ab27b2af-2811-4ad1-8c62-1aaa1523d27c";
+  const hostedFormUrl = `https://apply.septetlabs.in/septet-labs-remote-internship-application`;
 
   useEffect(() => {
     fetch(`https://api.qwikmailer.in/v1/forms/${FORM_ID}/public`)
