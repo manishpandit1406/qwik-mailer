@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Plus, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy } from "lucide-react";
+import { ArrowLeft, Save, Plus, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy, Image as ImageIcon, UploadCloud } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -143,6 +143,42 @@ function BuilderContent() {
   const [showApiModal, setShowApiModal] = useState(false);
   const [apiLang, setApiLang] = useState<string>("cURL");
   const [apiCodeCopied, setApiCodeCopied] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  async function handleAssetUpload(file: File, folder: "forms/banners" | "forms/logos") {
+    if (!file) return null;
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File size exceeds 10 MB limit");
+      return null;
+    }
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const res = await fetch(`${API}/v1/uploads/form-asset`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        base64,
+        contentType: file.type || "image/jpeg",
+        folder,
+      }),
+    });
+
+    const json = await res.json();
+    if (json.success && json.url) {
+      return json.url;
+    } else {
+      throw new Error(json.error || "Upload failed");
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -491,6 +527,124 @@ func main() {
             {activeTab === 'design' && (
               <div className="space-y-6">
 
+                {/* ── Cover Banner ── */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-indigo-600" /> Cover Banner
+                    </label>
+                    {design.bannerUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setDesign({ ...design, bannerUrl: "" })}
+                        className="text-xs text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {design.bannerUrl ? (
+                    <div className="relative rounded-lg overflow-hidden border border-gray-200 h-28 bg-white">
+                      <img src={design.bannerUrl} alt="Banner Preview" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <label className="border-2 border-dashed border-gray-300 hover:border-indigo-500 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer bg-white transition-colors">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingBanner}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploadingBanner(true);
+                          try {
+                            const url = await handleAssetUpload(file, "forms/banners");
+                            if (url) setDesign({ ...design, bannerUrl: url });
+                          } catch (err: any) {
+                            alert(err.message || "Banner upload failed");
+                          } finally {
+                            setUploadingBanner(false);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                      {uploadingBanner ? (
+                        <div className="flex items-center gap-2 text-xs text-indigo-600 font-medium">
+                          <RefreshCw size={14} className="animate-spin" /> Uploading to S3…
+                        </div>
+                      ) : (
+                        <>
+                          <UploadCloud size={20} className="text-gray-400 mb-1" />
+                          <span className="text-xs font-semibold text-gray-700">Upload Cover Banner</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">PNG, JPG, WebP up to 10MB</span>
+                        </>
+                      )}
+                    </label>
+                  )}
+                </div>
+
+                {/* ── Form Logo ── */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-indigo-600" /> Form Logo
+                    </label>
+                    {design.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setDesign({ ...design, logoUrl: "" })}
+                        className="text-xs text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {design.logoUrl ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-14 h-14 rounded-xl border border-gray-200 overflow-hidden bg-white p-1">
+                        <img src={design.logoUrl} alt="Logo Preview" className="w-full h-full object-contain" />
+                      </div>
+                      <span className="text-xs text-gray-500 font-medium">Logo active</span>
+                    </div>
+                  ) : (
+                    <label className="border-2 border-dashed border-gray-300 hover:border-indigo-500 rounded-xl p-3 flex items-center justify-center gap-2 text-center cursor-pointer bg-white transition-colors">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingLogo}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploadingLogo(true);
+                          try {
+                            const url = await handleAssetUpload(file, "forms/logos");
+                            if (url) setDesign({ ...design, logoUrl: url });
+                          } catch (err: any) {
+                            alert(err.message || "Logo upload failed");
+                          } finally {
+                            setUploadingLogo(false);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                      {uploadingLogo ? (
+                        <div className="flex items-center gap-2 text-xs text-indigo-600 font-medium">
+                          <RefreshCw size={14} className="animate-spin" /> Uploading to S3…
+                        </div>
+                      ) : (
+                        <>
+                          <UploadCloud size={16} className="text-gray-400" />
+                          <span className="text-xs font-semibold text-gray-700">Upload Square Logo</span>
+                        </>
+                      )}
+                    </label>
+                  )}
+                </div>
+
                 {/* ── Font Family ── */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Font Family</label>
@@ -689,24 +843,52 @@ func main() {
           <div className="w-full max-w-3xl space-y-6">
             
             {/* Form Header */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-              <input 
-                type="text" 
-                className="w-full text-4xl font-bold text-gray-900 border-none bg-transparent focus:ring-0 p-0 mb-4 focus:outline-none placeholder-gray-300"
-                placeholder="Form Title"
-                value={design.title || ""} 
-                onChange={e => setDesign({...design, title: e.target.value})} 
-              />
-              <textarea 
-                className="w-full text-gray-600 text-sm border-none bg-transparent focus:ring-0 p-0 resize-none focus:outline-none placeholder-gray-400 overflow-hidden min-h-[40px]"
-                placeholder="Form Description"
-                value={design.description || ""} 
-                onChange={e => {
-                  setDesign({...design, description: e.target.value});
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                }} 
-              />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {design.bannerUrl && (
+                <div className="relative w-full h-44 group bg-gray-100 border-b border-gray-100">
+                  <img src={design.bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setDesign({ ...design, bannerUrl: "" })}
+                    className="absolute top-3 right-3 p-1.5 rounded-lg bg-black/60 text-white hover:bg-black transition-colors"
+                    title="Remove Banner"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              <div className="p-8">
+                {design.logoUrl && (
+                  <div className="relative inline-block mb-4 group">
+                    <img src={design.logoUrl} alt="Logo" className="w-14 h-14 rounded-xl object-contain border border-gray-200 p-1 shadow-xs bg-white" />
+                    <button
+                      type="button"
+                      onClick={() => setDesign({ ...design, logoUrl: "" })}
+                      className="absolute -top-2 -right-2 p-1 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors shadow-xs"
+                      title="Remove Logo"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                <input 
+                  type="text" 
+                  className="w-full text-4xl font-bold text-gray-900 border-none bg-transparent focus:ring-0 p-0 mb-4 focus:outline-none placeholder-gray-300"
+                  placeholder="Form Title"
+                  value={design.title || ""} 
+                  onChange={e => setDesign({...design, title: e.target.value})} 
+                />
+                <textarea 
+                  className="w-full text-gray-600 text-sm border-none bg-transparent focus:ring-0 p-0 resize-none focus:outline-none placeholder-gray-400 overflow-hidden min-h-[40px]"
+                  placeholder="Form Description"
+                  value={design.description || ""} 
+                  onChange={e => {
+                    setDesign({...design, description: e.target.value});
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                  }} 
+                />
+              </div>
             </div>
 
             {/* Form Fields */}

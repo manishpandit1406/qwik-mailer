@@ -457,6 +457,28 @@ export default function HostedFormPage() {
         style={{ ...bgStyle, fontFamily }}
       >
         <div className={isFullscreen ? "w-full max-w-lg mx-auto" : cardClass}>
+          {/* Form Banner */}
+          {design.bannerUrl && (
+            <div className="w-full -mt-2 mb-6 overflow-hidden rounded-2xl border border-gray-100 shadow-xs max-h-56 animate-fade-up">
+              <img
+                src={design.bannerUrl}
+                alt={design.title || "Form Banner"}
+                className="w-full h-44 sm:h-52 object-cover"
+              />
+            </div>
+          )}
+
+          {/* Form Logo */}
+          {design.logoUrl && (
+            <div className="mb-4 animate-fade-up">
+              <img
+                src={design.logoUrl}
+                alt="Logo"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-contain border border-gray-100 shadow-xs p-1 bg-white"
+              />
+            </div>
+          )}
+
           {/* Form header */}
           {design.title && (
             <h1
