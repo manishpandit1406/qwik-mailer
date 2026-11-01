@@ -3,8 +3,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const FORMS_URL = process.env.NEXT_PUBLIC_FORMS_URL ?? "https://forms.qwikmailer.in";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
+const FORMS_URL = process.env.NEXT_PUBLIC_FORMS_URL || "https://forms.qwikmailer.in";
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
 // Font family → Google Fonts URL slug mapping
