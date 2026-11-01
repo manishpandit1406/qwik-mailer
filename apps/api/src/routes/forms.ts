@@ -1,9 +1,29 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, and, desc, sql, count } from "drizzle-orm";
+import { eq, and, desc, sql, count, or, ilike } from "drizzle-orm";
 import { db, forms, formSubmissions, contacts, contactListMembers } from "@qwikmailer/db";
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { safeFetch } from "../utils/ssrf.js";
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function resolveFormId(idOrSlug: string): Promise<string | null> {
+  if (!idOrSlug) return null;
+  if (UUID_REGEX.test(idOrSlug)) return idOrSlug;
+
+  const cleaned = idOrSlug.replace(/[-_]/g, " ").trim();
+  const found = await db.query.forms.findFirst({
+    where: and(
+      or(
+        ilike(forms.name, `%${cleaned}%`),
+        ilike(forms.name, `%${idOrSlug}%`)
+      ),
+      eq(forms.status, "active")
+    ),
+    columns: { id: true },
+  });
+  return found?.id || null;
+}
 
 function decodeJwtPayload(token: string): any {
   try {
@@ -223,7 +243,10 @@ export async function formRoutes(app: FastifyInstance) {
 
   // GET /v1/forms/:id/public (No Auth)
   app.get("/:id/public", async (req, reply) => {
-    const { id } = req.params as { id: string };
+    const { id: rawId } = req.params as { id: string };
+    const id = await resolveFormId(rawId);
+    if (!id) return reply.code(404).send({ success: false, error: "Form not found or inactive" });
+
     const { preview, sessionId, respondentEmail } = req.query as { preview?: string, sessionId?: string, respondentEmail?: string };
     const form = await db.query.forms.findFirst({
       where: preview === 'true' ? eq(forms.id, id) : and(eq(forms.id, id), eq(forms.status, "active")),
@@ -284,7 +307,10 @@ export async function formRoutes(app: FastifyInstance) {
 
   // POST /v1/forms/:id/view — Explicit view ping once Google login completes
   app.post("/:id/view", async (req, reply) => {
-    const { id } = req.params as { id: string };
+    const { id: rawId } = req.params as { id: string };
+    const id = await resolveFormId(rawId);
+    if (!id) return reply.code(404).send({ success: false, error: "Form not found" });
+
     const { respondentEmail } = (req.body as any) || {};
 
     if (!respondentEmail || !respondentEmail.includes("@")) {
@@ -325,7 +351,10 @@ export async function formRoutes(app: FastifyInstance) {
   app.post("/:id/submit", {
     config: { rateLimit: { max: 5, timeWindow: '1 minute' } }
   }, async (req, reply) => {
-    const { id } = req.params as { id: string };
+    const { id: rawId } = req.params as { id: string };
+    const id = await resolveFormId(rawId);
+    if (!id) return reply.code(404).send({ success: false, error: "Form not found or inactive" });
+
     const { data, recaptchaToken, respondent } = submitSchema.parse(req.body);
 
     const form = await db.query.forms.findFirst({
