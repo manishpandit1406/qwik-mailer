@@ -71,11 +71,28 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  const isSeptetSubdomain =
+  // Apply subdomain -> directly routes to the Internship Application form
+  const isApplySubdomain =
+    host === "apply.septetlabs.in" ||
+    host.startsWith("apply.localhost");
+
+  if (isApplySubdomain) {
+    const { pathname } = request.nextUrl;
+    if (pathname === "/" || pathname === "") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/f/septet-labs-remote-internship-application/ab27b2af-2811-4ad1-8c62-1aaa1523d27c";
+      return NextResponse.rewrite(url);
+    }
+  }
+
+  // Septet Labs main website -> routes to /septet-labs
+  const isSeptetLabs =
+    host === "septetlabs.in" ||
+    host === "www.septetlabs.in" ||
     host === "septet.qwikmailer.in" ||
     host.startsWith("septet.localhost");
 
-  if (isSeptetSubdomain) {
+  if (isSeptetLabs) {
     const { pathname } = request.nextUrl;
     if (pathname === "/") {
       const url = request.nextUrl.clone();
