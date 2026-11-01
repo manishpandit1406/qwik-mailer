@@ -16,8 +16,6 @@ import {
 export default function SeptetLabsPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [challengeModalOpen, setChallengeModalOpen] = useState(false);
-  const [joinModalOpen, setJoinModalOpen] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [branding, setBranding] = useState<{ text: string; url: string } | null>(null);
 
   const FORM_ID = "ab27b2af-2811-4ad1-8c62-1aaa1523d27c";
@@ -37,55 +35,6 @@ export default function SeptetLabsPage() {
         setBranding({ text: "Powered by QwikForms", url: "https://forms.qwikmailer.in" });
       });
   }, []);
-
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    role: "Tech/Systems Builder",
-    proof: "",
-  });
-
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleJoin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-
-    const FORM_ID = "53e54dc1-4836-47aa-bdd6-b38a56f04ab5";
-    const endpoints = [
-      `https://api.qwikmailer.in/v1/forms/${FORM_ID}/submit`,
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/v1/forms/${FORM_ID}/submit`,
-      `http://127.0.0.1:4000/v1/forms/${FORM_ID}/submit`,
-    ];
-
-    for (const endpoint of endpoints) {
-      try {
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            data: {
-              name: form.name,
-              email: form.email,
-              role: form.role,
-              proof: form.proof,
-            },
-          }),
-        });
-        if (res.ok) break;
-      } catch {
-        // Fallback to next endpoint
-      }
-    }
-
-    setSubmitting(false);
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setJoinModalOpen(false);
-      setForm({ name: "", email: "", role: "Tech/Systems Builder", proof: "" });
-    }, 2200);
-  };
 
   return (
     <div
@@ -151,22 +100,26 @@ export default function SeptetLabsPage() {
             </button>
             
             {/* Desktop Button */}
-            <button
-              onClick={() => setJoinModalOpen(true)}
+            <a
+              href={hostedFormUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md font-semibold text-sm bg-black text-white hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap"
             >
               <span>Join the Squad</span>
               <ArrowRight size={14} />
-            </button>
+            </a>
 
             {/* Mobile Quick CTA Pill */}
-            <button
-              onClick={() => setJoinModalOpen(true)}
+            <a
+              href={hostedFormUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="sm:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-black text-white hover:bg-gray-800 transition-colors whitespace-nowrap shadow-xs"
             >
               <span>Join</span>
               <ArrowRight size={12} />
-            </button>
+            </a>
 
             {/* Mobile Menu Button */}
             <button
@@ -189,16 +142,16 @@ export default function SeptetLabsPage() {
             <a href="#research" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">Research</a>
             <a href="#challenge" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-50">48h Challenge Protocol</a>
             <div className="pt-2 border-t border-gray-100">
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  setJoinModalOpen(true);
-                }}
+              <a
+                href={hostedFormUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
                 className="w-full py-2.5 rounded-md font-semibold text-sm bg-black text-white text-center flex items-center justify-center gap-1.5"
               >
                 <span>Join the Squad</span>
                 <ArrowRight size={14} />
-              </button>
+              </a>
             </div>
           </div>
         )}
@@ -552,12 +505,14 @@ export default function SeptetLabsPage() {
                   We periodically sponsor exceptional guest builders to join our 48-hour sprints. No resume—only GitHub PRs and working code.
                 </p>
               </div>
-              <button
-                onClick={() => setJoinModalOpen(true)}
-                className="w-full text-center py-2.5 rounded-md text-xs font-bold uppercase tracking-wider bg-white border border-gray-300 text-black hover:bg-black hover:text-white transition-all"
+              <a
+                href={hostedFormUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full text-center py-2.5 rounded-md text-xs font-bold uppercase tracking-wider bg-white border border-gray-300 text-black hover:bg-black hover:text-white transition-all"
               >
                 Submit Proof of Work
-              </button>
+              </a>
             </div>
 
           </div>
@@ -720,12 +675,14 @@ export default function SeptetLabsPage() {
           </div>
 
           <div className="text-center mt-10">
-            <button
-              onClick={() => setJoinModalOpen(true)}
+            <a
+              href={hostedFormUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 text-sm px-6 py-3 rounded-md font-semibold text-white bg-[#2563EB] hover:bg-[#1d4ed8] shadow-[0_2px_8px_rgba(37,99,235,0.3)] transition-all"
             >
               Apply to Participate in Next Sprint
-            </button>
+            </a>
           </div>
 
         </div>
@@ -756,13 +713,15 @@ export default function SeptetLabsPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto">
-              <button
-                onClick={() => setJoinModalOpen(true)}
+              <a
+                href={hostedFormUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 text-xs sm:text-base w-full sm:w-auto px-6 py-3 rounded-md font-semibold text-white bg-[#2563EB] hover:bg-[#1d4ed8] shadow-[0_2px_8px_rgba(37,99,235,0.35)] transition-all"
               >
                 <span>Initiate Transmission</span>
                 <ArrowRight size={16} />
-              </button>
+              </a>
               <a
                 href="#challenge"
                 className="inline-flex items-center justify-center gap-2 text-xs sm:text-base w-full sm:w-auto px-6 py-3 rounded-md font-semibold text-black bg-white border border-[#eaeaea] hover:bg-gray-50 transition-colors shadow-sm"
@@ -875,64 +834,15 @@ export default function SeptetLabsPage() {
               >
                 Close
               </button>
-              <button
-                onClick={() => {
-                  setChallengeModalOpen(false);
-                  setJoinModalOpen(true);
-                }}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-md font-semibold text-xs sm:text-sm bg-[#2563EB] text-white hover:bg-[#1d4ed8]"
+              <a
+                href={hostedFormUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setChallengeModalOpen(false)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-md font-semibold text-xs sm:text-sm bg-[#2563EB] text-white hover:bg-[#1d4ed8] inline-flex items-center justify-center"
               >
                 Apply for Next Sprint
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Modal 2: Join the Squad Form (Integrated QwikForm with Google Sign-In) ── */}
-      {joinModalOpen && (
-        <div 
-          onClick={(e) => { if (e.target === e.currentTarget) setJoinModalOpen(false); }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm"
-        >
-          <div className="w-full max-w-xl h-[92vh] max-h-[820px] rounded-2xl border border-[#eaeaea] bg-white text-black relative shadow-2xl flex flex-col overflow-hidden">
-            {/* Header row */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-gray-100 bg-white shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-6 h-6 rounded bg-black flex items-center justify-center shrink-0">
-                  <Send size={13} className="text-white" />
-                </div>
-                <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider text-[#2563EB] truncate">
-                  APPRENTICESHIP &amp; TRANSMISSION
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={hostedFormUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-gray-500 hover:text-black font-medium underline flex items-center gap-1"
-                >
-                  Open in Tab ↗
-                </a>
-                <button
-                  onClick={() => setJoinModalOpen(false)}
-                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black flex items-center justify-center transition-colors shrink-0"
-                  aria-label="Close modal"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Embedded Live Hosted Form */}
-            <div className="flex-1 w-full bg-gray-50 overflow-hidden relative">
-              <iframe
-                src={hostedFormUrl}
-                title="Join Septet Labs"
-                className="w-full h-full border-0"
-                allow="camera; microphone; autoplay; encrypted-media; fullscreen"
-              />
+              </a>
             </div>
           </div>
         </div>
