@@ -98,13 +98,22 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
 
   // Schema normalization
   const schema: any[] = form?.schema || [];
-  const schemaLabels = schema.map((f: any) => f.label || f.name).filter(Boolean);
+  const schemaLabels = schema.filter((f: any) => f.type !== "section").map((f: any) => f.label || f.name).filter(Boolean);
   const nameToLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
     schema.forEach((f: any) => {
       if (f.name && f.label && f.name !== f.label) {
         map[f.name] = f.label;
       }
+    });
+    return map;
+  }, [schema]);
+
+  const schemaMap: Record<string, any> = useMemo(() => {
+    const map: Record<string, any> = {};
+    schema.forEach((f: any) => {
+      if (f.label) map[f.label] = f;
+      if (f.name) map[f.name] = f;
     });
     return map;
   }, [schema]);
@@ -509,6 +518,7 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
 
                         {allColumns.map(col => {
                           const val = getSubValue(sub, col);
+                          const fieldDef = schemaMap[col];
                           return (
                             <td key={col} className="py-3.5 px-4 max-w-[240px] truncate">
                               {col === "Verified Google Email" && val ? (
@@ -522,10 +532,33 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
                                   <span className="truncate">{String(val)}</span>
                                 </span>
                               ) : typeof val === "object" && val !== null && (val.url || val.data) && val.name ? (
-                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200">
+                                <a
+                                  href={val.url || val.data}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md border border-indigo-200 transition-colors"
+                                >
                                   <span>📄</span>
                                   <span className="truncate max-w-[140px]">{val.name}</span>
+                                  <ExternalLink size={11} className="shrink-0 text-indigo-500" />
+                                </a>
+                              ) : fieldDef?.type === "rating" ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                                  <span className="text-amber-500">{"★".repeat(Math.min(5, Math.max(1, Math.round(Number(val) || 0))))}</span>
+                                  <span>({val}/5)</span>
                                 </span>
+                              ) : typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://")) ? (
+                                <a
+                                  href={val}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-indigo-600 hover:text-indigo-800 hover:underline inline-flex items-center gap-1 text-xs truncate max-w-full"
+                                >
+                                  <span className="truncate">{val}</span>
+                                  <ExternalLink size={11} className="shrink-0" />
+                                </a>
                               ) : (
                                 <span className="text-gray-900 text-xs block truncate">
                                   {Array.isArray(val)
@@ -668,6 +701,7 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
                   .filter(c => c !== "Verified Google Email" && c !== "Google Account Name")
                   .map(col => {
                     const val = getSubValue(selectedSub, col);
+                    const fieldDef = schemaMap[col];
                     return (
                       <div key={col} className="p-3.5 rounded-xl border border-gray-200 bg-white shadow-xs">
                         <label className="block text-xs font-bold text-gray-600 mb-1">{col}</label>
@@ -678,7 +712,7 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
                                 <span className="text-2xl">📄</span>
                                 <div className="min-w-0">
                                   <div className="font-semibold text-gray-900 truncate text-xs">{val.name}</div>
-                                  <div className="text-[11px] text-gray-500">{val.size || "PDF Document"}</div>
+                                  <div className="text-[11px] text-gray-500">{val.size || "S3 File"}</div>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
@@ -688,7 +722,7 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
                                   rel="noopener noreferrer"
                                   className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 bg-white text-indigo-700 hover:bg-indigo-50"
                                 >
-                                  <Eye size={13} /> View PDF
+                                  <Eye size={13} /> View
                                 </a>
                                 <a
                                   href={val.url || val.data}
@@ -699,11 +733,28 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
                                 </a>
                               </div>
                             </div>
-                          ) : Array.isArray(val)
-                            ? val.join(", ")
-                            : val !== "" && val !== undefined && val !== null
-                              ? String(val)
-                              : <span className="text-gray-400 italic">No answer provided</span>}
+                          ) : fieldDef?.type === "rating" ? (
+                            <div className="flex items-center gap-2 text-amber-500 text-lg">
+                              {"★".repeat(Math.min(5, Math.max(1, Math.round(Number(val) || 0))))}
+                              {"☆".repeat(5 - Math.min(5, Math.max(1, Math.round(Number(val) || 0))))}
+                              <span className="text-xs font-semibold text-gray-600 ml-1">({val} / 5 Stars)</span>
+                            </div>
+                          ) : typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://")) ? (
+                            <a
+                              href={val}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 hover:text-indigo-800 hover:underline inline-flex items-center gap-1.5"
+                            >
+                              {val} <ExternalLink size={13} />
+                            </a>
+                          ) : Array.isArray(val) ? (
+                            val.join(", ")
+                          ) : val !== "" && val !== undefined && val !== null ? (
+                            String(val)
+                          ) : (
+                            <span className="text-gray-400 italic">No answer provided</span>
+                          )}
                         </div>
                       </div>
                     );

@@ -1,7 +1,23 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  Star,
+  Calendar,
+  Clock,
+  Phone,
+  Link2,
+  Layers,
+  ChevronRight,
+  ChevronLeft,
+  UploadCloud,
+  FileText,
+  X,
+  ExternalLink,
+} from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
 const FORMS_URL = process.env.NEXT_PUBLIC_FORMS_URL || "https://forms.qwikmailer.in";
@@ -21,6 +37,14 @@ interface FormRespondent {
   name?: string;
   picture?: string;
   token?: string;
+}
+
+interface FormSection {
+  index: number;
+  id: string;
+  title: string;
+  description?: string;
+  fields: any[];
 }
 
 function parseJwt(token: string) {
@@ -64,6 +88,9 @@ export default function HostedFormPage() {
   const [error, setError] = useState("");
   // Track per-field upload state: { [fieldKey]: "idle" | "uploading" | "done" | "error" }
   const [fileUploadState, setFileUploadState] = useState<Record<string, "idle" | "uploading" | "done" | "error">>({});
+  const [hoverRating, setHoverRating] = useState<Record<string, number>>({});
+  const [currentStep, setCurrentStep] = useState(0);
+
   const [form, setForm] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const fontInjectedRef = useRef<string | null>(null);
@@ -254,8 +281,131 @@ export default function HostedFormPage() {
     }
   }
 
+  // ── Multi-Step Section Computation ──────────────────────────────────────────
+  const sections: FormSection[] = useMemo(() => {
+    if (!form?.schema || form.schema.length === 0) return [];
+    const rawSchema: any[] = form.schema;
+    const hasSectionBreaks = rawSchema.some((f: any) => f.type === "section");
+
+    if (!hasSectionBreaks) {
+      // Single-page form
+      return [
+        {
+          index: 0,
+          id: "section_0",
+          title: form?.design?.title || "",
+          description: form?.design?.description || "",
+          fields: rawSchema.filter((f: any) => f.type !== "section"),
+        },
+      ];
+    }
+
+    const res: FormSection[] = [];
+    let currentTitle = form?.design?.title || "";
+    let currentDesc = form?.design?.description || "";
+    let currentId = "section_0";
+    let currentFields: any[] = [];
+
+    for (let i = 0; i < rawSchema.length; i++) {
+      const item = rawSchema[i];
+      if (item.type === "section") {
+        if (i === 0) {
+          // If first item is a section, it configures Section 1
+          currentTitle = item.title || item.label || currentTitle;
+          currentDesc = item.description || currentDesc;
+          currentId = item.id;
+        } else {
+          res.push({
+            index: res.length,
+            id: currentId,
+            title: currentTitle,
+            description: currentDesc,
+            fields: currentFields,
+          });
+          currentId = item.id;
+          currentTitle = item.title || item.label || `Section ${res.length + 1}`;
+          currentDesc = item.description || "";
+          currentFields = [];
+        }
+      } else {
+        currentFields.push(item);
+      }
+    }
+
+    res.push({
+      index: res.length,
+      id: currentId,
+      title: currentTitle,
+      description: currentDesc,
+      fields: currentFields,
+    });
+
+    return res;
+  }, [form?.schema, form?.design?.title, form?.design?.description]);
+
+  const activeSection: FormSection | undefined = sections[currentStep] || sections[0];
+  const isMultiStep = sections.length > 1;
+
+  function validateCurrentSection(): boolean {
+    if (!activeSection) return true;
+    for (const field of activeSection.fields) {
+      const fieldKey = field.label || field.name;
+      const val = formData[fieldKey];
+
+      // 1. File upload in-progress check
+      if (field.type === "file" && fileUploadState[fieldKey] === "uploading") {
+        setError(`Please wait for "${field.label || 'file'}" to finish uploading.`);
+        return false;
+      }
+
+      // 2. Required field check
+      if (field.required) {
+        if (
+          val === undefined ||
+          val === null ||
+          val === "" ||
+          (Array.isArray(val) && val.length === 0)
+        ) {
+          setError(`Please fill in required question: "${field.label}"`);
+          return false;
+        }
+      }
+    }
+    setError("");
+    return true;
+  }
+
+  function handleNextStep(e?: React.MouseEvent) {
+    if (e) e.preventDefault();
+    if (!validateCurrentSection()) return;
+
+    if (currentStep < sections.length - 1) {
+      setCurrentStep((prev) => prev + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
+  function handlePrevStep(e?: React.MouseEvent) {
+    if (e) e.preventDefault();
+    setError("");
+    if (currentStep > 0) {
+      setCurrentStep((prev) => prev - 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // If multi-step and not on the last section, proceed to next step
+    if (isMultiStep && currentStep < sections.length - 1) {
+      handleNextStep();
+      return;
+    }
+
+    if (!validateCurrentSection()) {
+      return;
+    }
 
     const isGoogleRequired = form ? form.settings?.requireGoogleAuth !== false : false;
     if (isGoogleRequired && !respondent) {
@@ -379,7 +529,7 @@ export default function HostedFormPage() {
     );
   }
 
-  const { design = {}, schema = [], settings = {} } = form ?? {};
+  const { design = {}, settings = {} } = form ?? {};
   const fontFamily = design.fontFamily || "Inter";
   const accentColor = getAccent(design);
   const cardStyle = design.cardStyle || "card";
@@ -394,7 +544,6 @@ export default function HostedFormPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ ...bgStyle, fontFamily }}>
         <div className="bg-white p-10 rounded-3xl shadow-xl border border-gray-100 max-w-md w-full text-center animate-fade-up">
-          {/* Animated checkmark */}
           <div className="relative w-20 h-20 mx-auto mb-6">
             <div
               className="w-20 h-20 rounded-full flex items-center justify-center"
@@ -402,7 +551,6 @@ export default function HostedFormPage() {
             >
               <CheckCircle2 size={40} style={{ color: accentColor }} />
             </div>
-            {/* Ping rings */}
             <div
               className="absolute inset-0 rounded-full animate-ping opacity-20"
               style={{ backgroundColor: accentColor }}
@@ -436,7 +584,6 @@ export default function HostedFormPage() {
 
   return (
     <>
-      {/* Dynamic meta tags */}
       {design.title && (
         <title>{design.title}</title>
       )}
@@ -468,21 +615,62 @@ export default function HostedFormPage() {
             </div>
           )}
 
-          {/* Form header */}
-          {design.title && (
-            <h1
-              className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3 animate-fade-up leading-tight"
-              style={{ animationDelay: "0ms" }}
-            >
-              {design.title}
-            </h1>
+          {/* Progress Bar for Multi-Step Sections */}
+          {isMultiStep && (
+            <div className="mb-6 animate-fade-up">
+              <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-2">
+                <span className="flex items-center gap-1.5 text-gray-700">
+                  <Layers size={13} style={{ color: accentColor }} />
+                  Page {currentStep + 1} of {sections.length}
+                </span>
+                <span className="text-[11px] font-mono text-gray-400">
+                  {Math.round(((currentStep + 1) / sections.length) * 100)}% Completed
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300 ease-out"
+                  style={{
+                    width: `${((currentStep + 1) / sections.length) * 100}%`,
+                    backgroundColor: accentColor,
+                  }}
+                />
+              </div>
+            </div>
           )}
-          {design.description && (
-            <div
-              className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed animate-fade-up whitespace-pre-line space-y-2"
-              style={{ animationDelay: "40ms" }}
-            >
-              {design.description}
+
+          {/* Step 0: Main Title & Description | Step > 0: Section Title & Description */}
+          {currentStep === 0 ? (
+            <>
+              {design.title && (
+                <h1
+                  className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3 animate-fade-up leading-tight"
+                  style={{ animationDelay: "0ms" }}
+                >
+                  {design.title}
+                </h1>
+              )}
+              {design.description && (
+                <div
+                  className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed animate-fade-up whitespace-pre-line space-y-2"
+                  style={{ animationDelay: "40ms" }}
+                >
+                  {design.description}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="mb-6 pb-4 border-b border-gray-100 animate-fade-up">
+              {activeSection?.title && (
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1.5">
+                  {activeSection.title}
+                </h2>
+              )}
+              {activeSection?.description && (
+                <div className="text-xs sm:text-sm text-gray-600 whitespace-pre-line leading-relaxed">
+                  {activeSection.description}
+                </div>
+              )}
             </div>
           )}
 
@@ -583,13 +771,15 @@ export default function HostedFormPage() {
                 </div>
               )}
 
-              {schema.map((field: any, idx: number) => (
+              {/* Active Section Questions */}
+              {(activeSection?.fields || []).map((field: any, idx: number) => (
                 <div
                   key={field.id}
+                  id={`field-${field.id}`}
                   className="animate-fade-up"
-                  style={{ animationDelay: `${80 + idx * 50}ms` }}
+                  style={{ animationDelay: `${80 + idx * 40}ms` }}
                 >
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-800 mb-1">
                     {field.label}{" "}
                     {field.required && <span style={{ color: accentColor }}>*</span>}
                   </label>
@@ -599,12 +789,12 @@ export default function HostedFormPage() {
                     </p>
                   )}
 
+                  {/* 1. Paragraph / Textarea */}
                   {field.type === "textarea" ? (
                     <textarea
                       name={field.label || field.name}
                       required={field.required}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white transition-all min-h-[100px] text-sm text-gray-900 placeholder:text-gray-400"
-                      style={{ "--tw-ring-color": accentColor } as any}
                       placeholder={field.placeholder || field.label}
                       value={formData[field.label || field.name] || ""}
                       onChange={(e) => handleInputChange(field.label || field.name, e.target.value)}
@@ -618,6 +808,7 @@ export default function HostedFormPage() {
                       }}
                     />
                   ) : field.type === "select" ? (
+                    /* 2. Dropdown List */
                     <select
                       name={field.label || field.name}
                       required={field.required}
@@ -639,6 +830,7 @@ export default function HostedFormPage() {
                       ))}
                     </select>
                   ) : field.type === "radio" ? (
+                    /* 3. Multiple Choice Radio */
                     <div className="space-y-2">
                       {(field.options || []).map((opt: string, i: number) => (
                         <label
@@ -660,6 +852,7 @@ export default function HostedFormPage() {
                       ))}
                     </div>
                   ) : field.type === "checkbox" ? (
+                    /* 4. Checkboxes */
                     <div className="space-y-2">
                       {(field.options || []).map((opt: string, i: number) => (
                         <label
@@ -681,121 +874,291 @@ export default function HostedFormPage() {
                         </label>
                       ))}
                     </div>
-                  ) : field.type === "range" ? (
-                    <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  ) : field.type === "rating" ? (
+                    /* 5. Star Rating */
+                    <div className="bg-gray-50/80 border border-gray-200/90 rounded-2xl p-4 sm:p-5">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                        {[1, 2, 3, 4, 5].map((starNum) => {
+                          const fieldKey = field.label || field.name;
+                          const currentVal = Number(formData[fieldKey]) || 0;
+                          const hovered = hoverRating[fieldKey] || 0;
+                          const isFilled = hovered > 0 ? starNum <= hovered : starNum <= currentVal;
+
+                          return (
+                            <button
+                              key={starNum}
+                              type="button"
+                              onClick={() => handleInputChange(fieldKey, starNum)}
+                              onMouseEnter={() =>
+                                setHoverRating((prev) => ({ ...prev, [fieldKey]: starNum }))
+                              }
+                              onMouseLeave={() =>
+                                setHoverRating((prev) => ({ ...prev, [fieldKey]: 0 }))
+                              }
+                              className="p-1 rounded-lg transition-transform hover:scale-125 focus:outline-none focus:ring-2 focus:ring-offset-1"
+                              style={{ "--tw-ring-color": accentColor } as any}
+                              title={`${starNum} Star${starNum > 1 ? "s" : ""}`}
+                            >
+                              <Star
+                                size={32}
+                                className={`transition-colors ${
+                                  isFilled
+                                    ? "fill-amber-400 text-amber-400 filter drop-shadow-xs"
+                                    : "text-gray-300 hover:text-gray-400"
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                        {formData[field.label || field.name] && (
+                          <span className="ml-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 px-2.5 py-1 rounded-full shadow-2xs">
+                            {formData[field.label || field.name]} of 5 Stars
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : field.type === "range" || field.type === "scale" ? (
+                    /* 6. Linear Scale */
+                    <div className="bg-gray-50/80 border border-gray-200/90 rounded-2xl p-4 sm:p-5">
+                      <div className="flex items-center justify-between gap-2 text-xs font-medium text-gray-500 mb-3 px-1">
+                        <span className="text-gray-700 font-semibold">{field.minLabel || "1 - Low"}</span>
+                        <span className="text-gray-700 font-semibold">{field.maxLabel || "5 - High"}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1 sm:gap-2">
+                        {[1, 2, 3, 4, 5].map((num) => {
+                          const fieldKey = field.label || field.name;
+                          const isSelected = String(formData[fieldKey]) === String(num);
+                          return (
+                            <label
+                              key={num}
+                              className={`flex-1 flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                                isSelected
+                                  ? "bg-white border-indigo-600 shadow-sm font-bold text-indigo-700 scale-[1.02]"
+                                  : "bg-white/80 border-gray-200 hover:border-gray-300 text-gray-700"
+                              }`}
+                              style={isSelected ? { borderColor: accentColor, color: accentColor } : {}}
+                            >
+                              <input
+                                type="radio"
+                                name={fieldKey}
+                                value={num}
+                                checked={isSelected}
+                                onChange={() => handleInputChange(fieldKey, num)}
+                                className="sr-only"
+                              />
+                              <span className="text-base sm:text-lg font-bold">{num}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : field.type === "date" ? (
+                    /* 7. Date Picker */
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                        <Calendar size={18} />
+                      </div>
                       <input
-                        type="range"
+                        type="date"
                         name={field.label || field.name}
                         required={field.required}
-                        min="1"
-                        max="10"
-                        className="flex-1 h-2 rounded-lg appearance-none cursor-pointer"
-                        style={{ accentColor }}
-                        value={formData[field.label || field.name] || "5"}
+                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white transition-all text-sm text-gray-900"
+                        value={formData[field.label || field.name] || ""}
                         onChange={(e) => handleInputChange(field.label || field.name, e.target.value)}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = accentColor;
+                          e.target.style.boxShadow = `0 0 0 2px ${accentColor}22`;
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "";
+                          e.target.style.boxShadow = "";
+                        }}
                       />
-                      <span
-                        className="w-9 h-9 flex items-center justify-center font-bold rounded-lg text-sm shrink-0 text-white"
-                        style={{ backgroundColor: accentColor }}
-                      >
-                        {formData[field.label || field.name] || "5"}
-                      </span>
+                    </div>
+                  ) : field.type === "time" ? (
+                    /* 8. Time Picker */
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                        <Clock size={18} />
+                      </div>
+                      <input
+                        type="time"
+                        name={field.label || field.name}
+                        required={field.required}
+                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white transition-all text-sm text-gray-900"
+                        value={formData[field.label || field.name] || ""}
+                        onChange={(e) => handleInputChange(field.label || field.name, e.target.value)}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = accentColor;
+                          e.target.style.boxShadow = `0 0 0 2px ${accentColor}22`;
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "";
+                          e.target.style.boxShadow = "";
+                        }}
+                      />
+                    </div>
+                  ) : field.type === "tel" ? (
+                    /* 9. Phone Number */
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                        <Phone size={18} />
+                      </div>
+                      <input
+                        type="tel"
+                        name={field.label || field.name}
+                        required={field.required}
+                        placeholder={field.placeholder || "+91 98765 43210"}
+                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400"
+                        value={formData[field.label || field.name] || ""}
+                        onChange={(e) => handleInputChange(field.label || field.name, e.target.value)}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = accentColor;
+                          e.target.style.boxShadow = `0 0 0 2px ${accentColor}22`;
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "";
+                          e.target.style.boxShadow = "";
+                        }}
+                      />
+                    </div>
+                  ) : field.type === "url" ? (
+                    /* 10. Website / URL */
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                        <Link2 size={18} />
+                      </div>
+                      <input
+                        type="url"
+                        name={field.label || field.name}
+                        required={field.required}
+                        placeholder={field.placeholder || "https://..."}
+                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400"
+                        value={formData[field.label || field.name] || ""}
+                        onChange={(e) => handleInputChange(field.label || field.name, e.target.value)}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = accentColor;
+                          e.target.style.boxShadow = `0 0 0 2px ${accentColor}22`;
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "";
+                          e.target.style.boxShadow = "";
+                        }}
+                      />
                     </div>
                   ) : field.type === "file" ? (
-                    <div className="space-y-2">
-                      <div className="border-2 border-dashed border-gray-200 hover:border-indigo-400 rounded-xl p-4 transition-colors bg-gray-50/50 hover:bg-gray-50 flex flex-col items-center justify-center text-center">
-                        <input
-                          type="file"
-                          accept={field.accept || ".pdf"}
-                          name={field.label || field.name}
-                          required={field.required && !formData[field.label || field.name]}
-                          disabled={fileUploadState[field.label || field.name] === "uploading"}
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            if (file.size > 10 * 1024 * 1024) {
-                              alert("File exceeds maximum allowed size of 10 MB.");
-                              e.target.value = "";
-                              return;
-                            }
-                            const fieldKey = field.label || field.name;
-                            setFileUploadState((prev) => ({ ...prev, [fieldKey]: "uploading" }));
-                            try {
-                              // Convert to base64
-                              const base64 = await new Promise<string>((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = () => resolve(reader.result as string);
-                                reader.onerror = reject;
-                                reader.readAsDataURL(file);
-                              });
-                              // Upload to S3 via backend
-                              const res = await fetch(`${API}/v1/uploads/submission-file`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  base64,
-                                  contentType: file.type || "application/pdf",
-                                  filename: file.name,
-                                  formId: id,
-                                }),
-                              });
-                              const json = await res.json();
-                              if (json.success && (json.url || json.key)) {
-                                const permanentUrl = json.key
-                                  ? `${API}/v1/uploads/file?key=${encodeURIComponent(json.key)}`
-                                  : json.url;
-                                handleInputChange(fieldKey, {
-                                  name: file.name,
-                                  size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-                                  type: file.type,
-                                  url: permanentUrl,
-                                  key: json.key,
+                    /* 11. AWS S3 File Upload */
+                    <div className="space-y-3">
+                      <div className="border-2 border-dashed border-gray-200 hover:border-indigo-400 rounded-2xl p-5 transition-all bg-gray-50/60 hover:bg-gray-50 flex flex-col items-center justify-center text-center">
+                        <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-indigo-600 mb-2 shadow-2xs">
+                          <UploadCloud size={20} />
+                        </div>
+                        <label className="cursor-pointer">
+                          <span className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+                            Click to upload
+                          </span>{" "}
+                          <span className="text-xs text-gray-500">or drag and drop</span>
+                          <input
+                            type="file"
+                            accept={field.accept || ".pdf"}
+                            name={field.label || field.name}
+                            required={field.required && !formData[field.label || field.name]}
+                            disabled={fileUploadState[field.label || field.name] === "uploading"}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 10 * 1024 * 1024) {
+                                alert("File exceeds maximum allowed size of 10 MB.");
+                                e.target.value = "";
+                                return;
+                              }
+                              const fieldKey = field.label || field.name;
+                              setFileUploadState((prev) => ({ ...prev, [fieldKey]: "uploading" }));
+                              try {
+                                const base64 = await new Promise<string>((resolve, reject) => {
+                                  const reader = new FileReader();
+                                  reader.onload = () => resolve(reader.result as string);
+                                  reader.onerror = reject;
+                                  reader.readAsDataURL(file);
                                 });
-                                setFileUploadState((prev) => ({ ...prev, [fieldKey]: "done" }));
-                              } else {
+                                const res = await fetch(`${API}/v1/uploads/submission-file`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    base64,
+                                    contentType: file.type || "application/octet-stream",
+                                    filename: file.name,
+                                    formId: id,
+                                  }),
+                                });
+                                const json = await res.json();
+                                if (json.success && (json.url || json.key)) {
+                                  const permanentUrl = json.key
+                                    ? `${API}/v1/uploads/file?key=${encodeURIComponent(json.key)}`
+                                    : json.url;
+                                  handleInputChange(fieldKey, {
+                                    name: file.name,
+                                    size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+                                    type: file.type,
+                                    url: permanentUrl,
+                                    key: json.key,
+                                  });
+                                  setFileUploadState((prev) => ({ ...prev, [fieldKey]: "done" }));
+                                } else {
+                                  setFileUploadState((prev) => ({ ...prev, [fieldKey]: "error" }));
+                                  alert(json.error || "File upload failed. Please try again.");
+                                  e.target.value = "";
+                                }
+                              } catch {
                                 setFileUploadState((prev) => ({ ...prev, [fieldKey]: "error" }));
-                                alert(json.error || "File upload failed. Please try again.");
+                                alert("File upload failed. Please check your connection and try again.");
                                 e.target.value = "";
                               }
-                            } catch {
-                              setFileUploadState((prev) => ({ ...prev, [fieldKey]: "error" }));
-                              alert("File upload failed. Please check your connection and try again.");
-                              e.target.value = "";
-                            }
-                          }}
-                          className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                        />
+                            }}
+                            className="sr-only"
+                          />
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-1">
+                          Supports: {field.accept || ".pdf"} (Max 10 MB)
+                        </p>
                       </div>
-                      {/* Upload progress */}
+
+                      {/* Upload in progress */}
                       {fileUploadState[field.label || field.name] === "uploading" && (
-                        <div className="text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded-lg flex items-center gap-2">
-                          <RefreshCw size={12} className="animate-spin shrink-0" />
-                          Uploading file securely…
+                        <div className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 px-3.5 py-2.5 rounded-xl flex items-center gap-2 animate-pulse">
+                          <RefreshCw size={14} className="animate-spin shrink-0 text-indigo-600" />
+                          <span>Uploading securely to AWS S3, please wait...</span>
                         </div>
                       )}
-                      {/* Success state */}
+
+                      {/* Uploaded File Pill */}
                       {formData[field.label || field.name]?.name && fileUploadState[field.label || field.name] !== "uploading" && (
-                        <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center justify-between">
-                          <span className="font-medium truncate">
-                            📄 {formData[field.label || field.name].name} ({formData[field.label || field.name].size})
-                            {formData[field.label || field.name].url && (
-                              <span className="ml-2 text-emerald-600">✓ Uploaded</span>
-                            )}
-                          </span>
+                        <div className="text-xs text-emerald-800 bg-emerald-50/90 border border-emerald-200 p-3 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText size={16} className="text-emerald-600 shrink-0" />
+                            <span className="font-semibold truncate">
+                              {formData[field.label || field.name].name}
+                            </span>
+                            <span className="text-[11px] text-emerald-600 font-mono shrink-0">
+                              ({formData[field.label || field.name].size})
+                            </span>
+                          </div>
                           <button
                             type="button"
                             onClick={() => {
                               handleInputChange(field.label || field.name, "");
                               setFileUploadState((prev) => ({ ...prev, [field.label || field.name]: "idle" }));
                             }}
-                            className="text-red-500 hover:text-red-700 font-bold ml-2"
+                            className="p-1 rounded-md text-emerald-700 hover:text-red-600 hover:bg-emerald-100/60 transition-colors shrink-0"
+                            title="Remove file"
                           >
-                            ×
+                            <X size={15} />
                           </button>
                         </div>
                       )}
                     </div>
                   ) : (
+                    /* Default text, email, number input */
                     <input
                       type={field.type}
                       name={field.label || field.name}
@@ -817,22 +1180,48 @@ export default function HostedFormPage() {
                 </div>
               ))}
 
-              <div
-                className="pt-2 animate-fade-up"
-                style={{ animationDelay: `${80 + schema.length * 50}ms` }}
-              >
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full py-3.5 rounded-xl font-bold shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed hover:shadow-lg hover:-translate-y-0.5"
-                  style={{
-                    backgroundColor: design.buttonColor || accentColor,
-                    color: design.buttonTextColor || "#ffffff",
-                  }}
-                >
-                  {submitting && <RefreshCw size={18} className="animate-spin" />}
-                  {submitting ? "Submitting..." : design.buttonText || "Submit"}
-                </button>
+              {/* Navigation & Submit Buttons */}
+              <div className="pt-4 flex items-center justify-between gap-3 animate-fade-up">
+                {isMultiStep && currentStep > 0 ? (
+                  <button
+                    type="button"
+                    onClick={handlePrevStep}
+                    className="px-5 py-3 rounded-xl border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-sm transition-all flex items-center gap-1.5 shadow-2xs hover:shadow-xs"
+                  >
+                    <ChevronLeft size={16} /> Back
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                {isMultiStep && currentStep < sections.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={handleNextStep}
+                    className="px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 ml-auto"
+                    style={{
+                      backgroundColor: design.buttonColor || accentColor,
+                      color: design.buttonTextColor || "#ffffff",
+                    }}
+                  >
+                    Next <ChevronRight size={16} />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className={`${
+                      isMultiStep ? "px-7 py-3 ml-auto" : "w-full py-3.5"
+                    } rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed hover:shadow-lg hover:-translate-y-0.5`}
+                    style={{
+                      backgroundColor: design.buttonColor || accentColor,
+                      color: design.buttonTextColor || "#ffffff",
+                    }}
+                  >
+                    {submitting && <RefreshCw size={16} className="animate-spin" />}
+                    {submitting ? "Submitting..." : design.buttonText || "Submit"}
+                  </button>
+                )}
               </div>
             </form>
           )}

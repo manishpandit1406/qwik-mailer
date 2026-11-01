@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Plus, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy } from "lucide-react";
+import { ArrowLeft, Save, Plus, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy, Image as ImageIcon, UploadCloud, Star, Calendar, Clock, Phone, Link2, FileUp, Sparkles, Sliders } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -24,6 +24,59 @@ function SortableField({ field, onUpdate, onRemove, schema }: any) {
     position: 'relative' as 'relative',
   };
 
+  // Special UI for Section Break
+  if (field.type === "section") {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`bg-gradient-to-r from-indigo-50/90 via-purple-50/70 to-pink-50/80 border-2 border-indigo-200/90 rounded-2xl p-5 flex gap-3 shadow-xs ${
+          isDragging ? 'shadow-2xl border-indigo-400 ring-2 ring-indigo-400 scale-[1.01]' : ''
+        }`}
+      >
+        <div {...attributes} {...listeners} className="mt-1 cursor-grab active:cursor-grabbing text-indigo-400 hover:text-indigo-600">
+          <GripVertical size={20} />
+        </div>
+        <div className="flex-1 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-800 bg-white border border-indigo-200 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs">
+              <Layers size={13} className="text-indigo-600" /> Section Break (Page Divider)
+            </span>
+            <button
+              onClick={() => onRemove(field.id)}
+              className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-white/60 transition-colors"
+              title="Delete Section"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1">Section Title</label>
+            <input
+              type="text"
+              placeholder="e.g. Work Experience & Projects"
+              className="input text-sm font-semibold bg-white"
+              value={field.title || field.label || ""}
+              onChange={e => onUpdate(field.id, { title: e.target.value, label: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Section Description (Optional)</label>
+            <textarea
+              placeholder="Tell respondents what this section is about..."
+              className="input text-xs bg-white resize-none h-16 text-gray-600"
+              value={field.description || ""}
+              onChange={e => onUpdate(field.id, { description: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-indigo-700 bg-white/70 px-3 py-1.5 rounded-lg border border-indigo-100">
+            <span>📄 Questions placed below this divider will appear on a new page with Next & Back buttons.</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div ref={setNodeRef} style={style} className={`bg-white border rounded-xl p-4 flex gap-3 ${isDragging ? 'shadow-xl border-indigo-300 ring-1 ring-indigo-300' : 'border-gray-200 shadow-sm'}`}>
       <div {...attributes} {...listeners} className="mt-1 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
@@ -38,6 +91,7 @@ function SortableField({ field, onUpdate, onRemove, schema }: any) {
             <Trash2 size={16} />
           </button>
         </div>
+        
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Field Label</label>
           <input type="text" className="input text-sm" value={field.label || ""} onChange={e => {
@@ -54,6 +108,18 @@ function SortableField({ field, onUpdate, onRemove, schema }: any) {
             onUpdate(field.id, { label: newLabel, name: finalName });
           }} />
         </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Helper / Instruction Text (Optional)</label>
+          <input
+            type="text"
+            placeholder="e.g. Please enter your full registered name"
+            className="input text-xs text-gray-600"
+            value={field.helperText || ""}
+            onChange={e => onUpdate(field.id, { helperText: e.target.value })}
+          />
+        </div>
+
         <div className="flex items-center mt-2">
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
             <input type="checkbox" className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" checked={field.required} disabled={field.type === 'email'} onChange={e => onUpdate(field.id, { required: e.target.checked })} />
@@ -61,6 +127,7 @@ function SortableField({ field, onUpdate, onRemove, schema }: any) {
           </label>
         </div>
 
+        {/* Options for Checkbox, Radio, Select */}
         {['checkbox', 'radio', 'select'].includes(field.type) && (
           <div className="mt-4 pt-4 border-t border-gray-100">
             <label className="block text-xs font-medium text-gray-500 mb-2">Options</label>
@@ -94,6 +161,47 @@ function SortableField({ field, onUpdate, onRemove, schema }: any) {
               >
                 <Plus size={12} /> Add Option
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* File upload configuration */}
+        {field.type === "file" && (
+          <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+            <label className="block text-xs font-medium text-gray-500">Accepted File Formats</label>
+            <input
+              type="text"
+              className="input text-xs"
+              placeholder=".pdf, image/*, .docx"
+              value={field.accept || ".pdf"}
+              onChange={e => onUpdate(field.id, { accept: e.target.value })}
+            />
+            <p className="text-[11px] text-gray-400">Examples: <code>.pdf</code> for Resumes, <code>image/*</code> for Photos, or <code>.pdf,.docx,.zip</code></p>
+          </div>
+        )}
+
+        {/* Linear scale configuration */}
+        {(field.type === "range" || field.type === "scale") && (
+          <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">Min Label (1)</label>
+              <input
+                type="text"
+                className="input text-xs"
+                placeholder="e.g. Strongly Disagree"
+                value={field.minLabel || ""}
+                onChange={e => onUpdate(field.id, { minLabel: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">Max Label (5 or 10)</label>
+              <input
+                type="text"
+                className="input text-xs"
+                placeholder="e.g. Strongly Agree"
+                value={field.maxLabel || ""}
+                onChange={e => onUpdate(field.id, { maxLabel: e.target.value })}
+              />
             </div>
           </div>
         )}
@@ -143,6 +251,42 @@ function BuilderContent() {
   const [showApiModal, setShowApiModal] = useState(false);
   const [apiLang, setApiLang] = useState<string>("cURL");
   const [apiCodeCopied, setApiCodeCopied] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  async function handleAssetUpload(file: File, folder: "forms/banners" | "forms/logos") {
+    if (!file) return null;
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File size exceeds 10 MB limit");
+      return null;
+    }
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const res = await fetch(`${API}/v1/uploads/form-asset`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        base64,
+        contentType: file.type || "image/jpeg",
+        folder,
+      }),
+    });
+
+    const json = await res.json();
+    if (json.success && (json.url || json.key)) {
+      return json.key ? `${API}/v1/uploads/file?key=${encodeURIComponent(json.key)}` : json.url;
+    } else {
+      throw new Error(json.error || "Upload failed");
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -234,8 +378,22 @@ function BuilderContent() {
     }
   }
 
-  function addField(type: string, customProps?: { name?: string, label?: string, required?: boolean }) {
+  function addField(type: string, customProps?: any) {
     const randomSuffix = Math.random().toString(36).substr(2, 5);
+
+    if (type === "section") {
+      const sectionCount = schema.filter(f => f.type === "section").length + 2;
+      const newSection: any = {
+        id: `section_${randomSuffix}`,
+        type: "section",
+        title: customProps?.title || `Section ${sectionCount}`,
+        description: customProps?.description || "",
+        name: `section_${sectionCount}`,
+      };
+      setSchema([...schema, newSection]);
+      return;
+    }
+
     const initialLabel = customProps?.label || `New ${type} field`;
     const sanitizedLabel = initialLabel.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
     
@@ -253,10 +411,34 @@ function BuilderContent() {
       name: finalName,
       label: initialLabel,
       required: customProps?.required || false,
+      helperText: customProps?.helperText || "",
+      placeholder: customProps?.placeholder || "",
     };
+
     if (['checkbox', 'radio', 'select'].includes(type)) {
-      newField.options = ['Option 1', 'Option 2'];
+      newField.options = ['Option 1', 'Option 2', 'Option 3'];
+    } else if (type === "file") {
+      newField.label = customProps?.label || "Upload File / Document";
+      newField.accept = customProps?.accept || ".pdf";
+      newField.helperText = customProps?.helperText || "Max 10 MB (stored securely in AWS S3)";
+    } else if (type === "rating") {
+      newField.label = customProps?.label || "Rate your experience";
+      newField.maxStars = 5;
+    } else if (type === "range" || type === "scale") {
+      newField.label = customProps?.label || "Linear Scale Rating";
+      newField.min = 1;
+      newField.max = 5;
+      newField.minLabel = "Poor";
+      newField.maxLabel = "Excellent";
+    } else if (type === "url") {
+      newField.label = customProps?.label || "Portfolio / Website Link";
+      newField.placeholder = "https://...";
+    } else if (type === "date") {
+      newField.label = customProps?.label || "Select Date";
+    } else if (type === "time") {
+      newField.label = customProps?.label || "Select Time";
     }
+
     setSchema([...schema, newField]);
   }
 
@@ -374,7 +556,7 @@ func main() {
       {/* Topbar */}
       <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0 z-10">
         <div className="flex items-center gap-4">
-          <Link href="/forms-dashboard" className="text-gray-400 hover:text-gray-600 transition-colors">
+          <Link href="/dashboard/forms" className="text-gray-400 hover:text-gray-600 transition-colors">
             <ArrowLeft size={20} />
           </Link>
           <div className="h-6 w-px bg-gray-200"></div>
@@ -433,55 +615,90 @@ func main() {
           <div className="flex-1 overflow-y-auto p-5">
             {activeTab === 'fields' && (
               <div className="space-y-6">
+                {/* ── Section Break / Page Divider ── */}
                 <div className="pt-2">
-                  <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    Special Fields
+                  <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl mb-5">
+                    <button
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs hover:shadow transition-all"
+                      onClick={() => addField("section")}
+                    >
+                      <Layers size={15} /> + Add Section (New Page)
+                    </button>
+                    <p className="text-[10px] text-indigo-700 mt-2 text-center">
+                      Splits your form into multi-step pages with Next & Back buttons (like Google Forms).
+                    </p>
+                  </div>
+
+                  {/* ── S3 Cloud File Upload ── */}
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <UploadCloud size={13} className="text-indigo-600" /> File Storage (AWS S3)
                   </h4>
-                  <div className="flex flex-col gap-2 mb-6">
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("text", { name: "fullName", label: "Full Name", required: true })}>
-                      <Plus size={14} /> Full Name
-                    </button>
-                    <div className="flex gap-2">
-                      <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("text", { name: "firstName", label: "First Name", required: true })}>
-                        <Plus size={14} /> First Name
-                      </button>
-                      <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("text", { name: "lastName", label: "Last Name", required: false })}>
-                        <Plus size={14} /> Last Name
-                      </button>
-                    </div>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("email", { name: "email", label: "Email Address", required: true })}>
-                      <Plus size={14} /> Email Address
-                    </button>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("tel", { name: "phone", label: "Phone Number", required: false })}>
-                      <Plus size={14} /> Phone Number
+                  <div className="mb-5">
+                    <button
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-50 rounded-xl text-xs font-bold text-indigo-900 transition-all group"
+                      onClick={() => addField("file")}
+                    >
+                      <span className="flex items-center gap-2">
+                        <FileUp size={16} className="text-indigo-600 group-hover:scale-110 transition-transform" />
+                        File Upload (Resume, PDF, Images)
+                      </span>
+                      <span className="text-[10px] bg-indigo-600 text-white font-mono px-2 py-0.5 rounded-full">S3</span>
                     </button>
                   </div>
 
-                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Standard Fields</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("text")}>
+                  {/* ── Advanced Inputs ── */}
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Sparkles size={13} className="text-indigo-600" /> Interactive Inputs
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2 mb-5">
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("rating")}>
+                      <Star size={14} className="text-amber-500" /> Star Rating
+                    </button>
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("range")}>
+                      <Sliders size={14} className="text-indigo-500" /> Linear Scale
+                    </button>
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("url")}>
+                      <Link2 size={14} className="text-blue-500" /> Website / URL
+                    </button>
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("tel")}>
+                      <Phone size={14} className="text-emerald-500" /> Phone Number
+                    </button>
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("date")}>
+                      <Calendar size={14} className="text-rose-500" /> Date Picker
+                    </button>
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("time")}>
+                      <Clock size={14} className="text-purple-500" /> Time Picker
+                    </button>
+                  </div>
+
+                  {/* ── Standard Fields ── */}
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Standard Fields</h4>
+                  <div className="grid grid-cols-2 gap-2 mb-5">
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("text")}>
                       <Plus size={14} /> Short Answer
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("textarea")}>
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("textarea")}>
                       <Plus size={14} /> Paragraph
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("radio")}>
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("radio")}>
                       <Plus size={14} /> Multiple Choice
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("checkbox")}>
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("checkbox")}>
                       <Plus size={14} /> Checkboxes
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("select")}>
-                      <Plus size={14} /> Dropdown
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors col-span-2" onClick={() => addField("select")}>
+                      <Plus size={14} /> Dropdown List
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("date")}>
-                      <Plus size={14} /> Date
+                  </div>
+
+                  {/* ── Quick Presets ── */}
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Quick Presets</h4>
+                  <div className="flex flex-col gap-2">
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("text", { name: "fullName", label: "Full Name", required: true })}>
+                      <Plus size={14} /> Full Name
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("time")}>
-                      <Plus size={14} /> Time
-                    </button>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("range")}>
-                      <Plus size={14} /> Linear Scale
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => addField("email", { name: "email", label: "Email Address", required: true })}>
+                      <Plus size={14} /> Email Address
                     </button>
                   </div>
                 </div>
@@ -490,6 +707,124 @@ func main() {
 
             {activeTab === 'design' && (
               <div className="space-y-6">
+
+                {/* ── Cover Banner ── */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-indigo-600" /> Cover Banner
+                    </label>
+                    {design.bannerUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setDesign({ ...design, bannerUrl: "" })}
+                        className="text-xs text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {design.bannerUrl ? (
+                    <div className="relative rounded-lg overflow-hidden border border-gray-200 h-28 bg-white">
+                      <img src={design.bannerUrl} alt="Banner Preview" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <label className="border-2 border-dashed border-gray-300 hover:border-indigo-500 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer bg-white transition-colors">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingBanner}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploadingBanner(true);
+                          try {
+                            const url = await handleAssetUpload(file, "forms/banners");
+                            if (url) setDesign({ ...design, bannerUrl: url });
+                          } catch (err: any) {
+                            alert(err.message || "Banner upload failed");
+                          } finally {
+                            setUploadingBanner(false);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                      {uploadingBanner ? (
+                        <div className="flex items-center gap-2 text-xs text-indigo-600 font-medium">
+                          <RefreshCw size={14} className="animate-spin" /> Uploading to S3…
+                        </div>
+                      ) : (
+                        <>
+                          <UploadCloud size={20} className="text-gray-400 mb-1" />
+                          <span className="text-xs font-semibold text-gray-700">Upload Cover Banner</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">PNG, JPG, WebP up to 10MB</span>
+                        </>
+                      )}
+                    </label>
+                  )}
+                </div>
+
+                {/* ── Form Logo ── */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-indigo-600" /> Form Logo
+                    </label>
+                    {design.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setDesign({ ...design, logoUrl: "" })}
+                        className="text-xs text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {design.logoUrl ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-14 h-14 rounded-xl border border-gray-200 overflow-hidden bg-white p-1">
+                        <img src={design.logoUrl} alt="Logo Preview" className="w-full h-full object-contain" />
+                      </div>
+                      <span className="text-xs text-gray-500 font-medium">Logo active</span>
+                    </div>
+                  ) : (
+                    <label className="border-2 border-dashed border-gray-300 hover:border-indigo-500 rounded-xl p-3 flex items-center justify-center gap-2 text-center cursor-pointer bg-white transition-colors">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingLogo}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploadingLogo(true);
+                          try {
+                            const url = await handleAssetUpload(file, "forms/logos");
+                            if (url) setDesign({ ...design, logoUrl: url });
+                          } catch (err: any) {
+                            alert(err.message || "Logo upload failed");
+                          } finally {
+                            setUploadingLogo(false);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                      {uploadingLogo ? (
+                        <div className="flex items-center gap-2 text-xs text-indigo-600 font-medium">
+                          <RefreshCw size={14} className="animate-spin" /> Uploading to S3…
+                        </div>
+                      ) : (
+                        <>
+                          <UploadCloud size={16} className="text-gray-400" />
+                          <span className="text-xs font-semibold text-gray-700">Upload Square Logo</span>
+                        </>
+                      )}
+                    </label>
+                  )}
+                </div>
 
                 {/* ── Font Family ── */}
                 <div>
@@ -689,24 +1024,52 @@ func main() {
           <div className="w-full max-w-3xl space-y-6">
             
             {/* Form Header */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-              <input 
-                type="text" 
-                className="w-full text-4xl font-bold text-gray-900 border-none bg-transparent focus:ring-0 p-0 mb-4 focus:outline-none placeholder-gray-300"
-                placeholder="Form Title"
-                value={design.title || ""} 
-                onChange={e => setDesign({...design, title: e.target.value})} 
-              />
-              <textarea 
-                className="w-full text-gray-600 text-sm border-none bg-transparent focus:ring-0 p-0 resize-none focus:outline-none placeholder-gray-400 overflow-hidden min-h-[40px]"
-                placeholder="Form Description"
-                value={design.description || ""} 
-                onChange={e => {
-                  setDesign({...design, description: e.target.value});
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                }} 
-              />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {design.bannerUrl && (
+                <div className="relative w-full h-44 group bg-gray-100 border-b border-gray-100">
+                  <img src={design.bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setDesign({ ...design, bannerUrl: "" })}
+                    className="absolute top-3 right-3 p-1.5 rounded-lg bg-black/60 text-white hover:bg-black transition-colors"
+                    title="Remove Banner"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              <div className="p-8">
+                {design.logoUrl && (
+                  <div className="relative inline-block mb-4 group">
+                    <img src={design.logoUrl} alt="Logo" className="w-14 h-14 rounded-xl object-contain border border-gray-200 p-1 shadow-xs bg-white" />
+                    <button
+                      type="button"
+                      onClick={() => setDesign({ ...design, logoUrl: "" })}
+                      className="absolute -top-2 -right-2 p-1 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors shadow-xs"
+                      title="Remove Logo"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                <input 
+                  type="text" 
+                  className="w-full text-4xl font-bold text-gray-900 border-none bg-transparent focus:ring-0 p-0 mb-4 focus:outline-none placeholder-gray-300"
+                  placeholder="Form Title"
+                  value={design.title || ""} 
+                  onChange={e => setDesign({...design, title: e.target.value})} 
+                />
+                <textarea 
+                  className="w-full text-gray-600 text-sm border-none bg-transparent focus:ring-0 p-0 resize-none focus:outline-none placeholder-gray-400 overflow-hidden min-h-[40px]"
+                  placeholder="Form Description"
+                  value={design.description || ""} 
+                  onChange={e => {
+                    setDesign({...design, description: e.target.value});
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                  }} 
+                />
+              </div>
             </div>
 
             {/* Form Fields */}
