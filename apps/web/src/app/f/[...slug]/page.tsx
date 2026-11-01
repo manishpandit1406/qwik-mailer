@@ -62,6 +62,8 @@ export default function HostedFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  // Track per-field upload state: { [fieldKey]: "idle" | "uploading" | "done" | "error" }
+  const [fileUploadState, setFileUploadState] = useState<Record<string, "idle" | "uploading" | "done" | "error">>({});
   const [form, setForm] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const fontInjectedRef = useRef<string | null>(null);
@@ -680,7 +682,8 @@ export default function HostedFormPage() {
                           accept={field.accept || ".pdf"}
                           name={field.label || field.name}
                           required={field.required && !formData[field.label || field.name]}
-                          onChange={(e) => {
+                          disabled={fileUploadState[field.label || field.name] === "uploading"}
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
                             if (file.size > 10 * 1024 * 1024) {
@@ -688,28 +691,72 @@ export default function HostedFormPage() {
                               e.target.value = "";
                               return;
                             }
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              handleInputChange(field.label || field.name, {
-                                name: file.name,
-                                size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-                                type: file.type,
-                                data: reader.result,
+                            const fieldKey = field.label || field.name;
+                            setFileUploadState((prev) => ({ ...prev, [fieldKey]: "uploading" }));
+                            try {
+                              // Convert to base64
+                              const base64 = await new Promise<string>((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = () => resolve(reader.result as string);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(file);
                               });
-                            };
-                            reader.readAsDataURL(file);
+                              // Upload to S3 via backend
+                              const res = await fetch(`${API}/v1/uploads/submission-file`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  base64,
+                                  contentType: file.type || "application/pdf",
+                                  filename: file.name,
+                                  formId: id,
+                                }),
+                              });
+                              const json = await res.json();
+                              if (json.success && json.url) {
+                                handleInputChange(fieldKey, {
+                                  name: file.name,
+                                  size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+                                  type: file.type,
+                                  url: json.url,
+                                });
+                                setFileUploadState((prev) => ({ ...prev, [fieldKey]: "done" }));
+                              } else {
+                                setFileUploadState((prev) => ({ ...prev, [fieldKey]: "error" }));
+                                alert(json.error || "File upload failed. Please try again.");
+                                e.target.value = "";
+                              }
+                            } catch {
+                              setFileUploadState((prev) => ({ ...prev, [fieldKey]: "error" }));
+                              alert("File upload failed. Please check your connection and try again.");
+                              e.target.value = "";
+                            }
                           }}
-                          className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                          className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                       </div>
-                      {formData[field.label || field.name]?.name && (
+                      {/* Upload progress */}
+                      {fileUploadState[field.label || field.name] === "uploading" && (
+                        <div className="text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded-lg flex items-center gap-2">
+                          <RefreshCw size={12} className="animate-spin shrink-0" />
+                          Uploading file securely…
+                        </div>
+                      )}
+                      {/* Success state */}
+                      {formData[field.label || field.name]?.name && fileUploadState[field.label || field.name] !== "uploading" && (
                         <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center justify-between">
                           <span className="font-medium truncate">
                             📄 {formData[field.label || field.name].name} ({formData[field.label || field.name].size})
+                            {formData[field.label || field.name].url && (
+                              <span className="ml-2 text-emerald-600">✓ Uploaded</span>
+                            )}
                           </span>
                           <button
                             type="button"
-                            onClick={() => handleInputChange(field.label || field.name, "")}
+                            onClick={() => {
+                              handleInputChange(field.label || field.name, "");
+                              setFileUploadState((prev) => ({ ...prev, [field.label || field.name]: "idle" }));
+                            }}
                             className="text-red-500 hover:text-red-700 font-bold ml-2"
                           >
                             ×
