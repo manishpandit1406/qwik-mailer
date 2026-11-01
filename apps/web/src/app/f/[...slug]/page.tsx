@@ -151,34 +151,40 @@ export default function HostedFormPage() {
   function setupGsiButton() {
     if (typeof window === "undefined" || !(window as any).google?.accounts?.id || !GOOGLE_CLIENT_ID) return;
 
-    (window as any).google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: (res: any) => {
-        if (!res?.credential) return;
-        const decoded = parseJwt(res.credential);
-        if (decoded?.email) {
-          const resp: FormRespondent = {
-            email: decoded.email.toLowerCase(),
-            name: decoded.name || decoded.given_name || "",
-            picture: decoded.picture || "",
-            token: res.credential,
-          };
-          saveRespondent(resp);
-        }
-      },
-    });
-
-    const container = document.getElementById("google-gsi-button-container");
-    if (container) {
-      container.innerHTML = "";
-      const containerWidth = Math.min(280, container.clientWidth || 280);
-      (window as any).google.accounts.id.renderButton(container, {
-        theme: "outline",
-        size: "large",
-        width: Math.max(220, containerWidth),
-        text: "continue_with",
-        shape: "pill",
+    try {
+      (window as any).google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        callback: (res: any) => {
+          if (!res?.credential) return;
+          const decoded = parseJwt(res.credential);
+          if (decoded?.email) {
+            const resp: FormRespondent = {
+              email: decoded.email.toLowerCase(),
+              name: decoded.name || decoded.given_name || "",
+              picture: decoded.picture || "",
+              token: res.credential,
+            };
+            saveRespondent(resp);
+          }
+        },
       });
+
+      const container = document.getElementById("google-gsi-button-container");
+      if (container) {
+        container.innerHTML = "";
+        const containerWidth = Math.min(280, container.clientWidth || 280);
+        (window as any).google.accounts.id.renderButton(container, {
+          theme: "outline",
+          size: "large",
+          width: Math.max(220, containerWidth),
+          text: "continue_with",
+          shape: "pill",
+        });
+      }
+    } catch {
+      // Non-fatal if GSI fails
     }
   }
 
@@ -213,7 +219,15 @@ export default function HostedFormPage() {
 
   function handleGoogleLoginClick() {
     if (GOOGLE_CLIENT_ID && (window as any).google?.accounts?.id) {
-      (window as any).google.accounts.id.prompt();
+      try {
+        (window as any).google.accounts.id.prompt((notification: any) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            setShowFallbackAuthModal(true);
+          }
+        });
+      } catch {
+        setShowFallbackAuthModal(true);
+      }
     } else {
       setShowFallbackAuthModal(true);
     }
@@ -529,6 +543,14 @@ export default function HostedFormPage() {
                     Continue with Google
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowFallbackAuthModal(true)}
+                  className="text-xs text-gray-500 hover:text-indigo-600 underline font-medium transition-colors"
+                >
+                  Trouble signing in? Enter Google email manually
+                </button>
               </div>
 
               <div className="mt-5 sm:mt-6 pt-3.5 sm:pt-4 border-t border-gray-200/60 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-gray-400">
