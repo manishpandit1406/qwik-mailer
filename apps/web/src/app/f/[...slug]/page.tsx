@@ -493,36 +493,36 @@ export default function HostedFormPage() {
             </div>
           )}
 
-          {/* If Google sign-in is required and respondent is NOT signed in: Display Sign-In Screen */}
-          {requiresGoogle && !respondent ? (
-            <div className="py-6 sm:py-8 px-3 sm:px-6 text-center animate-fade-up bg-gray-50/70 border border-gray-200/80 rounded-2xl w-full">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white border border-gray-200/80 shadow-xs rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                <GoogleIcon className="w-6 h-6 sm:w-7 sm:h-7" />
+          {/* If Google sign-in is required and respondent is NOT signed in: Display Compact Sign-In Screen */}
+          {requiresGoogle && !respondent && !isPreview ? (
+            <div className="py-5 px-4 sm:px-6 text-center animate-fade-up bg-gray-50/80 border border-gray-200/90 rounded-2xl w-full shadow-xs">
+              <div className="w-10 h-10 bg-white border border-gray-200/80 shadow-xs rounded-xl flex items-center justify-center mx-auto mb-2.5">
+                <GoogleIcon className="w-5 h-5" />
               </div>
 
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
+              <h2 className="text-base font-bold text-gray-900 mb-1">
                 Sign in with Google to continue
               </h2>
-              <p className="text-xs sm:text-sm text-gray-500 max-w-sm mx-auto mb-5 sm:mb-6 leading-relaxed">
-                The creator of this form requires respondents to authenticate with Google before filling it out. Your email will be recorded with your submission.
+              <p className="text-xs text-gray-500 max-w-xs mx-auto mb-4 leading-normal">
+                Your verified Google email will be recorded with your submission.
               </p>
 
-              <div className="flex flex-col items-center justify-center gap-3 w-full">
-                <div id="google-gsi-button-container" className="min-h-[44px] w-full max-w-[280px] flex items-center justify-center overflow-hidden">
+              <div className="flex flex-col items-center justify-center gap-2 w-full">
+                <div id="google-gsi-button-container" className="min-h-[40px] w-full max-w-[260px] flex items-center justify-center overflow-hidden">
                   <button
                     type="button"
                     onClick={handleGoogleLoginClick}
-                    className="w-full inline-flex items-center justify-center gap-3 px-4 sm:px-6 py-2.5 bg-white border border-gray-300 hover:border-gray-400 rounded-full text-xs sm:text-sm font-semibold text-gray-700 shadow-xs hover:shadow transition-all"
+                    className="w-full inline-flex items-center justify-center gap-2.5 px-4 py-2 bg-white border border-gray-300 hover:border-gray-400 rounded-full text-xs font-semibold text-gray-700 shadow-xs hover:shadow transition-all"
                   >
-                    <GoogleIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                    <GoogleIcon className="w-4 h-4 shrink-0" />
                     Continue with Google
                   </button>
                 </div>
               </div>
 
-              <div className="mt-5 sm:mt-6 pt-3.5 sm:pt-4 border-t border-gray-200/60 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-gray-400">
+              <div className="mt-3.5 pt-2.5 border-t border-gray-200/60 flex items-center justify-center gap-1.5 text-[10px] text-gray-400">
                 <span>Form-only authentication</span>
-                <span className="hidden xs:inline">&bull;</span>
+                <span>&bull;</span>
                 <span>Does not log into platform</span>
               </div>
             </div>
@@ -564,6 +564,22 @@ export default function HostedFormPage() {
                   >
                     Switch account
                   </button>
+                </div>
+              )}
+
+              {/* In Preview mode without actual respondent: Show mock verified badge */}
+              {requiresGoogle && !respondent && isPreview && (
+                <div className="mb-4 p-2.5 bg-gray-50/90 border border-gray-200/80 rounded-xl flex items-center justify-between text-xs animate-fade-up">
+                  <div className="flex items-center gap-2">
+                    <GoogleIcon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-[11px] text-gray-600 font-medium">Google Sign-In Enabled</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Verified
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-gray-400 font-semibold uppercase">
+                    Preview
+                  </span>
                 </div>
               )}
 
