@@ -844,7 +844,25 @@ export default function HostedFormPage() {
                   </label>
                   {field.helperText && (
                     <p className="text-xs text-gray-500 mb-2 leading-relaxed">
-                      {field.helperText}
+                      {field.helperText.includes("http") ? (
+                        field.helperText.split(/(https?:\/\/[^\s]+)/g).map((part: string, idx: number) =>
+                          part.startsWith("http") ? (
+                            <a
+                              key={idx}
+                              href={part}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline font-medium inline-flex items-center gap-0.5"
+                            >
+                              {part} <ExternalLink size={11} className="inline ml-0.5" />
+                            </a>
+                          ) : (
+                            part
+                          )
+                        )
+                      ) : (
+                        field.helperText
+                      )}
                     </p>
                   )}
 
