@@ -312,3 +312,8 @@ body {
   .bg-secondary { background-color: var(--bg-secondary); }
   .border-theme { border-color: var(--border); }
 }
+
+/* Suppress cookie banner on form pages */
+body.no-cookie-banner .cookie-banner-root {
+  display: none !important;
+}

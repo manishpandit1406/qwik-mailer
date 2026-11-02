@@ -105,6 +105,14 @@ export default function HostedFormPage() {
     );
   }, [id, form?.design?.theme]);
 
+  // Suppress cookie banner on form pages
+  useEffect(() => {
+    document.body.classList.add("no-cookie-banner");
+    return () => {
+      document.body.classList.remove("no-cookie-banner");
+    };
+  }, []);
+
   // Set tab title and favicon dynamically (custom brand / Septet Labs support)
   useEffect(() => {
     if (isSeptet) {
@@ -638,6 +646,7 @@ export default function HostedFormPage() {
       )}
 
       <div
+        data-qwik-form="true"
         className="min-h-screen flex items-center justify-center p-3 sm:p-6 md:p-8"
         style={{ ...bgStyle, fontFamily }}
       >
