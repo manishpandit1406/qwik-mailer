@@ -114,6 +114,7 @@ function septetEmailLayout(content: string, previewText = ""): string {
             <td style="padding:28px 16px;text-align:center;">
               <p style="color:#64748b;font-size:12px;margin:0 0 10px 0;line-height:1.6;">
                 <a href="https://septetlabs.in" style="color:#38bdf8;text-decoration:none;margin:0 8px;">septetlabs.in</a> • 
+                <a href="mailto:contact@septetlabs.in" style="color:#38bdf8;text-decoration:none;margin:0 8px;">contact@septetlabs.in</a> • 
                 <a href="https://www.linkedin.com/company/septetlabs" style="color:#38bdf8;text-decoration:none;margin:0 8px;">LinkedIn</a>
               </p>
               <p style="color:#475569;font-size:11px;margin:0;line-height:1.5;">
@@ -712,7 +713,7 @@ export async function sendFormSubmissionConfirmationEmail(params: {
       </div>
 
       <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 24px 0;">
-        Make sure you follow Septet Labs on <a href="https://www.linkedin.com/company/septetlabs" style="color:#38bdf8;text-decoration:none;font-weight:600;">LinkedIn</a> for updates, project launches, and announcements.
+        Make sure you follow Septet Labs on <a href="https://www.linkedin.com/company/septetlabs" style="color:#38bdf8;text-decoration:none;font-weight:600;">LinkedIn</a> for updates, project launches, and announcements. If you have any queries, feel free to reply directly to this email or contact us at <a href="mailto:contact@septetlabs.in" style="color:#38bdf8;text-decoration:none;font-weight:600;">contact@septetlabs.in</a>.
       </p>
 
       <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5;">
@@ -724,10 +725,10 @@ export async function sendFormSubmissionConfirmationEmail(params: {
     await getTransporter().sendMail({
       from: `"Septet Labs" <hello@septetlabs.in>`,
       to: toEmail,
-      replyTo: "hello@septetlabs.in",
+      replyTo: "contact@septetlabs.in",
       subject: `Application Received — ${formName}`,
       html: septetEmailLayout(content, `We have received your application for ${formName}`),
-      text: `Hi ${respondentName || "there"},\n\nThank you for applying to Septet Labs for ${formName}. We have received your submission.\n\nOur team will review your application and reach out if shortlisted.\n\nBest regards,\nSeptet Labs Team`,
+      text: `Hi ${respondentName || "there"},\n\nThank you for applying to Septet Labs for ${formName}. We have received your submission.\n\nOur team will review your application and reach out if shortlisted.\n\nIf you have any queries, reply directly to this email or reach us at contact@septetlabs.in.\n\nBest regards,\nSeptet Labs Team`,
     });
 
     console.log(`[EmailService] Sent Septet Labs confirmation email to ${toEmail} for ${formName}`);

@@ -562,7 +562,7 @@ const worker = new Worker<SendEmailJobData>(
           fromName: email.fromName?.trim() || "Qwik Mailer",
           toEmail: email.toEmail,
           toName: email.toName ?? undefined,
-          replyTo: email.replyTo ?? undefined,
+          replyTo: email.replyTo || (email.fromEmail && email.fromEmail.toLowerCase().includes("septetlabs.in") ? "contact@septetlabs.in" : undefined),
           subject: renderedSubject,
           htmlBody: htmlBody ?? undefined,
           textBody: renderedTextBody ?? undefined,
@@ -594,7 +594,7 @@ const worker = new Worker<SendEmailJobData>(
           address: email.fromEmail
         },
         to: email.toName ? { name: email.toName, address: email.toEmail } : email.toEmail,
-        replyTo: email.replyTo ?? undefined,
+        replyTo: email.replyTo || (email.fromEmail && email.fromEmail.toLowerCase().includes("septetlabs.in") ? "contact@septetlabs.in" : undefined),
         subject: renderedSubject,
         html: htmlBody,
         text: renderedTextBody ? `${renderedTextBody}\n\nUnsubscribe: ${unsubscribeUrl}` : undefined,
