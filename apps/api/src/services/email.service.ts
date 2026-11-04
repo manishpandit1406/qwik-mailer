@@ -40,7 +40,7 @@ function emailLayout(content: string, previewText = ""): string {
           <tr>
             <td style="padding-bottom:32px;text-align:center;">
               <span style="font-size:24px;font-weight:800;color:#000000;letter-spacing:-0.5px;">
-                <span style="color:#000000;">✉️ Qwik Mailer</span>
+                <span style="color:#000000;">Qwik Mailer</span>
               </span>
             </td>
           </tr>
@@ -168,7 +168,7 @@ export async function sendVerificationEmail(
     text: `Welcome to Qwik Mailer!\n\nVerify your email: ${verifyUrl}\n\nThis link expires in 24 hours.`,
   });
 
-  console.log(`[EmailService] ✅ Verification email sent to ${email}`);
+  console.log(`[EmailService] Verification email sent to ${email}`);
 }
 
 // ─── Send Password Reset Email ────────────────────────────────────────────────
@@ -208,7 +208,7 @@ export async function sendPasswordResetEmail(
     text: `Reset your Qwik Mailer password:\n\n${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, ignore this email.`,
   });
 
-  console.log(`[EmailService] ✅ Password reset email sent to ${email}`);
+  console.log(`[EmailService] Password reset email sent to ${email}`);
 }
 
 // ─── Send Password Reset Success Email ────────────────────────────────────────
@@ -235,7 +235,7 @@ export async function sendPasswordResetSuccessEmail(
     text: `Your Qwik Mailer password has been successfully changed.\n\nIf you did not make this change, please contact support immediately.`,
   });
 
-  console.log(`[EmailService] ✅ Password reset success email sent to ${email}`);
+  console.log(`[EmailService] Password reset success email sent to ${email}`);
 }
 
 // ─── Send Welcome Email (after email verified) ────────────────────────────────
@@ -247,7 +247,7 @@ export async function sendWelcomeEmail(
   const dashboardUrl = `${process.env.NEXTAUTH_URL ?? "https://qwikmailer.in"}/dashboard`;
 
   const content = `
-    <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">You're in! 🎉</h1>
+    <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">Welcome to Qwik Mailer</h1>
     <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
       Hey ${name}, your email is now verified. Welcome to <strong style="color:#111827;">Qwik Mailer</strong>! We're excited to have you on board.
     </p>
@@ -265,12 +265,12 @@ export async function sendWelcomeEmail(
   await getTransporter().sendMail({
     from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
-    subject: "Welcome to Qwik Mailer — you're all set! 🎉",
+    subject: "Welcome to Qwik Mailer — your account is ready",
     html: emailLayout(content, "Your account is ready — start sending emails today."),
     text: `Welcome to Qwik Mailer! Your account is verified.\n\nGo to your dashboard: ${dashboardUrl}`,
   });
 
-  console.log(`[EmailService] ✅ Welcome email sent to ${email}`);
+  console.log(`[EmailService] Welcome email sent to ${email}`);
 }
 
 // ─── Send Domain Verified Email ──────────────────────────────────────────────
@@ -281,7 +281,7 @@ export async function sendDomainVerifiedEmail(
   domainName: string
 ): Promise<void> {
   const content = `
-    <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">Domain Verified! 🎉</h1>
+    <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">Domain Verified</h1>
     <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
       Hey ${name || "there"}, great news! Your domain <strong style="color:#111827;">${domainName}</strong> has reached 100% health and is now fully verified.
     </p>
@@ -293,12 +293,12 @@ export async function sendDomainVerifiedEmail(
   await getTransporter().sendMail({
     from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to: email,
-    subject: `Domain ${domainName} is now verified 🎉`,
+    subject: `Domain ${domainName} is now verified`,
     html: emailLayout(content, `Your domain ${domainName} is fully verified.`),
     text: `Your domain ${domainName} has reached 100% health and is fully verified.\nYou can now start sending emails.`,
   });
 
-  console.log(`[EmailService] ✅ Domain verified email sent to ${email}`);
+  console.log(`[EmailService] Domain verified email sent to ${email}`);
 }
 
 // ─── Send Passkey Added Email ─────────────────────────────────────────────────
@@ -333,7 +333,7 @@ export async function sendPasskeyAddedEmail(
     text: `A new passkey was added to your Qwik Mailer account from ${deviceName} (${os}, ${browser}).\n\nIf you did not authorize this, please review your security settings.`,
   });
 
-  console.log(`[EmailService] ✅ Passkey added email sent to ${email}`);
+  console.log(`[EmailService] Passkey added email sent to ${email}`);
 }
 
 // ─── Send Passkey Deleted Email ───────────────────────────────────────────────
@@ -368,7 +368,7 @@ export async function sendPasskeyDeletedEmail(
     text: `A passkey was removed from your Qwik Mailer account from ${deviceName}.\n\nIf you did not authorize this, please review your security settings.`,
   });
 
-  console.log(`[EmailService] ✅ Passkey deleted email sent to ${email}`);
+  console.log(`[EmailService] Passkey deleted email sent to ${email}`);
 }
 
 // ─── Send 2FA Enabled Email ─────────────────────────────────────────────────
@@ -403,7 +403,7 @@ export async function send2FAEnabledEmail(
     text: `2FA was enabled on your Qwik Mailer account from ${deviceName}.\n\nIf you did not authorize this, please review your security settings.`,
   });
 
-  console.log(`[EmailService] ✅ 2FA enabled email sent to ${email}`);
+  console.log(`[EmailService] 2FA enabled email sent to ${email}`);
 }
 
 // ─── Send 2FA Disabled Email ────────────────────────────────────────────────
@@ -438,7 +438,7 @@ export async function send2FADisabledEmail(
     text: `2FA was disabled on your Qwik Mailer account from ${deviceName}.\n\nIf you did not authorize this, please review your security settings.`,
   });
 
-  console.log(`[EmailService] ✅ 2FA disabled email sent to ${email}`);
+  console.log(`[EmailService] 2FA disabled email sent to ${email}`);
 }
 
 // ─── Send New Login Alert Email ─────────────────────────────────────────────
@@ -477,7 +477,7 @@ export async function sendNewLoginAlertEmail(
     text: `New login to your Qwik Mailer account from ${deviceName} (${os}, ${browser}) at ${ipAddress}.\n\nIf this wasn't you, please secure your account immediately.`,
   });
 
-  console.log(`[EmailService] ✅ New login alert email sent to ${email}`);
+  console.log(`[EmailService] New login alert email sent to ${email}`);
 }
 
 export async function sendSharedSenderOtpEmail(to: string, otp: string) {
@@ -516,7 +516,7 @@ export async function sendTeamInviteEmail(
   const expiryStr = expiresAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
   const content = `
-    <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">You're invited to join a team 🎉</h1>
+    <h1 style="color:#111827;font-size:24px;font-weight:700;margin:0 0 16px 0;">Team Invitation</h1>
     <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
       <strong style="color:#111827;">${inviterName}</strong> has invited you to join the
       <strong style="color:#111827;">${teamName}</strong> team on Qwik Mailer as a
@@ -673,10 +673,10 @@ export async function sendFormSubmissionConfirmationEmail(params: {
   const formattedFields = formatSubmissionFields(data, schema);
   const rowsHtml = formattedFields.map(f => `
     <tr>
-      <td style="padding:10px 12px;font-size:13px;color:#64748b;font-weight:500;border-bottom:1px solid #f1f5f9;vertical-align:top;width:40%;">
+      <td style="padding:10px 12px;font-size:13px;color:#475569;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;width:40%;">
         ${escapeHtml(f.label)}
       </td>
-      <td style="padding:10px 12px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #f1f5f9;vertical-align:top;word-break:break-word;">
+      <td style="padding:10px 12px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;word-break:break-word;">
         ${escapeHtml(f.value)}
       </td>
     </tr>
@@ -685,7 +685,7 @@ export async function sendFormSubmissionConfirmationEmail(params: {
   if (isSeptet) {
     const isInternship = formName.toLowerCase().includes("internship");
     const content = `
-      <h1 style="color:#0f172a;font-size:22px;font-weight:700;margin:0 0 12px 0;">Application Received 🚀</h1>
+      <h1 style="color:#0f172a;font-size:22px;font-weight:700;margin:0 0 12px 0;">Application Received</h1>
       <p style="color:#334155;font-size:15px;line-height:1.6;margin:0 0 16px 0;">
         Hi <strong>${escapeHtml(respondentName || "there")}</strong>,
       </p>
@@ -735,7 +735,7 @@ export async function sendFormSubmissionConfirmationEmail(params: {
   } else {
     // Platform-related (Qwik Mailer)
     const content = `
-      <h1 style="color:#111827;font-size:22px;font-weight:700;margin:0 0 12px 0;">Submission Confirmed ✅</h1>
+      <h1 style="color:#111827;font-size:22px;font-weight:700;margin:0 0 12px 0;">Submission Confirmed</h1>
       <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 16px 0;">
         Hi <strong>${escapeHtml(respondentName || "there")}</strong>,
       </p>
@@ -788,10 +788,10 @@ export async function sendFormSubmissionAdminNotification(params: {
   const formattedFields = formatSubmissionFields(data, schema);
   const rowsHtml = formattedFields.map(f => `
     <tr>
-      <td style="padding:10px 12px;font-size:13px;color:${isSeptet ? '#94a3b8' : '#6b7280'};font-weight:500;border-bottom:1px solid ${isSeptet ? 'rgba(255,255,255,0.06)' : '#f3f4f6'};vertical-align:top;width:40%;">
+      <td style="padding:10px 12px;font-size:13px;color:#475569;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;width:40%;">
         ${escapeHtml(f.label)}
       </td>
-      <td style="padding:10px 12px;font-size:13px;color:${isSeptet ? '#f1f5f9' : '#111827'};font-weight:600;border-bottom:1px solid ${isSeptet ? 'rgba(255,255,255,0.06)' : '#f3f4f6'};vertical-align:top;word-break:break-word;">
+      <td style="padding:10px 12px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;word-break:break-word;">
         ${escapeHtml(f.value)}
       </td>
     </tr>
@@ -802,7 +802,7 @@ export async function sendFormSubmissionAdminNotification(params: {
     : `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`;
 
   const subject = isSeptet
-    ? `⚡ New Application: ${formName} — ${respondentName || respondentEmail || "Applicant"}`
+    ? `New Application: ${formName} — ${respondentName || respondentEmail || "Applicant"}`
     : `New Form Submission: ${formName} — ${respondentName || respondentEmail || "Respondent"}`;
 
   const content = isSeptet ? `
