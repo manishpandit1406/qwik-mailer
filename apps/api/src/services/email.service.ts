@@ -93,7 +93,7 @@ function septetEmailLayout(content: string, previewText = ""): string {
                   </td>
                   <td style="vertical-align:middle;text-align:left;">
                     <div style="font-size:20px;font-weight:800;color:#0f172a;letter-spacing:0.5px;line-height:1.2;">
-                      SEPTET <span style="color:#0284c7;">LABS</span>
+                      SEPTET <span style="color:#175bf2;">LABS</span>
                     </div>
                     <div style="font-size:10px;font-weight:600;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;">
                       Architecting the Unseen
@@ -113,9 +113,9 @@ function septetEmailLayout(content: string, previewText = ""): string {
           <tr>
             <td style="padding:28px 16px;text-align:center;">
               <p style="color:#64748b;font-size:12px;margin:0 0 10px 0;line-height:1.6;">
-                <a href="https://septetlabs.in" style="color:#0284c7;text-decoration:none;margin:0 8px;font-weight:500;">septetlabs.in</a> • 
-                <a href="mailto:contact@septetlabs.in" style="color:#0284c7;text-decoration:none;margin:0 8px;font-weight:500;">contact@septetlabs.in</a> • 
-                <a href="https://www.linkedin.com/company/septetlabs" style="color:#0284c7;text-decoration:none;margin:0 8px;font-weight:500;">LinkedIn</a>
+                <a href="https://septetlabs.in" style="color:#175bf2;text-decoration:none;margin:0 8px;font-weight:500;">septetlabs.in</a> • 
+                <a href="mailto:contact@septetlabs.in" style="color:#175bf2;text-decoration:none;margin:0 8px;font-weight:500;">contact@septetlabs.in</a> • 
+                <a href="https://www.linkedin.com/company/septetlabs" style="color:#175bf2;text-decoration:none;margin:0 8px;font-weight:500;">LinkedIn</a>
               </p>
               <p style="color:#94a3b8;font-size:11px;margin:0;line-height:1.5;">
                 © ${new Date().getFullYear()} Septet Labs. All rights reserved.<br />
@@ -697,7 +697,7 @@ export async function sendFormSubmissionConfirmationEmail(params: {
       </p>
       
       <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:0 0 24px 0;">
-        <div style="font-size:11px;font-weight:700;color:#0284c7;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;color:#175bf2;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
           Submission Summary
         </div>
         <table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
@@ -705,15 +705,15 @@ export async function sendFormSubmissionConfirmationEmail(params: {
         </table>
       </div>
 
-      <div style="background-color:#f0f9ff;border-left:3px solid #0284c7;border-radius:4px;padding:14px 16px;margin:0 0 24px 0;">
-        <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:4px;">Next Steps</div>
+      <div style="background-color:#eff5ff;border-left:3px solid #175bf2;border-radius:4px;padding:14px 16px;margin:0 0 24px 0;">
+        <div style="font-size:13px;font-weight:700;color:#175bf2;margin-bottom:4px;">Next Steps</div>
         <p style="font-size:13px;color:#334155;line-height:1.5;margin:0;">
           Our talent and technical team evaluates every application thoroughly. If shortlisted, you will hear back from us via <strong>Email or WhatsApp</strong> within <strong>5–7 business days</strong>.
         </p>
       </div>
 
       <p style="color:#475569;font-size:13px;line-height:1.6;margin:0 0 24px 0;">
-        Make sure you follow Septet Labs on <a href="https://www.linkedin.com/company/septetlabs" style="color:#0284c7;text-decoration:none;font-weight:600;">LinkedIn</a> for updates, project launches, and announcements. If you have any queries, feel free to reply directly to this email or contact us at <a href="mailto:contact@septetlabs.in" style="color:#0284c7;text-decoration:none;font-weight:600;">contact@septetlabs.in</a>.
+        Make sure you follow Septet Labs on <a href="https://www.linkedin.com/company/septetlabs" style="color:#175bf2;text-decoration:none;font-weight:600;">LinkedIn</a> for updates, project launches, and announcements. If you have any queries, feel free to reply directly to this email or contact us at <a href="mailto:contact@septetlabs.in" style="color:#175bf2;text-decoration:none;font-weight:600;">contact@septetlabs.in</a>.
       </p>
 
       <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5;">
@@ -808,11 +808,11 @@ export async function sendFormSubmissionAdminNotification(params: {
   const content = isSeptet ? `
     <h1 style="color:#0f172a;font-size:20px;font-weight:700;margin:0 0 12px 0;">New Application Received</h1>
     <p style="color:#475569;font-size:14px;line-height:1.5;margin:0 0 16px 0;">
-      A new response has been submitted for <strong style="color:#0284c7;">${escapeHtml(formName)}</strong>.
+      A new response has been submitted for <strong style="color:#175bf2;">${escapeHtml(formName)}</strong>.
     </p>
 
     <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:0 0 20px 0;">
-      <div style="font-size:11px;font-weight:700;color:#0284c7;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:#175bf2;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
         Candidate Details
       </div>
       <table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
