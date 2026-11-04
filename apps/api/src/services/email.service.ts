@@ -67,6 +67,69 @@ function emailLayout(content: string, previewText = ""): string {
 </html>`;
 }
 
+// ─── Septet Labs HTML Layout ──────────────────────────────────────────────────
+
+function septetEmailLayout(content: string, previewText = ""): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Septet Labs</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0b0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
+  <span style="display:none;font-size:1px;color:#0b0c10;max-height:0;max-width:0;opacity:0;overflow:hidden;">${previewText}</span>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0c10;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
+          <!-- Header -->
+          <tr>
+            <td style="padding-bottom:28px;text-align:center;">
+              <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                <tr>
+                  <td style="vertical-align:middle;padding-right:12px;">
+                    <img src="https://septetlabs.in/septet-logo.png" alt="Septet Labs" width="40" height="40" style="display:block;border-radius:8px;border:1px solid rgba(255,255,255,0.15);" />
+                  </td>
+                  <td style="vertical-align:middle;text-align:left;">
+                    <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:1px;line-height:1.2;">
+                      SEPTET <span style="color:#38bdf8;">LABS</span>
+                    </div>
+                    <div style="font-size:10px;font-weight:600;color:#94a3b8;letter-spacing:1.5px;text-transform:uppercase;">
+                      Architecting the Unseen
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Main Card -->
+          <tr>
+            <td style="background:#13151f;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:36px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.5);">
+              ${content}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:28px 16px;text-align:center;">
+              <p style="color:#64748b;font-size:12px;margin:0 0 10px 0;line-height:1.6;">
+                <a href="https://septetlabs.in" style="color:#38bdf8;text-decoration:none;margin:0 8px;">septetlabs.in</a> • 
+                <a href="https://www.linkedin.com/company/septetlabs" style="color:#38bdf8;text-decoration:none;margin:0 8px;">LinkedIn</a>
+              </p>
+              <p style="color:#475569;font-size:11px;margin:0;line-height:1.5;">
+                © ${new Date().getFullYear()} Septet Labs. All rights reserved.<br />
+                This is an automated notification regarding your submission.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 // ─── Send Verification Email ──────────────────────────────────────────────────
 
 export async function sendVerificationEmail(
@@ -525,4 +588,268 @@ export async function sendSupportReplyEmail(
   });
 
   console.log(`[EmailService] Support reply email sent to ${email}`);
+}
+
+// ─── Form Submission Helpers & Email Handlers ──────────────────────────────────
+
+function escapeHtml(str: any): string {
+  if (str === undefined || str === null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatSubmissionFields(data: Record<string, any>, schema?: any[]): { label: string; value: string }[] {
+  const result: { label: string; value: string }[] = [];
+  const seenKeys = new Set<string>();
+
+  if (schema && Array.isArray(schema) && schema.length > 0) {
+    for (const f of schema) {
+      const candidates = [f.name, f.id, f.label].filter(Boolean);
+      let val: any = undefined;
+      for (const k of candidates) {
+        if (data[k] !== undefined && data[k] !== null && data[k] !== "") {
+          val = data[k];
+          seenKeys.add(k);
+          break;
+        }
+      }
+      if (val !== undefined) {
+        let displayVal = "";
+        if (Array.isArray(val)) {
+          displayVal = val.join(", ");
+        } else if (typeof val === "object") {
+          displayVal = JSON.stringify(val);
+        } else {
+          displayVal = String(val);
+        }
+        result.push({ label: f.label || f.name, value: displayVal });
+      }
+    }
+  }
+
+  // Include any remaining keys not covered by schema
+  for (const [k, v] of Object.entries(data)) {
+    if (!seenKeys.has(k) && v !== undefined && v !== null && v !== "") {
+      const displayVal = Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v);
+      result.push({ label: k.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()), value: displayVal });
+    }
+  }
+
+  return result;
+}
+
+export function isSeptetLabsForm(form: { id?: string; name?: string }, originOrHost?: string): boolean {
+  if (form.id === "ab27b2af-2811-4ad1-8c62-1aaa1523d27c" || form.id === "53e54dc1-4836-47aa-bdd6-b38a56f04ab5") {
+    return true;
+  }
+  if (form.name && form.name.toLowerCase().includes("septet")) {
+    return true;
+  }
+  if (originOrHost) {
+    const lower = originOrHost.toLowerCase();
+    if (lower.includes("septetlabs.in") || lower.includes("septet.")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export async function sendFormSubmissionConfirmationEmail(params: {
+  toEmail: string;
+  respondentName?: string;
+  formName: string;
+  formId: string;
+  isSeptet: boolean;
+  data: Record<string, any>;
+  schema?: any[];
+}): Promise<void> {
+  const { toEmail, respondentName, formName, isSeptet, data, schema } = params;
+
+  const formattedFields = formatSubmissionFields(data, schema);
+  const rowsHtml = formattedFields.map(f => `
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;color:${isSeptet ? '#94a3b8' : '#6b7280'};font-weight:500;border-bottom:1px solid ${isSeptet ? 'rgba(255,255,255,0.06)' : '#f3f4f6'};vertical-align:top;width:40%;">
+        ${escapeHtml(f.label)}
+      </td>
+      <td style="padding:10px 12px;font-size:13px;color:${isSeptet ? '#f1f5f9' : '#111827'};font-weight:600;border-bottom:1px solid ${isSeptet ? 'rgba(255,255,255,0.06)' : '#f3f4f6'};vertical-align:top;word-break:break-word;">
+        ${escapeHtml(f.value)}
+      </td>
+    </tr>
+  `).join("");
+
+  if (isSeptet) {
+    const isInternship = formName.toLowerCase().includes("internship");
+    const content = `
+      <h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0 0 12px 0;">Application Received 🚀</h1>
+      <p style="color:#cbd5e1;font-size:15px;line-height:1.6;margin:0 0 16px 0;">
+        Hi <strong>${escapeHtml(respondentName || "there")}</strong>,
+      </p>
+      <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
+        ${isInternship 
+          ? "Thank you for applying to the <strong>Remote Internship Program</strong> at Septet Labs! We have successfully received your application." 
+          : `Thank you for reaching out to Septet Labs. We have successfully received your submission for <strong>${escapeHtml(formName)}</strong>.`
+        }
+      </p>
+      
+      <div style="background-color:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px 18px;margin:0 0 24px 0;">
+        <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+          Submission Summary
+        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+          ${rowsHtml}
+        </table>
+      </div>
+
+      <div style="background-color:rgba(56,189,248,0.08);border-left:3px solid #38bdf8;border-radius:4px;padding:14px 16px;margin:0 0 24px 0;">
+        <div style="font-size:13px;font-weight:700;color:#ffffff;margin-bottom:4px;">Next Steps</div>
+        <p style="font-size:13px;color:#cbd5e1;line-height:1.5;margin:0;">
+          Our talent and technical team evaluates every application thoroughly. If shortlisted, you will hear back from us via <strong>Email or WhatsApp</strong> within <strong>5–7 business days</strong>.
+        </p>
+      </div>
+
+      <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 24px 0;">
+        Make sure you follow Septet Labs on <a href="https://www.linkedin.com/company/septetlabs" style="color:#38bdf8;text-decoration:none;font-weight:600;">LinkedIn</a> for updates, project launches, and announcements.
+      </p>
+
+      <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5;">
+        Best regards,<br/>
+        <strong style="color:#e2e8f0;">Septet Labs Team</strong>
+      </p>
+    `;
+
+    await getTransporter().sendMail({
+      from: `"Septet Labs" <hello@septetlabs.in>`,
+      to: toEmail,
+      replyTo: "hello@septetlabs.in",
+      subject: `Application Received — ${formName}`,
+      html: septetEmailLayout(content, `We have received your application for ${formName}`),
+      text: `Hi ${respondentName || "there"},\n\nThank you for applying to Septet Labs for ${formName}. We have received your submission.\n\nOur team will review your application and reach out if shortlisted.\n\nBest regards,\nSeptet Labs Team`,
+    });
+
+    console.log(`[EmailService] Sent Septet Labs confirmation email to ${toEmail} for ${formName}`);
+  } else {
+    // Platform-related (Qwik Mailer)
+    const content = `
+      <h1 style="color:#111827;font-size:22px;font-weight:700;margin:0 0 12px 0;">Submission Confirmed ✅</h1>
+      <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 16px 0;">
+        Hi <strong>${escapeHtml(respondentName || "there")}</strong>,
+      </p>
+      <p style="color:#4b5563;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
+        Thank you for submitting <strong>${escapeHtml(formName)}</strong>. We have successfully received your response.
+      </p>
+
+      <div style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px;margin:0 0 24px 0;">
+        <div style="font-size:11px;font-weight:700;color:#4f46e5;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+          Submission Summary
+        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+          ${rowsHtml}
+        </table>
+      </div>
+
+      <p style="color:#6b7280;font-size:13px;margin:24px 0 0 0;">
+        Best regards,<br/>
+        <strong style="color:#111827;">Qwik Mailer</strong>
+      </p>
+    `;
+
+    await getTransporter().sendMail({
+      from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
+      to: toEmail,
+      replyTo: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in",
+      subject: `Submission Confirmed — ${formName}`,
+      html: emailLayout(content, `Your response for ${formName} was recorded successfully.`),
+      text: `Hi ${respondentName || "there"},\n\nYour response for ${formName} was recorded successfully.\n\nBest regards,\nQwik Mailer`,
+    });
+
+    console.log(`[EmailService] Sent Qwik Mailer confirmation email to ${toEmail} for ${formName}`);
+  }
+}
+
+export async function sendFormSubmissionAdminNotification(params: {
+  toEmail: string;
+  formName: string;
+  formId: string;
+  isSeptet: boolean;
+  data: Record<string, any>;
+  schema?: any[];
+  respondentEmail?: string;
+  respondentName?: string;
+  submittedAt: Date;
+  ip?: string;
+}): Promise<void> {
+  const { toEmail, formName, isSeptet, data, schema, respondentEmail, respondentName, submittedAt, ip } = params;
+
+  const formattedFields = formatSubmissionFields(data, schema);
+  const rowsHtml = formattedFields.map(f => `
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;color:${isSeptet ? '#94a3b8' : '#6b7280'};font-weight:500;border-bottom:1px solid ${isSeptet ? 'rgba(255,255,255,0.06)' : '#f3f4f6'};vertical-align:top;width:40%;">
+        ${escapeHtml(f.label)}
+      </td>
+      <td style="padding:10px 12px;font-size:13px;color:${isSeptet ? '#f1f5f9' : '#111827'};font-weight:600;border-bottom:1px solid ${isSeptet ? 'rgba(255,255,255,0.06)' : '#f3f4f6'};vertical-align:top;word-break:break-word;">
+        ${escapeHtml(f.value)}
+      </td>
+    </tr>
+  `).join("");
+
+  const sender = isSeptet
+    ? `"Septet Labs" <hello@septetlabs.in>`
+    : `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`;
+
+  const subject = isSeptet
+    ? `⚡ New Application: ${formName} — ${respondentName || respondentEmail || "Applicant"}`
+    : `New Form Submission: ${formName} — ${respondentName || respondentEmail || "Respondent"}`;
+
+  const content = isSeptet ? `
+    <h1 style="color:#ffffff;font-size:20px;font-weight:700;margin:0 0 12px 0;">New Application Received</h1>
+    <p style="color:#cbd5e1;font-size:14px;line-height:1.5;margin:0 0 16px 0;">
+      A new response has been submitted for <strong style="color:#38bdf8;">${escapeHtml(formName)}</strong>.
+    </p>
+
+    <div style="background-color:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px 18px;margin:0 0 20px 0;">
+      <div style="font-size:11px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+        Candidate Details
+      </div>
+      <table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+        ${rowsHtml}
+      </table>
+    </div>
+
+    <p style="color:#64748b;font-size:12px;margin:0;">
+      Submitted at: ${submittedAt.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST | IP: ${ip || "Unknown"}
+    </p>
+  ` : `
+    <h1 style="color:#111827;font-size:20px;font-weight:700;margin:0 0 12px 0;">New Form Submission</h1>
+    <p style="color:#4b5563;font-size:14px;line-height:1.5;margin:0 0 16px 0;">
+      A new response has been submitted for <strong>${escapeHtml(formName)}</strong>.
+    </p>
+
+    <div style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px;margin:0 0 20px 0;">
+      <div style="font-size:11px;font-weight:700;color:#4f46e5;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+        Response Details
+      </div>
+      <table width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+        ${rowsHtml}
+      </table>
+    </div>
+
+    <p style="color:#6b7280;font-size:12px;margin:0;">
+      Submitted at: ${submittedAt.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST | IP: ${ip || "Unknown"}
+    </p>
+  `;
+
+  await getTransporter().sendMail({
+    from: sender,
+    to: toEmail,
+    replyTo: respondentEmail || undefined,
+    subject,
+    html: isSeptet ? septetEmailLayout(content, `New submission on ${formName}`) : emailLayout(content, `New submission on ${formName}`),
+    text: `New submission for ${formName}\nFrom: ${respondentName || ""} <${respondentEmail || ""}>\n\nTime: ${submittedAt.toISOString()}\nIP: ${ip || ""}`,
+  });
+
+  console.log(`[EmailService] Sent admin submission alert to ${toEmail} for ${formName}`);
 }

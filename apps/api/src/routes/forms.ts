@@ -1,9 +1,14 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { eq, and, desc, sql, count, or, ilike } from "drizzle-orm";
-import { db, forms, formSubmissions, contacts, contactListMembers } from "@qwikmailer/db";
+import { db, forms, formSubmissions, contacts, contactListMembers, teams, users } from "@qwikmailer/db";
 import { authenticate, requireTeamRole } from "../middleware/auth.js";
 import { safeFetch } from "../utils/ssrf.js";
+import {
+  isSeptetLabsForm,
+  sendFormSubmissionConfirmationEmail,
+  sendFormSubmissionAdminNotification,
+} from "../services/email.service.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -552,6 +557,67 @@ export async function formRoutes(app: FastifyInstance) {
     const redis = (app as any).redis;
     if (redis && !verifiedEmail) {
       await redis.del(`form_view:${form.id}:${req.ip || "unknown"}`);
+    }
+
+    // Determine whether this form is Septet Labs related or general platform
+    const hostHeader = String(req.headers["origin"] || req.headers["host"] || req.headers["referer"] || "");
+    const isSeptet = isSeptetLabsForm({ id: form.id, name: form.name }, hostHeader);
+    const applicantName = [firstNameVal, lastNameVal].filter(Boolean).join(" ") || firstNameVal || undefined;
+
+    // Send confirmation email to respondent (applicant)
+    if (emailValue) {
+      sendFormSubmissionConfirmationEmail({
+        toEmail: emailValue,
+        respondentName: applicantName,
+        formName: form.name,
+        formId: form.id,
+        isSeptet,
+        data,
+        schema,
+      }).catch((err) =>
+        console.error(`[Forms] Failed to send confirmation email to respondent ${emailValue}:`, err)
+      );
+    }
+
+    // Send admin notification to form's notifyEmail or team owner
+    const adminNotifyEmail = settings?.notifyEmail ? String(settings.notifyEmail).trim() : undefined;
+    if (!adminNotifyEmail && form.teamId) {
+      db.query.teams.findFirst({ where: eq(teams.id, form.teamId) }).then(async (t) => {
+        if (t?.ownerId) {
+          const owner = await db.query.users.findFirst({ where: eq(users.id, t.ownerId) });
+          if (owner?.email) {
+            sendFormSubmissionAdminNotification({
+              toEmail: owner.email,
+              formName: form.name,
+              formId: form.id,
+              isSeptet,
+              data,
+              schema,
+              respondentEmail: emailValue,
+              respondentName: applicantName,
+              submittedAt: new Date(),
+              ip: req.ip,
+            }).catch((err) =>
+              console.error(`[Forms] Failed to send admin alert to owner ${owner.email}:`, err)
+            );
+          }
+        }
+      }).catch((err) => console.error("[Forms] Failed to lookup form team owner for notification:", err));
+    } else if (adminNotifyEmail) {
+      sendFormSubmissionAdminNotification({
+        toEmail: adminNotifyEmail,
+        formName: form.name,
+        formId: form.id,
+        isSeptet,
+        data,
+        schema,
+        respondentEmail: emailValue,
+        respondentName: applicantName,
+        submittedAt: new Date(),
+        ip: req.ip,
+      }).catch((err) =>
+        console.error(`[Forms] Failed to send admin alert to ${adminNotifyEmail}:`, err)
+      );
     }
 
     // Fire webhook if configured
