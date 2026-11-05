@@ -6,15 +6,32 @@ import { Footer } from "../../components/Footer";
 
 export default function CookiePolicyPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<{name: string}>({ name: "User" });
+  const [user, setUser] = useState<{name: string; avatarUrl?: string | null}>({ name: "User", avatarUrl: null });
 
   useEffect(() => {
-    setIsLoggedIn(!!localStorage.getItem("mf_access_token"));
+    const token = localStorage.getItem("mf_access_token");
+    setIsLoggedIn(!!token);
     const userStr = localStorage.getItem("mf_user");
     if (userStr) {
       try {
-        setUser(JSON.parse(userStr));
+        const parsed = JSON.parse(userStr);
+        setUser({ name: parsed.name || "User", avatarUrl: parsed.avatarUrl || null });
       } catch (e) {}
+    }
+    if (token) {
+      const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      fetch(`${API}/v1/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res?.success && res?.data) {
+            setUser({ name: res.data.name || "User", avatarUrl: res.data.avatarUrl || null });
+            try {
+              const existing = JSON.parse(localStorage.getItem("mf_user") || "{}");
+              localStorage.setItem("mf_user", JSON.stringify({ ...existing, ...res.data }));
+            } catch (e) {}
+          }
+        })
+        .catch(() => {});
     }
   }, []);
 
@@ -46,10 +63,14 @@ export default function CookiePolicyPage() {
             {isLoggedIn ? (
                 <Link
                   href="/dashboard"
-                  className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center transition-transform hover:scale-105 font-bold uppercase text-sm shadow-sm"
+                  className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center transition-transform hover:scale-105 font-bold uppercase text-sm shadow-sm overflow-hidden"
                   title="Go to Dashboard"
                 >
-                  {user.name?.[0] || 'U'}
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.name || "User"} className="w-full h-full object-cover" />
+                  ) : (
+                    user.name?.[0] || 'U'
+                  )}
                 </Link>
             ) : (
               <>

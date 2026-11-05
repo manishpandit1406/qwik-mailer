@@ -30,6 +30,7 @@ export async function adminRoutes(app: FastifyInstance) {
         id: users.id,
         name: users.name,
         email: users.email,
+        avatarUrl: users.avatarUrl,
         plan: users.plan,
         role: users.role,
         emailVerified: users.emailVerified,

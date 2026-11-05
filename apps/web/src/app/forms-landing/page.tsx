@@ -67,16 +67,32 @@ const STEPS = [
 
 export default function FormsLandingPage() {
   const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState<{name: string} | null>(null);
+  const [user, setUser] = useState<{name: string; avatarUrl?: string | null} | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    const token = localStorage.getItem("mf_access_token");
     try {
       const userStr = localStorage.getItem("mf_user");
       if (userStr) {
         setUser(JSON.parse(userStr));
       }
     } catch (e) {}
+    if (token) {
+      const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      fetch(`${API}/v1/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res?.success && res?.data) {
+            setUser({ name: res.data.name || "User", avatarUrl: res.data.avatarUrl || null });
+            try {
+              const existing = JSON.parse(localStorage.getItem("mf_user") || "{}");
+              localStorage.setItem("mf_user", JSON.stringify({ ...existing, ...res.data }));
+            } catch (e) {}
+          }
+        })
+        .catch(() => {});
+    }
   }, []);
 
   return (
@@ -107,9 +123,17 @@ export default function FormsLandingPage() {
           <div className="flex items-center gap-4">
             {mounted && user ? (
               <Link href="/dashboard" title="Go to Dashboard">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-md hover:scale-105 transition-transform">
-                  {user.name ? user.name[0].toUpperCase() : "U"}
-                </div>
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.name || "User"}
+                    className="w-10 h-10 rounded-full object-cover shadow-md hover:scale-105 transition-transform border border-gray-200"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-md hover:scale-105 transition-transform">
+                    {user.name ? user.name[0].toUpperCase() : "U"}
+                  </div>
+                )}
               </Link>
             ) : (
               <>

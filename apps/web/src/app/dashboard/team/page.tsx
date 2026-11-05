@@ -53,6 +53,8 @@ interface Member {
   email: string;
   role: string;
   joined_at: string;
+  avatar_url?: string | null;
+  avatarUrl?: string | null;
 }
 
 export default function TeamPage() {
@@ -301,9 +303,17 @@ export default function TeamPage() {
               {members.map((member) => (
                 <div key={member.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 hover:bg-gray-50/50 transition-colors">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-800 to-gray-900 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm border border-gray-900">
-                      {member.name?.[0]?.toUpperCase() ?? member.email[0].toUpperCase()}
-                    </div>
+                    {(member.avatar_url || member.avatarUrl) ? (
+                      <img
+                        src={member.avatar_url || member.avatarUrl!}
+                        alt={member.name || member.email}
+                        className="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm border border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-800 to-gray-900 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm border border-gray-900">
+                        {member.name?.[0]?.toUpperCase() ?? member.email[0].toUpperCase()}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm truncate" style={{ color: "var(--text-primary)" }}>
                         {member.name || member.email}

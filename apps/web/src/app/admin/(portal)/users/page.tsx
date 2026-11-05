@@ -9,6 +9,7 @@ interface User {
   id: string;
   name: string | null;
   email: string;
+  avatarUrl?: string | null;
   plan: string;
   role: string;
   emailVerified: boolean;
@@ -163,9 +164,17 @@ export default function AdminUsersPage() {
                   <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-200 to-gray-300 flex items-center justify-center text-gray-700 font-bold text-xs shrink-0">
-                          {user.name ? user.name[0].toUpperCase() : user.email[0].toUpperCase()}
-                        </div>
+                        {user.avatarUrl ? (
+                          <img
+                            src={user.avatarUrl}
+                            alt={user.name || user.email}
+                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-gray-200"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-200 to-gray-300 flex items-center justify-center text-gray-700 font-bold text-xs shrink-0">
+                            {user.name ? user.name[0].toUpperCase() : user.email[0].toUpperCase()}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <div className="font-semibold text-gray-900 truncate flex items-center gap-2">
                             {user.name || "Unknown User"}

@@ -160,7 +160,7 @@ export async function teamRoutes(app: FastifyInstance) {
       if (!(access as any).rows?.length && !(Array.isArray(access) && access.length > 0)) return reply.code(403).send({ success: false, error: "Access denied" });
 
       const members = await db.execute(
-        sql`SELECT tm.id, tm.role, tm.joined_at, u.name, u.email, u.id as user_id
+        sql`SELECT tm.id, tm.role, tm.joined_at, u.name, u.email, u.id as user_id, u.avatar_url
          FROM team_members tm
          JOIN users u ON u.id = tm.user_id
          WHERE tm.team_id = ${id}

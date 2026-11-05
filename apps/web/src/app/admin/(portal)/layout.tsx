@@ -62,7 +62,7 @@ export default function AdminLayout({
   const [isHovered, setIsHovered] = useState(false);
   const isCollapsed = !isHovered;
 
-  const [user, setUser] = useState<{name: string, email?: string, role?: string}>({ name: "Admin", email: "admin@qwikmailer.in", role: "admin" });
+  const [user, setUser] = useState<{name: string, email?: string, role?: string, avatarUrl?: string | null}>({ name: "Admin", email: "admin@qwikmailer.in", role: "admin", avatarUrl: null });
   const [userInitial, setUserInitial] = useState("A");
 
   useEffect(() => {
@@ -94,13 +94,14 @@ export default function AdminLayout({
             router.push("/dashboard");
             return;
           }
-          setUser(prev => ({ ...prev, role: freshUser.role, name: freshUser.name || prev.name }));
+          setUser(prev => ({ ...prev, role: freshUser.role, name: freshUser.name || prev.name, avatarUrl: freshUser.avatarUrl || null }));
           if (freshUser.name) setUserInitial(freshUser.name[0].toUpperCase());
           
           if (userStr) {
             try {
               const parsed = JSON.parse(userStr);
               parsed.role = freshUser.role;
+              parsed.avatarUrl = freshUser.avatarUrl || null;
               localStorage.setItem("mf_user", JSON.stringify(parsed));
             } catch (e) {}
           }
@@ -144,9 +145,17 @@ export default function AdminLayout({
             <span className="text-xs font-semibold text-gray-600">Back to Dashboard</span>
           </Link>
           <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-sm">
-              {userInitial}
-            </div>
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.name}
+                className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-200"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-sm">
+                {userInitial}
+              </div>
+            )}
             <span className="text-sm font-medium text-gray-700 hidden sm:block">
               {user.name}
             </span>
