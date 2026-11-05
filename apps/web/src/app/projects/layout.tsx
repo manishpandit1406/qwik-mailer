@@ -54,17 +54,28 @@ export default function ProjectsLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userName, setUserName] = useState("User");
   const [userInitial, setUserInitial] = useState("U");
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
 
   const isCollapsed = !isHovered;
 
   useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("mf_user") || "{}");
-      if (u.name) {
-        setUserName(u.name);
-        setUserInitial(u.name[0].toUpperCase());
-      }
-    } catch {}
+    function loadUser() {
+      try {
+        const u = JSON.parse(localStorage.getItem("mf_user") || "{}");
+        if (u.name) {
+          setUserName(u.name);
+          setUserInitial(u.name[0].toUpperCase());
+        }
+        setUserAvatarUrl(u.avatarUrl || null);
+      } catch {}
+    }
+    loadUser();
+    window.addEventListener("user-profile-updated", loadUser);
+    window.addEventListener("storage", loadUser);
+    return () => {
+      window.removeEventListener("user-profile-updated", loadUser);
+      window.removeEventListener("storage", loadUser);
+    };
   }, []);
 
   function handleLogout() {
@@ -100,14 +111,22 @@ export default function ProjectsLayout({
             <Bell size={18} />
             <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-red-500" />
           </button>
-          <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-sm">
-              {userInitial}
-            </div>
+          <Link href="/projects/settings" className="flex items-center gap-2 pl-4 border-l border-gray-200 hover:opacity-85 transition-opacity">
+            {userAvatarUrl ? (
+              <img
+                src={userAvatarUrl}
+                alt={userName}
+                className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-200"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-sm">
+                {userInitial}
+              </div>
+            )}
             <span className="text-sm font-medium text-gray-700 hidden sm:block">
               {userName}
             </span>
-          </div>
+          </Link>
         </div>
       </header>
 

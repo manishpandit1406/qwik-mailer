@@ -14,6 +14,8 @@ import {
   RefreshCw,
   ChevronLeft,
   Trash2,
+  Upload,
+  Camera,
 } from "lucide-react";
 import { LogoLoader } from "@/components/LogoLoader";
 import { startRegistration } from "@simplewebauthn/browser";
@@ -30,6 +32,7 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState({
     name: "",
     email: "",
+    avatarUrl: null as string | null,
     companyName: "",
     websiteUrl: "",
     phoneNumber: "",
@@ -53,6 +56,8 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const plansScrollRef = useRef<HTMLDivElement>(null);
 
   const scrollPlans = (direction: "left" | "right") => {
@@ -268,6 +273,7 @@ const [notifSaved, setNotifSaved] = useState(false);
         const json = await res.json();
         if (json.success) {
           setProfile({
+            avatarUrl: json.data.avatarUrl ?? null,
             name: json.data.name ?? "",
             email: json.data.email ?? "",
             companyName: json.data.companyName ?? "",
@@ -292,7 +298,7 @@ const [notifSaved, setNotifSaved] = useState(false);
           // Update localStorage too
           localStorage.setItem(
             "mf_user",
-            JSON.stringify({ name: json.data.name, email: json.data.email }),
+            JSON.stringify({ name: json.data.name, email: json.data.email, avatarUrl: json.data.avatarUrl ?? null, plan: json.data.plan ?? "free" }),
           );
         }
       } catch {
@@ -303,6 +309,93 @@ const [notifSaved, setNotifSaved] = useState(false);
     }
     loadProfile();
   }, []);
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      setProfileError("Please select an image file (PNG, JPG, WEBP, GIF).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileError("Image size must be less than 5 MB.");
+      return;
+    }
+
+    setAvatarUploading(true);
+    setProfileError("");
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          const res = await fetch(`${API}/v1/uploads/avatar`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${getToken()}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ base64, contentType: file.type }),
+          });
+          const json = await res.json();
+          if (json.success && json.url) {
+            setProfile((prev) => ({ ...prev, avatarUrl: json.url }));
+            const existingUser = JSON.parse(localStorage.getItem("mf_user") || "{}");
+            localStorage.setItem(
+              "mf_user",
+              JSON.stringify({ ...existingUser, avatarUrl: json.url })
+            );
+            window.dispatchEvent(new Event("user-profile-updated"));
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2500);
+          } else {
+            setProfileError(json.error || "Failed to upload avatar.");
+          }
+        } catch {
+          setProfileError("Failed to upload avatar. Network error.");
+        } finally {
+          setAvatarUploading(false);
+          if (avatarInputRef.current) avatarInputRef.current.value = "";
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setAvatarUploading(false);
+      setProfileError("Failed to read image file.");
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    setAvatarUploading(true);
+    setProfileError("");
+    try {
+      const res = await fetch(`${API}/v1/uploads/avatar`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setProfile((prev) => ({ ...prev, avatarUrl: null }));
+        const existingUser = JSON.parse(localStorage.getItem("mf_user") || "{}");
+        delete existingUser.avatarUrl;
+        localStorage.setItem("mf_user", JSON.stringify(existingUser));
+        window.dispatchEvent(new Event("user-profile-updated"));
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      } else {
+        setProfileError(json.error || "Failed to remove avatar.");
+      }
+    } catch {
+      setProfileError("Failed to remove avatar. Network error.");
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
+
   async function saveProfile() {
     setSaving(true);
     setProfileError("");
@@ -315,6 +408,7 @@ const [notifSaved, setNotifSaved] = useState(false);
         },
         body: JSON.stringify({ 
           name: profile.name,
+          avatarUrl: profile.avatarUrl,
           companyAddress: profile.companyAddress,
           companyAddress2: profile.companyAddress2,
           city: profile.city,
@@ -332,8 +426,9 @@ const [notifSaved, setNotifSaved] = useState(false);
       setTimeout(() => setSaved(false), 2500);
       localStorage.setItem(
         "mf_user",
-        JSON.stringify({ name: profile.name, email: profile.email }),
+        JSON.stringify({ name: profile.name, email: profile.email, avatarUrl: profile.avatarUrl, plan: profile.plan }),
       );
+      window.dispatchEvent(new Event("user-profile-updated"));
     } catch {
       setProfileError("Network error. Please try again.");
     } finally {
@@ -498,23 +593,68 @@ const [notifSaved, setNotifSaved] = useState(false);
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-lg flex items-center justify-center text-2xl font-bold bg-indigo-600 text-white">
-                      {profile.name?.[0]?.toUpperCase() ?? "U"}
+                  {/* Profile Picture Card */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-5 p-5 rounded-2xl border border-gray-200 bg-gradient-to-r from-gray-50/80 via-white to-gray-50/50 shadow-sm">
+                    <div className="relative group shrink-0">
+                      {profile.avatarUrl ? (
+                        <img
+                          src={profile.avatarUrl}
+                          alt={profile.name}
+                          className="w-20 h-20 rounded-2xl object-cover shadow-sm border-2 border-white ring-1 ring-gray-200"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-extrabold bg-gradient-to-tr from-gray-950 via-gray-900 to-indigo-950 text-white shadow-sm border-2 border-white ring-1 ring-gray-200">
+                          {profile.name?.[0]?.toUpperCase() ?? "U"}
+                        </div>
+                      )}
+                      {avatarUploading && (
+                        <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center text-white backdrop-blur-[2px]">
+                          <RefreshCw size={22} className="animate-spin text-white" />
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <p
-                        className="font-semibold text-sm"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {profile.name}
-                      </p>
-                      <p
-                        className="text-xs mt-0.5"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        {profile.email}
-                      </p>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <p className="font-bold text-base text-gray-900 truncate">
+                          {profile.name || "Your Account"}
+                        </p>
+                        <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider">
+                          {profile.plan} Plan
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mb-3 truncate">{profile.email}</p>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          ref={avatarInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          className="hidden"
+                          onChange={handleAvatarUpload}
+                        />
+                        <button
+                          type="button"
+                          disabled={avatarUploading}
+                          onClick={() => avatarInputRef.current?.click()}
+                          className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-800 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <Camera size={14} className="text-gray-500" />
+                          {profile.avatarUrl ? "Change Photo" : "Upload Photo"}
+                        </button>
+                        {profile.avatarUrl && (
+                          <button
+                            type="button"
+                            disabled={avatarUploading}
+                            onClick={handleRemoveAvatar}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            <Trash2 size={13} />
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-400 mt-2">JPG, PNG, GIF or WEBP up to 5 MB.</p>
                     </div>
                   </div>
                   {profileError && (

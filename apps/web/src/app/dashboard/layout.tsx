@@ -240,7 +240,7 @@ export default function DashboardLayout({
   const [isHovered, setIsHovered] = useState(false);
   const isCollapsed = !isHovered;
 
-  const [user, setUser] = useState<{name: string, email?: string, plan?: string, onboardingCompleted?: boolean}>({ name: "User", email: "dev@qwikmailer.in", plan: "free" });
+  const [user, setUser] = useState<{name: string, email?: string, plan?: string, avatarUrl?: string | null, onboardingCompleted?: boolean}>({ name: "User", email: "dev@qwikmailer.in", plan: "free", avatarUrl: null });
   const [userInitial, setUserInitial] = useState("U");
   
   const [teams, setTeams] = useState<any[]>([]);
@@ -249,19 +249,25 @@ export default function DashboardLayout({
 
 
   useEffect(() => {
-    const userStr = localStorage.getItem("mf_user");
-    if (userStr) {
-      try {
-        const parsed = JSON.parse(userStr);
-        setUser(parsed);
-        if (parsed.name) setUserInitial(parsed.name[0].toUpperCase());
-        if (parsed.onboardingCompleted === false) {
-          router.push("/onboarding");
-        }
-      } catch (e) {}
-    } else {
-      router.push("/login");
+    function readUser() {
+      const userStr = localStorage.getItem("mf_user");
+      if (userStr) {
+        try {
+          const parsed = JSON.parse(userStr);
+          setUser(parsed);
+          if (parsed.name) setUserInitial(parsed.name[0].toUpperCase());
+          if (parsed.onboardingCompleted === false) {
+            router.push("/onboarding");
+          }
+        } catch (e) {}
+      } else {
+        router.push("/login");
+      }
     }
+
+    readUser();
+    window.addEventListener("user-profile-updated", readUser);
+    window.addEventListener("storage", readUser);
 
     const fetchMe = async () => {
       try {
@@ -272,13 +278,15 @@ export default function DashboardLayout({
         const json = await res.json();
         if (json.success && json.data) {
           const freshUser = json.data;
-          setUser(prev => ({ ...prev, plan: freshUser.plan, name: freshUser.name || prev.name }));
+          setUser(prev => ({ ...prev, plan: freshUser.plan, name: freshUser.name || prev.name, avatarUrl: freshUser.avatarUrl || null }));
           if (freshUser.name) setUserInitial(freshUser.name[0].toUpperCase());
           
+          const userStr = localStorage.getItem("mf_user");
           if (userStr) {
             try {
               const parsed = JSON.parse(userStr);
               parsed.plan = freshUser.plan;
+              parsed.avatarUrl = freshUser.avatarUrl || null;
               localStorage.setItem("mf_user", JSON.stringify(parsed));
             } catch (e) {}
           }
@@ -286,6 +294,11 @@ export default function DashboardLayout({
       } catch (e) {}
     };
     fetchMe();
+
+    return () => {
+      window.removeEventListener("user-profile-updated", readUser);
+      window.removeEventListener("storage", readUser);
+    };
   }, [router]);
 
   useEffect(() => {
@@ -377,14 +390,22 @@ export default function DashboardLayout({
             <Bell size={18} />
             <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-red-500" />
           </button>
-          <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-sm">
-              {userInitial}
-            </div>
+          <Link href="/projects/settings" className="flex items-center gap-2 pl-4 border-l border-gray-200 hover:opacity-85 transition-opacity">
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.name}
+                className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-200"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-sm">
+                {userInitial}
+              </div>
+            )}
             <span className="text-sm font-medium text-gray-700 hidden sm:block">
               {user.name}
             </span>
-          </div>
+          </Link>
         </div>
       </header>
 

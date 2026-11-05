@@ -229,6 +229,7 @@ export async function authRoutes(app: FastifyInstance) {
           email: user.email,
           plan: user.plan,
           role: user.role,
+          avatarUrl: user.avatarUrl,
           reputationScore: user.reputationScore,
           onboardingCompleted: user.onboardingCompleted,
         },
@@ -370,6 +371,7 @@ export async function authRoutes(app: FastifyInstance) {
         email: user.email,
         plan: user.plan,
         role: user.role,
+        avatarUrl: user.avatarUrl,
         companyName: user.companyName,
         websiteUrl: user.websiteUrl,
         phoneNumber: user.phoneNumber,
@@ -406,6 +408,7 @@ export async function authRoutes(app: FastifyInstance) {
     const user = req.user as { sub: string };
     const body = z.object({ 
       name: z.string().min(2).max(100).optional(),
+      avatarUrl: z.string().nullable().optional(),
       companyAddress: z.string().optional(),
       companyAddress2: z.string().optional(),
       city: z.string().optional(),

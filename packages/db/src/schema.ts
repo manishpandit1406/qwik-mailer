@@ -136,6 +136,7 @@ export const users = pgTable(
     termsAcceptedAt: timestamp("terms_accepted_at"),
     termsVersion: varchar("terms_version", { length: 50 }),
     registrationIpAddress: varchar("registration_ip_address", { length: 64 }),
+    avatarUrl: text("avatar_url"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

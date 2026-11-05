@@ -1,5 +1,7 @@
 import https from "https";
 import type { FastifyInstance } from "fastify";
+import { eq } from "drizzle-orm";
+import { db, users } from "@qwikmailer/db";
 import { authenticate } from "../middleware/auth.js";
 import { uploadBufferToS3, getPresignedGetUrl } from "../services/s3.service.js";
 
@@ -34,6 +36,69 @@ function generateKey(folder: string, contentType: string): string {
 }
 
 export async function uploadRoutes(app: FastifyInstance) {
+  /**
+   * POST /v1/uploads/avatar
+   * For authenticated users to upload their profile photo.
+   * Accepts JSON body: { base64: string, contentType: string }
+   */
+  app.post(
+    "/avatar",
+    { preHandler: [authenticate] },
+    async (req, reply) => {
+      const user = req.user as { sub: string };
+      const body = req.body as any;
+      const { base64, contentType } = body ?? {};
+
+      if (!base64 || !contentType) {
+        return reply.status(400).send({ success: false, error: "Missing base64 or contentType" });
+      }
+
+      const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      if (!allowedImageTypes.includes(contentType)) {
+        return reply.status(400).send({ success: false, error: "Only image files are allowed (jpeg, png, webp, gif)" });
+      }
+
+      const rawBase64 = base64.replace(/^data:[^;]+;base64,/, "");
+      const buffer = Buffer.from(rawBase64, "base64");
+
+      // 5 MB limit for avatars
+      if (buffer.length > 5 * 1024 * 1024) {
+        return reply.status(413).send({ success: false, error: "Profile image must be smaller than 5 MB" });
+      }
+
+      const ext = getExt(contentType);
+      const key = `avatars/${user.sub}-${Date.now()}.${ext}`;
+
+      try {
+        const url = await uploadBufferToS3({ key, buffer, contentType });
+        await db.update(users).set({ avatarUrl: url, updatedAt: new Date() }).where(eq(users.id, user.sub));
+        return reply.send({ success: true, url, key });
+      } catch (err) {
+        req.log.error(err, "S3 upload failed for avatar");
+        return reply.status(500).send({ success: false, error: "Failed to upload profile picture. Please try again." });
+      }
+    }
+  );
+
+  /**
+   * DELETE /v1/uploads/avatar
+   * Remove profile photo for authenticated user.
+   */
+  app.delete(
+    "/avatar",
+    { preHandler: [authenticate] },
+    async (req, reply) => {
+      const user = req.user as { sub: string };
+      try {
+        await db.update(users).set({ avatarUrl: null, updatedAt: new Date() }).where(eq(users.id, user.sub));
+        return reply.send({ success: true, message: "Profile picture removed successfully" });
+      } catch (err) {
+        req.log.error(err, "Failed to remove avatar");
+        return reply.status(500).send({ success: false, error: "Failed to remove profile picture." });
+      }
+    }
+  );
+
   /**
    * POST /v1/uploads/form-asset
    * For authenticated users (admin) uploading banners/logos in the Form Builder.

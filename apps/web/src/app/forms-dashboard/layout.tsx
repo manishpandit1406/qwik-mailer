@@ -59,23 +59,29 @@ export default function FormsDashboardLayout({
   const [isHovered, setIsHovered] = useState(false);
   const isCollapsed = !isHovered;
 
-  const [user, setUser] = useState<{name: string, email?: string, plan?: string}>({ name: "User", plan: "free" });
+  const [user, setUser] = useState<{name: string, email?: string, plan?: string, avatarUrl?: string | null}>({ name: "User", plan: "free", avatarUrl: null });
   const [userInitial, setUserInitial] = useState("U");
   
   const [teams, setTeams] = useState<any[]>([]);
   const [activeTeamId, setActiveTeamId] = useState("");
 
   useEffect(() => {
-    const userStr = localStorage.getItem("mf_user");
-    if (userStr) {
-      try {
-        const parsed = JSON.parse(userStr);
-        setUser(parsed);
-        if (parsed.name) setUserInitial(parsed.name[0].toUpperCase());
-      } catch (e) {}
-    } else {
-      window.location.href = "/login";
+    function readUser() {
+      const userStr = localStorage.getItem("mf_user");
+      if (userStr) {
+        try {
+          const parsed = JSON.parse(userStr);
+          setUser(parsed);
+          if (parsed.name) setUserInitial(parsed.name[0].toUpperCase());
+        } catch (e) {}
+      } else {
+        window.location.href = "/login";
+      }
     }
+
+    readUser();
+    window.addEventListener("user-profile-updated", readUser);
+    window.addEventListener("storage", readUser);
 
     const fetchMe = async () => {
       try {
@@ -86,12 +92,17 @@ export default function FormsDashboardLayout({
         const json = await res.json();
         if (json.success && json.data) {
           const freshUser = json.data;
-          setUser(prev => ({ ...prev, plan: freshUser.plan, name: freshUser.name || prev.name }));
+          setUser(prev => ({ ...prev, plan: freshUser.plan, name: freshUser.name || prev.name, avatarUrl: freshUser.avatarUrl || null }));
           if (freshUser.name) setUserInitial(freshUser.name[0].toUpperCase());
         }
       } catch (e) {}
     };
     fetchMe();
+
+    return () => {
+      window.removeEventListener("user-profile-updated", readUser);
+      window.removeEventListener("storage", readUser);
+    };
   }, []);
 
   useEffect(() => {
@@ -168,11 +179,19 @@ export default function FormsDashboardLayout({
           <button className="p-2 relative rounded-full hover:bg-gray-100 transition-colors text-gray-600">
             <Bell size={18} />
           </button>
-          <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-sm">
-              {userInitial}
-            </div>
-          </div>
+          <a href="https://qwikmailer.in/projects/settings" className="flex items-center gap-2 pl-4 border-l border-gray-200 hover:opacity-85 transition-opacity">
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.name}
+                className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-200"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-sm">
+                {userInitial}
+              </div>
+            )}
+          </a>
         </div>
       </header>
 
