@@ -75,24 +75,87 @@ function septetEmailLayout(content: string, previewText = ""): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
   <title>Septet Labs</title>
+  <style>
+    /* Mobile responsive overrides */
+    @media only screen and (max-width: 600px) {
+      .outer-wrapper {
+        padding: 20px 10px !important;
+      }
+      .main-table {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .main-card {
+        padding: 24px 16px !important;
+        border-radius: 12px !important;
+      }
+      .header-logo {
+        width: 34px !important;
+        height: 34px !important;
+      }
+      .header-title {
+        font-size: 18px !important;
+      }
+      .btn-cta {
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        text-align: center !important;
+        padding: 14px 16px !important;
+      }
+      .overview-row td {
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 6px 0 !important;
+      }
+      .overview-label {
+        font-size: 12px !important;
+        padding-bottom: 2px !important;
+      }
+      .overview-value {
+        padding-bottom: 8px !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+      }
+      .submission-row td {
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 6px 8px !important;
+      }
+      .submission-label {
+        font-size: 12px !important;
+        padding-bottom: 2px !important;
+        border-bottom: none !important;
+      }
+      .submission-value {
+        padding-bottom: 10px !important;
+      }
+      .break-link {
+        word-break: break-all !important;
+      }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
   <span style="display:none;font-size:1px;color:#f8fafc;max-height:0;max-width:0;opacity:0;overflow:hidden;">${previewText}</span>
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 16px;">
+  <table width="100%" class="outer-wrapper" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 16px;width:100%;">
     <tr>
       <td align="center">
-        <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
+        <table width="580" class="main-table" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
           <!-- Header -->
           <tr>
             <td style="padding-bottom:28px;text-align:center;">
               <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
                 <tr>
                   <td style="vertical-align:middle;padding-right:12px;">
-                    <img src="https://septetlabs.in/septet-logo.png" alt="Septet Labs" width="40" height="40" style="display:block;border-radius:8px;border:1px solid #e2e8f0;" />
+                    <img src="https://septetlabs.in/septet-logo.png" alt="Septet Labs" width="40" height="40" class="header-logo" style="display:block;border-radius:8px;border:1px solid #e2e8f0;" />
                   </td>
                   <td style="vertical-align:middle;text-align:left;">
-                    <div style="font-size:20px;font-weight:800;color:#0f172a;letter-spacing:0.5px;line-height:1.2;">
+                    <div class="header-title" style="font-size:20px;font-weight:800;color:#0f172a;letter-spacing:0.5px;line-height:1.2;">
                       SEPTET <span style="color:#175bf2;">LABS</span>
                     </div>
                     <div style="font-size:10px;font-weight:600;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;">
@@ -105,7 +168,7 @@ function septetEmailLayout(content: string, previewText = ""): string {
           </tr>
           <!-- Main Card -->
           <tr>
-            <td style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:36px;box-shadow:0 4px 12px -2px rgba(0,0,0,0.05);">
+            <td class="main-card" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:36px;box-shadow:0 4px 12px -2px rgba(0,0,0,0.05);">
               ${content}
             </td>
           </tr>
@@ -676,11 +739,11 @@ export async function sendFormSubmissionConfirmationEmail(params: {
 
   const formattedFields = formatSubmissionFields(data, schema);
   const rowsHtml = formattedFields.map(f => `
-    <tr>
-      <td style="padding:10px 12px;font-size:13px;color:#475569;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;width:40%;">
+    <tr class="submission-row">
+      <td class="submission-label" style="padding:10px 12px;font-size:13px;color:#475569;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;width:40%;">
         ${escapeHtml(f.label)}
       </td>
-      <td style="padding:10px 12px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;word-break:break-word;">
+      <td class="submission-value" style="padding:10px 12px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;word-break:break-word;">
         ${escapeHtml(f.value)}
       </td>
     </tr>
@@ -700,7 +763,7 @@ export async function sendFormSubmissionConfirmationEmail(params: {
     const nextStepsTitle = isInterview ? "What to Expect Next" : "Next Steps";
     const nextStepsBody = isInterview
       ? "Our technical panel will review your chosen slot and send an official <strong>Google Meet invitation link</strong> directly to this email address within 24 hours. Please ensure you are in a quiet room with a working webcam, microphone, and stable internet connection."
-      : "Our talent and technical team evaluates every application thoroughly. If shortlisted, you will hear back from us via <strong>Email or WhatsApp</strong> within <strong>5–7 business days</strong>.";
+      : "Our technical team evaluates every application thoroughly. If shortlisted, you will hear back from us via <strong>Email or WhatsApp</strong> within <strong>5–7 business days</strong>.";
 
     const emailSubject = isInterview
       ? `Interview Availability Confirmed — ${formName}`
@@ -806,11 +869,11 @@ export async function sendFormSubmissionAdminNotification(params: {
 
   const formattedFields = formatSubmissionFields(data, schema);
   const rowsHtml = formattedFields.map(f => `
-    <tr>
-      <td style="padding:10px 12px;font-size:13px;color:#475569;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;width:40%;">
+    <tr class="submission-row">
+      <td class="submission-label" style="padding:10px 12px;font-size:13px;color:#475569;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;width:40%;">
         ${escapeHtml(f.label)}
       </td>
-      <td style="padding:10px 12px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;word-break:break-word;">
+      <td class="submission-value" style="padding:10px 12px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;vertical-align:top;word-break:break-word;">
         ${escapeHtml(f.value)}
       </td>
     </tr>
@@ -889,14 +952,17 @@ export async function sendInterviewInvitationEmail(params: {
   const { toEmail, candidateName, role } = params;
   const scheduleUrl = "https://apply.septetlabs.in/interview";
 
+  const roleText = role ? ` for the <strong>${escapeHtml(role)}</strong> role` : "";
+  const roleTextPlain = role ? ` for the ${role} role` : "";
+
   const content = `
-    <h1 style="color:#0f172a;font-size:22px;font-weight:700;margin:0 0 14px 0;">Interview Invitation</h1>
+    <h1 style="color:#0f172a;font-size:22px;font-weight:700;margin:0 0 14px 0;line-height:1.3;">Interview Invitation</h1>
     <p style="color:#334155;font-size:15px;line-height:1.6;margin:0 0 16px 0;">
       Hi <strong>${escapeHtml(candidateName || "there")}</strong>,
     </p>
     <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px 0;">
       Thank you for applying for the <strong>Remote Internship Program</strong> at Septet Labs. 
-      Our technical panel reviewed your application and project background, and we would like to invite you for a <strong>1-on-1 technical and introductory interview</strong>${role ? ` for the <strong>${escapeHtml(role)}</strong> track` : ""}.
+      Our technical panel reviewed your application and project background, and we would like to invite you for a <strong>1-on-1 technical and introductory interview</strong>${roleText}.
     </p>
 
     <!-- Interview Format Box -->
@@ -904,18 +970,18 @@ export async function sendInterviewInvitationEmail(params: {
       <div style="font-size:11px;font-weight:700;color:#175bf2;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
         Interview Overview
       </div>
-      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-        <tr>
-          <td style="padding:8px 0;font-size:13px;color:#475569;font-weight:600;width:35%;border-bottom:1px solid #f1f5f9;">Format</td>
-          <td style="padding:8px 0;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #f1f5f9;">Remote (Google Meet)</td>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;">
+        <tr class="overview-row">
+          <td class="overview-label" style="padding:8px 0;font-size:13px;color:#475569;font-weight:600;width:35%;border-bottom:1px solid #f1f5f9;">Format</td>
+          <td class="overview-value" style="padding:8px 0;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #f1f5f9;">Remote (Google Meet)</td>
         </tr>
-        <tr>
-          <td style="padding:8px 0;font-size:13px;color:#475569;font-weight:600;width:35%;border-bottom:1px solid #f1f5f9;">Duration</td>
-          <td style="padding:8px 0;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #f1f5f9;">20–30 Minutes</td>
+        <tr class="overview-row">
+          <td class="overview-label" style="padding:8px 0;font-size:13px;color:#475569;font-weight:600;width:35%;border-bottom:1px solid #f1f5f9;">Duration</td>
+          <td class="overview-value" style="padding:8px 0;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #f1f5f9;">20–30 Minutes</td>
         </tr>
-        <tr>
-          <td style="padding:8px 0;font-size:13px;color:#475569;font-weight:600;width:35%;">Discussion Focus</td>
-          <td style="padding:8px 0;font-size:13px;color:#0f172a;font-weight:600;">Core Tech Stack, Highlighted Project Walk-through &amp; Q&amp;A</td>
+        <tr class="overview-row">
+          <td class="overview-label" style="padding:8px 0;font-size:13px;color:#475569;font-weight:600;width:35%;">Discussion Focus</td>
+          <td class="overview-value" style="padding:8px 0;font-size:13px;color:#0f172a;font-weight:600;">Core Tech Stack, Highlighted Project Walk-through &amp; Q&amp;A</td>
         </tr>
       </table>
     </div>
@@ -923,11 +989,12 @@ export async function sendInterviewInvitationEmail(params: {
     <!-- CTA Button -->
     <div style="text-align:center;margin:28px 0 32px 0;">
       <a href="${scheduleUrl}"
+         class="btn-cta"
          style="display:inline-block;background-color:#175bf2;color:#ffffff;font-size:14px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 10px -2px rgba(23,91,242,0.35);">
         Choose Your Interview Date &amp; Time
       </a>
-      <p style="color:#64748b;font-size:12px;margin:10px 0 0 0;">
-        Or open directly: <a href="${scheduleUrl}" style="color:#175bf2;text-decoration:none;">${scheduleUrl}</a>
+      <p style="color:#64748b;font-size:12px;margin:12px 0 0 0;line-height:1.5;">
+        Or open directly: <a href="${scheduleUrl}" class="break-link" style="color:#175bf2;text-decoration:none;">${scheduleUrl}</a>
       </p>
     </div>
 
@@ -945,7 +1012,7 @@ export async function sendInterviewInvitationEmail(params: {
 
     <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5;">
       Best regards,<br/>
-      <strong style="color:#0f172a;">Septet Labs Talent Team</strong>
+      <strong style="color:#0f172a;">Septet Labs Team</strong>
     </p>
   `;
 
@@ -955,7 +1022,7 @@ export async function sendInterviewInvitationEmail(params: {
     replyTo: "contact@septetlabs.in",
     subject: `Interview Invitation — Septet Labs Remote Internship Program`,
     html: septetEmailLayout(content, "You have been shortlisted for an interview with Septet Labs."),
-    text: `Hi ${candidateName || "there"},\n\nCongratulations! Your application for the Septet Labs Remote Internship Program has been shortlisted.\n\nPlease choose your preferred interview date and time slot using the link below:\n${scheduleUrl}\n\nIf you have any queries, reply directly to this email or contact us at contact@septetlabs.in.\n\nBest regards,\nSeptet Labs Talent Team`,
+    text: `Hi ${candidateName || "there"},\n\nCongratulations! Your application for the Septet Labs Remote Internship Program has been shortlisted${roleTextPlain}.\n\nPlease choose your preferred interview date and time slot using the link below:\n${scheduleUrl}\n\nIf you have any queries, reply directly to this email or contact us at contact@septetlabs.in.\n\nBest regards,\nSeptet Labs Team`,
   });
 
   console.log(`[EmailService] Sent interview invitation email to ${toEmail}`);
