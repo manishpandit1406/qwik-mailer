@@ -27,8 +27,12 @@ export function LogoLoader({ fullPage = false, size = "md", text = "Loading..." 
     <div className="flex flex-col items-center justify-center gap-4">
       <div className="relative flex items-center justify-center">
         <div className={`absolute inset-0 bg-indigo-500/40 blur-lg animate-pulse ${rounded[size]} ${dimensions[size]}`} />
-        <div className={`relative flex items-center justify-center bg-black shadow-lg ${rounded[size]} ${dimensions[size]}`}>
-          <Mail size={iconSizes[size]} className="text-white animate-pulse" />
+        <div className={`relative flex items-center justify-center shadow-lg ${rounded[size]} ${dimensions[size]} overflow-hidden`}>
+          <img
+            src="/qwikmailer-icon.png"
+            alt="Loading..."
+            className={`w-full h-full object-contain ${rounded[size]} animate-pulse`}
+          />
         </div>
       </div>
       {text && (

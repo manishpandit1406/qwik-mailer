@@ -39,9 +39,16 @@ function emailLayout(content: string, previewText = ""): string {
           <!-- Logo -->
           <tr>
             <td style="padding-bottom:32px;text-align:center;">
-              <span style="font-size:24px;font-weight:800;color:#000000;letter-spacing:-0.5px;">
-                <span style="color:#000000;">Qwik Mailer</span>
-              </span>
+              <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;">
+                <tr>
+                  <td style="vertical-align:middle;padding-right:10px;">
+                    <img src="https://qwikmailer.in/qwikmailer-icon.png" alt="Qwik Mailer" width="36" height="36" style="display:block;width:36px;height:36px;border-radius:8px;" />
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <span style="font-size:22px;font-weight:800;color:#000000;letter-spacing:-0.5px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Qwikmailer</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <!-- Card -->

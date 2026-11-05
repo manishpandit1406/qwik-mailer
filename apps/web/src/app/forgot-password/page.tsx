@@ -31,11 +31,13 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 font-sans selection:bg-black selection:text-white">
       <div className="w-full max-w-[400px]">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 font-bold text-xl">
-            <div className="w-8 h-8 rounded-md bg-black flex items-center justify-center shadow-sm">
-              <Mail size={16} className="text-white" />
-            </div>
-            <span className="text-black tracking-tight">Qwik Mailer</span>
+          <Link href="/" className="inline-flex items-center gap-2.5 font-bold text-xl">
+            <img
+              src="/qwikmailer-icon.png"
+              alt="Qwik Mailer"
+              className="w-8 h-8 rounded-lg object-contain shadow-sm"
+            />
+            <span className="text-black tracking-tight">Qwikmailer</span>
           </Link>
         </div>
 

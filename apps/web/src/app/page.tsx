@@ -405,12 +405,12 @@ export default function LandingPage() {
             className="flex items-center gap-2.5 font-bold text-lg"
           >
             {" "}
-            <div
-              className="w-8 h-8 rounded-md flex items-center justify-center bg-black shadow-sm"
-            >
-              <Mail size={16} className="text-white" />
-            </div>
-            <span className="text-black tracking-tight">Qwik Mailer</span>
+            <img
+              src="/qwikmailer-icon.png"
+              alt="Qwik Mailer"
+              className="w-8 h-8 rounded-lg object-contain shadow-sm"
+            />
+            <span className="text-black tracking-tight font-bold">Qwikmailer</span>
           </Link>{" "}
           <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
             {["Home", "Features", "Pricing", "Docs", "Blog"].map((item) => (
@@ -618,11 +618,11 @@ export default function LandingPage() {
               style={{ borderColor: "var(--border-subtle)" }}
             >
               {" "}
-              <div
-                className="w-6 h-6 rounded flex items-center justify-center bg-black"
-              >
-                <Mail size={12} className="text-white" />
-              </div>{" "}
+              <img
+                src="/qwikmailer-icon.png"
+                alt="Qwik Mailer"
+                className="w-6 h-6 rounded-md object-contain"
+              />{" "}
               <span className="text-sm font-semibold">
                 Qwik Mailer Dashboard
               </span>{" "}

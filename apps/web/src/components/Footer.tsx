@@ -59,10 +59,12 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-12 mb-16">
           <div className="col-span-2 lg:col-span-2">
             <Link href="/" className="flex items-center gap-2.5 font-bold mb-4">
-              <div className="w-8 h-8 rounded-md flex items-center justify-center bg-black shadow-sm">
-                <Mail size={16} className="text-white" />
-              </div>
-              <span className="text-black tracking-tight text-lg">Qwik Mailer</span>
+              <img
+                src="/qwikmailer-icon.png"
+                alt="Qwik Mailer"
+                className="w-8 h-8 rounded-lg object-contain shadow-sm"
+              />
+              <span className="text-black tracking-tight text-lg">Qwikmailer</span>
             </Link>
             <p className="text-gray-500 text-sm leading-relaxed max-w-xs mb-6">
               The AI-native email infrastructure for modern developers. Send, track, and optimize with confidence.

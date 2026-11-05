@@ -370,10 +370,12 @@ export default function DashboardLayout({
           </button>
 
           <Link href="/projects" className="flex items-center gap-2.5 font-bold">
-            <div className="w-8 h-8 rounded-md flex items-center justify-center bg-black shadow-sm">
-              <Mail size={16} className="text-white" />
-            </div>
-            <span className="text-black tracking-tight font-bold hidden sm:block">Qwik Mailer</span>
+            <img
+              src="/qwikmailer-icon.png"
+              alt="Qwik Mailer"
+              className="w-8 h-8 rounded-lg object-contain shadow-sm shrink-0"
+            />
+            <span className="text-black tracking-tight font-bold hidden sm:block">Qwikmailer</span>
             {activeTeamId && teams.length > 0 && (
               <span className="text-gray-400 font-normal hidden sm:block ml-1">/ {teams.find(t => t.id === activeTeamId)?.name}</span>
             )}
@@ -430,10 +432,12 @@ export default function DashboardLayout({
           {/* Mobile header (hidden on desktop since main header spans full width) */}
           <div className="h-16 flex items-center px-4 border-b border-gray-100 shrink-0 lg:hidden">
             <Link href="/projects" className="flex items-center gap-2.5 font-bold">
-              <div className="w-8 h-8 rounded-md flex items-center justify-center bg-black shadow-sm">
-                <Mail size={16} className="text-white" />
-              </div>
-              <span className="text-black tracking-tight font-bold whitespace-nowrap">Qwik Mailer</span>
+              <img
+                src="/qwikmailer-icon.png"
+                alt="Qwik Mailer"
+                className="w-8 h-8 rounded-lg object-contain shadow-sm shrink-0"
+              />
+              <span className="text-black tracking-tight font-bold whitespace-nowrap">Qwikmailer</span>
             </Link>
             <button
               onClick={() => setMobileOpen(false)}

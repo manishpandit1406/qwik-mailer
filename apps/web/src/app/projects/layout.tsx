@@ -99,10 +99,12 @@ export default function ProjectsLayout({
           </button>
 
           <Link href="/" className="flex items-center gap-2.5 font-bold">
-            <div className="w-8 h-8 rounded-md flex items-center justify-center bg-black shadow-sm">
-              <Mail size={16} className="text-white" />
-            </div>
-            <span className="text-black tracking-tight font-bold hidden sm:block">Qwik Mailer</span>
+            <img
+              src="/qwikmailer-icon.png"
+              alt="Qwik Mailer"
+              className="w-8 h-8 rounded-lg object-contain shadow-sm shrink-0"
+            />
+            <span className="text-black tracking-tight font-bold hidden sm:block">Qwikmailer</span>
           </Link>
         </div>
 
@@ -151,10 +153,12 @@ export default function ProjectsLayout({
           {/* Mobile header (hidden on desktop since main header spans full width) */}
           <div className="h-16 flex items-center px-4 border-b border-gray-100 shrink-0 lg:hidden">
             <Link href="/" className="flex items-center gap-2.5 font-bold">
-              <div className="w-8 h-8 rounded-md flex items-center justify-center bg-black shadow-sm">
-                <Mail size={16} className="text-white" />
-              </div>
-              <span className="text-black tracking-tight font-bold whitespace-nowrap">Qwik Mailer</span>
+              <img
+                src="/qwikmailer-icon.png"
+                alt="Qwik Mailer"
+                className="w-8 h-8 rounded-lg object-contain shadow-sm shrink-0"
+              />
+              <span className="text-black tracking-tight font-bold whitespace-nowrap">Qwikmailer</span>
             </Link>
             <button
               onClick={() => setMobileOpen(false)}

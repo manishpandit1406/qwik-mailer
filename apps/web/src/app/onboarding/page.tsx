@@ -180,11 +180,13 @@ export default function OnboardingPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 font-sans selection:bg-blue-500/30 text-gray-900">
       <div className="w-full max-w-[600px] animate-fade-in py-12">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 font-bold text-xl mb-6">
-            <div className="w-8 h-8 rounded bg-black flex items-center justify-center">
-              <Mail size={16} className="text-white" />
-            </div>
-            <span className="text-gray-900 tracking-tight font-semibold">Qwik Mailer</span>
+          <div className="inline-flex items-center gap-2.5 font-bold text-xl mb-6">
+            <img
+              src="/qwikmailer-icon.png"
+              alt="Qwik Mailer"
+              className="w-8 h-8 rounded-lg object-contain shadow-sm"
+            />
+            <span className="text-gray-900 tracking-tight font-semibold">Qwikmailer</span>
           </div>
           
           <div className="flex items-center justify-center gap-3 mb-6 text-sm font-medium">
