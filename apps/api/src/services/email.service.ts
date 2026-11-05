@@ -878,3 +878,85 @@ export async function sendFormSubmissionAdminNotification(params: {
 
   console.log(`[EmailService] Sent admin submission alert to ${toEmail} for ${formName}`);
 }
+
+// ─── Send Interview Invitation Email ───────────────────────────────────────────
+
+export async function sendInterviewInvitationEmail(params: {
+  toEmail: string;
+  candidateName?: string;
+  role?: string;
+}): Promise<void> {
+  const { toEmail, candidateName, role } = params;
+  const scheduleUrl = "https://apply.septetlabs.in/interview";
+
+  const content = `
+    <h1 style="color:#0f172a;font-size:22px;font-weight:700;margin:0 0 14px 0;">Interview Invitation</h1>
+    <p style="color:#334155;font-size:15px;line-height:1.6;margin:0 0 16px 0;">
+      Hi <strong>${escapeHtml(candidateName || "there")}</strong>,
+    </p>
+    <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px 0;">
+      Thank you for applying for the <strong>Remote Internship Program</strong> at Septet Labs. 
+      Our technical panel reviewed your application and project background, and we would like to invite you for a <strong>1-on-1 technical and introductory interview</strong>${role ? ` for the <strong>${escapeHtml(role)}</strong> track` : ""}.
+    </p>
+
+    <!-- Interview Format Box -->
+    <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:18px 20px;margin:0 0 24px 0;">
+      <div style="font-size:11px;font-weight:700;color:#175bf2;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+        Interview Overview
+      </div>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <tr>
+          <td style="padding:8px 0;font-size:13px;color:#475569;font-weight:600;width:35%;border-bottom:1px solid #f1f5f9;">Format</td>
+          <td style="padding:8px 0;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #f1f5f9;">Remote (Google Meet)</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;font-size:13px;color:#475569;font-weight:600;width:35%;border-bottom:1px solid #f1f5f9;">Duration</td>
+          <td style="padding:8px 0;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #f1f5f9;">20–30 Minutes</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;font-size:13px;color:#475569;font-weight:600;width:35%;">Discussion Focus</td>
+          <td style="padding:8px 0;font-size:13px;color:#0f172a;font-weight:600;">Core Tech Stack, Highlighted Project Walk-through &amp; Q&amp;A</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- CTA Button -->
+    <div style="text-align:center;margin:28px 0 32px 0;">
+      <a href="${scheduleUrl}"
+         style="display:inline-block;background-color:#175bf2;color:#ffffff;font-size:14px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 10px -2px rgba(23,91,242,0.35);">
+        Choose Your Interview Date &amp; Time
+      </a>
+      <p style="color:#64748b;font-size:12px;margin:10px 0 0 0;">
+        Or open directly: <a href="${scheduleUrl}" style="color:#175bf2;text-decoration:none;">${scheduleUrl}</a>
+      </p>
+    </div>
+
+    <!-- Preparation Note -->
+    <div style="background-color:#eff5ff;border-left:3px solid #175bf2;border-radius:4px;padding:14px 16px;margin:0 0 24px 0;">
+      <div style="font-size:13px;font-weight:700;color:#175bf2;margin-bottom:4px;">Next Steps</div>
+      <p style="font-size:13px;color:#334155;line-height:1.5;margin:0;">
+        Please confirm your preferred slot within the next <strong>48 hours</strong>. Once submitted, our team will review the slot and send you the official Google Meet calendar invite.
+      </p>
+    </div>
+
+    <p style="color:#475569;font-size:13px;line-height:1.6;margin:0 0 24px 0;">
+      If you have any questions or need to reschedule, reply directly to this email or reach us at <a href="mailto:contact@septetlabs.in" style="color:#175bf2;text-decoration:none;font-weight:600;">contact@septetlabs.in</a>.
+    </p>
+
+    <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5;">
+      Best regards,<br/>
+      <strong style="color:#0f172a;">Septet Labs Talent Team</strong>
+    </p>
+  `;
+
+  await getTransporter().sendMail({
+    from: `"Septet Labs" <hello@septetlabs.in>`,
+    to: toEmail,
+    replyTo: "contact@septetlabs.in",
+    subject: `Interview Invitation — Septet Labs Remote Internship Program`,
+    html: septetEmailLayout(content, "You have been shortlisted for an interview with Septet Labs."),
+    text: `Hi ${candidateName || "there"},\n\nCongratulations! Your application for the Septet Labs Remote Internship Program has been shortlisted.\n\nPlease choose your preferred interview date and time slot using the link below:\n${scheduleUrl}\n\nIf you have any queries, reply directly to this email or contact us at contact@septetlabs.in.\n\nBest regards,\nSeptet Labs Talent Team`,
+  });
+
+  console.log(`[EmailService] Sent interview invitation email to ${toEmail}`);
+}
