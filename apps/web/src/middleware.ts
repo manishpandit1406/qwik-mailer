@@ -82,6 +82,21 @@ export function middleware(request: NextRequest) {
     const formSlug = "septet-labs-remote-internship-application";
     const formId = "ab27b2af-2811-4ad1-8c62-1aaa1523d27c";
 
+    const interviewSlug = "septet-labs-schedule-your-internship-interview";
+    const interviewId = "0d4ed8cc-5995-46c7-a2d6-2ce73f97899f";
+
+    // Route interview scheduling URLs
+    if (
+      pathname === "/interview" ||
+      pathname === "/schedule-interview" ||
+      pathname.includes(interviewSlug) ||
+      pathname.includes(interviewId)
+    ) {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = `/f/${interviewSlug}/${interviewId}`;
+      return NextResponse.rewrite(rewriteUrl);
+    }
+
     // 1. If visiting root "/" -> redirect so the browser address bar shows "/septet-labs-remote-internship-application"
     if (pathname === "/" || pathname === "") {
       const redirectUrl = request.nextUrl.clone();
@@ -104,6 +119,20 @@ export function middleware(request: NextRequest) {
 
   if (isSeptetLabs) {
     const { pathname } = request.nextUrl;
+    const interviewSlug = "septet-labs-schedule-your-internship-interview";
+    const interviewId = "0d4ed8cc-5995-46c7-a2d6-2ce73f97899f";
+
+    if (
+      pathname === "/interview" ||
+      pathname === "/schedule-interview" ||
+      pathname.includes(interviewSlug) ||
+      pathname.includes(interviewId)
+    ) {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = `/f/${interviewSlug}/${interviewId}`;
+      return NextResponse.rewrite(rewriteUrl);
+    }
+
     if (pathname === "/" || pathname === "") {
       const url = request.nextUrl.clone();
       url.pathname = "/septet-labs";

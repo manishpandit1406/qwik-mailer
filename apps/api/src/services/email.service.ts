@@ -644,7 +644,11 @@ function formatSubmissionFields(data: Record<string, any>, schema?: any[]): { la
 }
 
 export function isSeptetLabsForm(form: { id?: string; name?: string }, originOrHost?: string): boolean {
-  if (form.id === "ab27b2af-2811-4ad1-8c62-1aaa1523d27c" || form.id === "53e54dc1-4836-47aa-bdd6-b38a56f04ab5") {
+  if (
+    form.id === "ab27b2af-2811-4ad1-8c62-1aaa1523d27c" ||
+    form.id === "53e54dc1-4836-47aa-bdd6-b38a56f04ab5" ||
+    form.id === "0d4ed8cc-5995-46c7-a2d6-2ce73f97899f"
+  ) {
     return true;
   }
   if (form.name && form.name.toLowerCase().includes("septet")) {
@@ -683,17 +687,32 @@ export async function sendFormSubmissionConfirmationEmail(params: {
   `).join("");
 
   if (isSeptet) {
+    const isInterview = formName.toLowerCase().includes("interview");
     const isInternship = formName.toLowerCase().includes("internship");
+
+    const headingText = isInterview ? "Interview Availability Confirmed" : "Application Received";
+    const subText = isInterview
+      ? `Thank you for providing your availability for the <strong>Septet Labs Internship Interview</strong>! We have successfully recorded your preferred date and time slot.`
+      : isInternship 
+        ? "Thank you for applying to the <strong>Remote Internship Program</strong> at Septet Labs! We have successfully received your application." 
+        : `Thank you for reaching out to Septet Labs. We have successfully received your submission for <strong>${escapeHtml(formName)}</strong>.`;
+
+    const nextStepsTitle = isInterview ? "What to Expect Next" : "Next Steps";
+    const nextStepsBody = isInterview
+      ? "Our technical panel will review your chosen slot and send an official <strong>Google Meet invitation link</strong> directly to this email address within 24 hours. Please ensure you are in a quiet room with a working webcam, microphone, and stable internet connection."
+      : "Our talent and technical team evaluates every application thoroughly. If shortlisted, you will hear back from us via <strong>Email or WhatsApp</strong> within <strong>5–7 business days</strong>.";
+
+    const emailSubject = isInterview
+      ? `Interview Availability Confirmed — ${formName}`
+      : `Application Received — ${formName}`;
+
     const content = `
-      <h1 style="color:#0f172a;font-size:22px;font-weight:700;margin:0 0 12px 0;">Application Received</h1>
+      <h1 style="color:#0f172a;font-size:22px;font-weight:700;margin:0 0 12px 0;">${headingText}</h1>
       <p style="color:#334155;font-size:15px;line-height:1.6;margin:0 0 16px 0;">
         Hi <strong>${escapeHtml(respondentName || "there")}</strong>,
       </p>
       <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
-        ${isInternship 
-          ? "Thank you for applying to the <strong>Remote Internship Program</strong> at Septet Labs! We have successfully received your application." 
-          : `Thank you for reaching out to Septet Labs. We have successfully received your submission for <strong>${escapeHtml(formName)}</strong>.`
-        }
+        ${subText}
       </p>
       
       <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:0 0 24px 0;">
@@ -706,9 +725,9 @@ export async function sendFormSubmissionConfirmationEmail(params: {
       </div>
 
       <div style="background-color:#eff5ff;border-left:3px solid #175bf2;border-radius:4px;padding:14px 16px;margin:0 0 24px 0;">
-        <div style="font-size:13px;font-weight:700;color:#175bf2;margin-bottom:4px;">Next Steps</div>
+        <div style="font-size:13px;font-weight:700;color:#175bf2;margin-bottom:4px;">${nextStepsTitle}</div>
         <p style="font-size:13px;color:#334155;line-height:1.5;margin:0;">
-          Our talent and technical team evaluates every application thoroughly. If shortlisted, you will hear back from us via <strong>Email or WhatsApp</strong> within <strong>5–7 business days</strong>.
+          ${nextStepsBody}
         </p>
       </div>
 
@@ -726,9 +745,9 @@ export async function sendFormSubmissionConfirmationEmail(params: {
       from: `"Septet Labs" <hello@septetlabs.in>`,
       to: toEmail,
       replyTo: "contact@septetlabs.in",
-      subject: `Application Received — ${formName}`,
-      html: septetEmailLayout(content, `We have received your application for ${formName}`),
-      text: `Hi ${respondentName || "there"},\n\nThank you for applying to Septet Labs for ${formName}. We have received your submission.\n\nOur team will review your application and reach out if shortlisted.\n\nIf you have any queries, reply directly to this email or reach us at contact@septetlabs.in.\n\nBest regards,\nSeptet Labs Team`,
+      subject: emailSubject,
+      html: septetEmailLayout(content, `Your response for ${formName} was recorded successfully.`),
+      text: `Hi ${respondentName || "there"},\n\nThank you for submitting ${formName}. We have received your availability.\n\nBest regards,\nSeptet Labs Team`,
     });
 
     console.log(`[EmailService] Sent Septet Labs confirmation email to ${toEmail} for ${formName}`);
@@ -801,14 +820,19 @@ export async function sendFormSubmissionAdminNotification(params: {
     ? `"Septet Labs" <hello@septetlabs.in>`
     : `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`;
 
+  const isInterview = formName.toLowerCase().includes("interview");
   const subject = isSeptet
-    ? `New Application: ${formName} — ${respondentName || respondentEmail || "Applicant"}`
+    ? isInterview
+      ? `Interview Scheduled: ${formName} — ${respondentName || respondentEmail || "Candidate"}`
+      : `New Application: ${formName} — ${respondentName || respondentEmail || "Applicant"}`
     : `New Form Submission: ${formName} — ${respondentName || respondentEmail || "Respondent"}`;
 
+  const headerTitle = isInterview ? "Interview Availability Submitted" : "New Application Received";
+
   const content = isSeptet ? `
-    <h1 style="color:#0f172a;font-size:20px;font-weight:700;margin:0 0 12px 0;">New Application Received</h1>
+    <h1 style="color:#0f172a;font-size:20px;font-weight:700;margin:0 0 12px 0;">${headerTitle}</h1>
     <p style="color:#475569;font-size:14px;line-height:1.5;margin:0 0 16px 0;">
-      A new response has been submitted for <strong style="color:#175bf2;">${escapeHtml(formName)}</strong>.
+      A candidate has submitted their availability for <strong style="color:#175bf2;">${escapeHtml(formName)}</strong>.
     </p>
 
     <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:0 0 20px 0;">
