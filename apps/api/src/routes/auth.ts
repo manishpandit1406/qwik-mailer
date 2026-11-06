@@ -372,6 +372,7 @@ export async function authRoutes(app: FastifyInstance) {
         plan: user.plan,
         role: user.role,
         avatarUrl: user.avatarUrl,
+        notificationPreferences: (user as any).notificationPreferences ?? {},
         companyName: user.companyName,
         websiteUrl: user.websiteUrl,
         phoneNumber: user.phoneNumber,
@@ -409,6 +410,7 @@ export async function authRoutes(app: FastifyInstance) {
     const body = z.object({ 
       name: z.string().min(2).max(100).optional(),
       avatarUrl: z.string().nullable().optional(),
+      notificationPreferences: z.record(z.any()).optional(),
       companyAddress: z.string().optional(),
       companyAddress2: z.string().optional(),
       city: z.string().optional(),
@@ -423,6 +425,21 @@ export async function authRoutes(app: FastifyInstance) {
     }).where(eq(users.id, user.sub));
 
     return reply.send({ success: true, data: { message: "Profile updated." } });
+  });
+
+  // PUT /v1/auth/me/notification-preferences
+  app.put("/me/notification-preferences", {
+    preHandler: authenticate,
+  }, async (req, reply) => {
+    const user = req.user as { sub: string };
+    const prefs = z.record(z.any()).parse(req.body);
+
+    await db.update(users).set({
+      notificationPreferences: prefs,
+      updatedAt: new Date(),
+    }).where(eq(users.id, user.sub));
+
+    return reply.send({ success: true, data: prefs });
   });
 
   // POST /v1/auth/onboarding

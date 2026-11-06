@@ -137,6 +137,7 @@ export const users = pgTable(
     termsVersion: varchar("terms_version", { length: 50 }),
     registrationIpAddress: varchar("registration_ip_address", { length: 64 }),
     avatarUrl: text("avatar_url"),
+    notificationPreferences: jsonb("notification_preferences").$type<Record<string, any>>().default({}).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

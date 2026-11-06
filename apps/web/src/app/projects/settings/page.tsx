@@ -226,14 +226,18 @@ export default function SettingsPage() {
     }
   }
 
-const [notifSaved, setNotifSaved] = useState(false);
-  const [notifPrefs, setNotifPrefs] = useState([
-    true,
-    true,
-    true,
-    false,
-    false,
-  ]);
+  const [notifSaved, setNotifSaved] = useState(false);
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifSettings, setNotifSettings] = useState({
+    septetInternshipApplications: true,
+    septetInterviewScheduled: true,
+    generalFormSubmissions: true,
+    deliveryFailures: true,
+    highBounceRate: true,
+    domainExpiry: true,
+    usageLimits: false,
+    weeklyDigest: false,
+  });
 
   const [showRepLogs, setShowRepLogs] = useState(false);
   const [repLogs, setRepLogs] = useState<any[]>([]);
@@ -295,6 +299,12 @@ const [notifSaved, setNotifSaved] = useState(false);
             zipCode: json.data.zipCode ?? "",
             country: json.data.country ?? "",
           });
+          if (json.data.notificationPreferences) {
+            setNotifSettings((prev) => ({
+              ...prev,
+              ...json.data.notificationPreferences,
+            }));
+          }
           // Update localStorage too
           localStorage.setItem(
             "mf_user",
@@ -1141,38 +1151,148 @@ const [notifSaved, setNotifSaved] = useState(false);
             </div>
           )}
           {tab === "notifications" && (
-            <div className="space-y-5">
-              <h3
-                className="font-semibold"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Notification Preferences
-              </h3>
+            <div className="space-y-6">
+              <div>
+                <h3
+                  className="font-bold text-lg"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Notification Preferences
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Manage email alerts sent to <strong>{profile.email || "your account"}</strong> when new applications or form responses arrive.
+                </p>
+              </div>
+
+              {/* Form & Application Notifications */}
               <div className="space-y-3">
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Forms &amp; Applications Notifications
+                </div>
+
+                {/* Septet Labs Remote Internship Applications */}
+                <div className="flex items-start justify-between p-4.5 rounded-xl bg-white border border-gray-200 shadow-xs hover:border-gray-300 transition-colors">
+                  <div className="pr-4">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900">
+                        Septet Labs — Remote Internship Applications
+                      </p>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        Septet Labs
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Receive "New Application" email notifications at <strong>{profile.email}</strong> whenever a candidate applies for the Remote Internship Program.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                    <input
+                      type="checkbox"
+                      checked={notifSettings.septetInternshipApplications}
+                      onChange={(e) =>
+                        setNotifSettings((prev) => ({
+                          ...prev,
+                          septetInternshipApplications: e.target.checked,
+                        }))
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {/* Septet Labs Interview Availability */}
+                <div className="flex items-start justify-between p-4.5 rounded-xl bg-white border border-gray-200 shadow-xs hover:border-gray-300 transition-colors">
+                  <div className="pr-4">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900">
+                        Septet Labs — Interview Slot Submissions
+                      </p>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        Septet Labs
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Receive email notifications when an applicant submits their preferred interview date and time slot.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                    <input
+                      type="checkbox"
+                      checked={notifSettings.septetInterviewScheduled}
+                      onChange={(e) =>
+                        setNotifSettings((prev) => ({
+                          ...prev,
+                          septetInterviewScheduled: e.target.checked,
+                        }))
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {/* General Form Submissions */}
+                <div className="flex items-start justify-between p-4.5 rounded-xl bg-white border border-gray-200 shadow-xs hover:border-gray-300 transition-colors">
+                  <div className="pr-4">
+                    <p className="text-sm font-semibold text-gray-900">
+                      General Form Submissions
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Receive submission alert emails for responses on all other active forms and landing pages.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                    <input
+                      type="checkbox"
+                      checked={notifSettings.generalFormSubmissions}
+                      onChange={(e) =>
+                        setNotifSettings((prev) => ({
+                          ...prev,
+                          generalFormSubmissions: e.target.checked,
+                        }))
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+              </div>
+
+              {/* System & Delivery Alerts */}
+              <div className="space-y-3 pt-2">
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Email Delivery &amp; System Alerts
+                </div>
                 {[
                   {
+                    key: "deliveryFailures",
                     label: "Delivery failures",
                     desc: "Get notified when emails fail to deliver",
                   },
                   {
+                    key: "highBounceRate",
                     label: "High bounce rate",
                     desc: "Alert when bounce rate exceeds 5%",
                   },
                   {
+                    key: "domainExpiry",
                     label: "Domain expiry",
                     desc: "Remind me before domain verification expires",
                   },
                   {
+                    key: "usageLimits",
                     label: "Usage limits",
                     desc: "Warn when nearing monthly email limits",
                   },
                   {
+                    key: "weeklyDigest",
                     label: "Weekly digest",
                     desc: "Receive weekly analytics summary email",
                   },
-                ].map(({ label, desc }, i) => (
+                ].map(({ key, label, desc }) => (
                   <div
-                    key={label}
+                    key={key}
                     className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-gray-200"
                   >
                     <div>
@@ -1192,11 +1312,12 @@ const [notifSaved, setNotifSaved] = useState(false);
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={notifPrefs[i]}
-                        onChange={() =>
-                          setNotifPrefs((prev) =>
-                            prev.map((v, idx) => (idx === i ? !v : v)),
-                          )
+                        checked={(notifSettings as any)[key] ?? false}
+                        onChange={(e) =>
+                          setNotifSettings((prev) => ({
+                            ...prev,
+                            [key]: e.target.checked,
+                          }))
                         }
                         className="sr-only peer"
                       />
@@ -1206,21 +1327,50 @@ const [notifSaved, setNotifSaved] = useState(false);
                   </div>
                 ))}
               </div>
-              <button
-                className="btn-primary flex items-center gap-2"
-                onClick={() => {
-                  setNotifSaved(true);
-                  setTimeout(() => setNotifSaved(false), 2000);
-                }}
-              >
-                {notifSaved ? (
-                  <>
-                    <CheckCircle2 size={14} /> Saved!
-                  </>
-                ) : (
-                  "Save Preferences"
-                )}
-              </button>
+
+              <div className="pt-2 flex items-center gap-3">
+                <button
+                  className="btn-primary flex items-center gap-2 px-5 py-2.5"
+                  disabled={notifSaving}
+                  onClick={async () => {
+                    setNotifSaving(true);
+                    try {
+                      const res = await fetch(
+                        `${API}/v1/auth/me/notification-preferences`,
+                        {
+                          method: "PUT",
+                          headers: {
+                            Authorization: `Bearer ${getToken()}`,
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify(notifSettings),
+                        }
+                      );
+                      const json = await res.json();
+                      if (json.success) {
+                        setNotifSaved(true);
+                        setTimeout(() => setNotifSaved(false), 2500);
+                      }
+                    } catch {
+                      alert("Failed to save preferences.");
+                    } finally {
+                      setNotifSaving(false);
+                    }
+                  }}
+                >
+                  {notifSaving ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" /> Saving...
+                    </>
+                  ) : notifSaved ? (
+                    <>
+                      <CheckCircle2 size={14} className="text-white" /> Preferences Saved!
+                    </>
+                  ) : (
+                    "Save Notification Preferences"
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>

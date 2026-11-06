@@ -102,6 +102,36 @@ export async function formRoutes(app: FastifyInstance) {
     return reply.send({ success: true, data: updatedForm });
   });
 
+  // PATCH /v1/forms/:id/notifications
+  app.patch("/:id/notifications", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
+    const teamId = req.teamId!;
+    const { id } = req.params as { id: string };
+    const { notifyAdmin, notifyEmail } = z.object({
+      notifyAdmin: z.boolean(),
+      notifyEmail: z.string().optional().nullable(),
+    }).parse(req.body);
+
+    const form = await db.query.forms.findFirst({
+      where: and(eq(forms.id, id), eq(forms.teamId, teamId)),
+    });
+    if (!form) return reply.code(404).send({ success: false, error: "Form not found" });
+
+    const currentSettings = (form.settings || {}) as Record<string, any>;
+    const updatedSettings = {
+      ...currentSettings,
+      notifyAdmin,
+      ...(notifyEmail !== undefined ? { notifyEmail } : {}),
+    };
+
+    const [updated] = await db
+      .update(forms)
+      .set({ settings: updatedSettings, updatedAt: new Date() })
+      .where(and(eq(forms.id, id), eq(forms.teamId, teamId)))
+      .returning();
+
+    return reply.send({ success: true, data: updated });
+  });
+
   // DELETE /v1/forms/:id
   app.delete("/:id", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
     const teamId = req.teamId!;
@@ -579,45 +609,71 @@ export async function formRoutes(app: FastifyInstance) {
       );
     }
 
-    // Send admin notification to form's notifyEmail or team owner
+    // Send admin notification to form's notifyEmail or team owner (if enabled)
+    const notifyAdminEnabled = settings?.notifyAdmin !== false && settings?.notifyOnSubmission !== false;
     const adminNotifyEmail = settings?.notifyEmail ? String(settings.notifyEmail).trim() : undefined;
-    if (!adminNotifyEmail && form.teamId) {
-      db.query.teams.findFirst({ where: eq(teams.id, form.teamId) }).then(async (t) => {
-        if (t?.ownerId) {
-          const owner = await db.query.users.findFirst({ where: eq(users.id, t.ownerId) });
-          if (owner?.email) {
-            sendFormSubmissionAdminNotification({
-              toEmail: owner.email,
-              formName: form.name,
-              formId: form.id,
-              isSeptet,
-              data,
-              schema,
-              respondentEmail: emailValue,
-              respondentName: applicantName,
-              submittedAt: new Date(),
-              ip: req.ip,
-            }).catch((err) =>
-              console.error(`[Forms] Failed to send admin alert to owner ${owner.email}:`, err)
-            );
+
+    if (notifyAdminEnabled) {
+      if (form.teamId) {
+        db.query.teams.findFirst({ where: eq(teams.id, form.teamId) }).then(async (t) => {
+          if (t?.ownerId) {
+            const owner = await db.query.users.findFirst({ where: eq(users.id, t.ownerId) });
+            const userPrefs = ((owner as any)?.notificationPreferences || (owner as any)?.notification_preferences || {}) as Record<string, any>;
+            
+            const formNameLower = form.name.toLowerCase();
+            const isInternship = formNameLower.includes("internship");
+            const isInterview = formNameLower.includes("interview");
+
+            if (isInternship && userPrefs.septetInternshipApplications === false) {
+              console.log(`[Forms] Admin notification suppressed: septetInternshipApplications is OFF in user settings`);
+              return;
+            }
+            if (isInterview && userPrefs.septetInterviewScheduled === false) {
+              console.log(`[Forms] Admin notification suppressed: septetInterviewScheduled is OFF in user settings`);
+              return;
+            }
+            if (!isInternship && !isInterview && userPrefs.generalFormSubmissions === false) {
+              console.log(`[Forms] Admin notification suppressed: generalFormSubmissions is OFF in user settings`);
+              return;
+            }
+
+            const targetEmail = adminNotifyEmail || owner?.email;
+            if (targetEmail) {
+              sendFormSubmissionAdminNotification({
+                toEmail: targetEmail,
+                formName: form.name,
+                formId: form.id,
+                isSeptet,
+                data,
+                schema,
+                respondentEmail: emailValue,
+                respondentName: applicantName,
+                submittedAt: new Date(),
+                ip: req.ip,
+              }).catch((err) =>
+                console.error(`[Forms] Failed to send admin alert to ${targetEmail}:`, err)
+              );
+            }
           }
-        }
-      }).catch((err) => console.error("[Forms] Failed to lookup form team owner for notification:", err));
-    } else if (adminNotifyEmail) {
-      sendFormSubmissionAdminNotification({
-        toEmail: adminNotifyEmail,
-        formName: form.name,
-        formId: form.id,
-        isSeptet,
-        data,
-        schema,
-        respondentEmail: emailValue,
-        respondentName: applicantName,
-        submittedAt: new Date(),
-        ip: req.ip,
-      }).catch((err) =>
-        console.error(`[Forms] Failed to send admin alert to ${adminNotifyEmail}:`, err)
-      );
+        }).catch((err) => console.error("[Forms] Failed to lookup form team owner for notification:", err));
+      } else if (adminNotifyEmail) {
+        sendFormSubmissionAdminNotification({
+          toEmail: adminNotifyEmail,
+          formName: form.name,
+          formId: form.id,
+          isSeptet,
+          data,
+          schema,
+          respondentEmail: emailValue,
+          respondentName: applicantName,
+          submittedAt: new Date(),
+          ip: req.ip,
+        }).catch((err) =>
+          console.error(`[Forms] Failed to send admin alert to ${adminNotifyEmail}:`, err)
+        );
+      }
+    } else {
+      console.log(`[Forms] Admin notification suppressed for form "${form.name}": notifyAdmin is disabled`);
     }
 
     // Fire webhook if configured

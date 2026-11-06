@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Plus, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy, Image as ImageIcon, UploadCloud, Star, Calendar, Clock, Phone, Link2, FileUp, Sparkles, Sliders } from "lucide-react";
+import { ArrowLeft, Save, Plus, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy, Image as ImageIcon, UploadCloud, Star, Calendar, Clock, Phone, Link2, FileUp, Sparkles, Sliders, Mail } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -998,6 +998,53 @@ func main() {
                     <div className="mt-3.5 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50/60 px-3 py-2 rounded-xl">
                       <CheckCircle2 size={14} className="text-indigo-600 shrink-0" />
                       <span>Form authentication only. Respondents are not logged into your Qwik Mailer account.</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Email Submission Notifications */}
+                <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-xs">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0 mt-0.5 text-blue-600">
+                        <Mail size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-gray-900">Email Submission Alerts</h4>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${settings.notifyAdmin !== false ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                            {settings.notifyAdmin !== false ? "Enabled" : "Disabled"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                          Receive email notifications with response details immediately when someone fills out this form.
+                        </p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={settings.notifyAdmin !== false}
+                        onChange={e => setSettings({ ...settings, notifyAdmin: e.target.checked })}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+
+                  {settings.notifyAdmin !== false && (
+                    <div className="mt-3.5 pt-3 border-t border-gray-100 space-y-1.5">
+                      <label className="text-xs font-semibold text-gray-700">Notification Recipient Email</label>
+                      <input
+                        type="email"
+                        className="input text-xs"
+                        placeholder="Leave blank to use default account email (work.manishpandit1406@gmail.com)"
+                        value={settings.notifyEmail || ""}
+                        onChange={e => setSettings({ ...settings, notifyEmail: e.target.value })}
+                      />
+                      <p className="text-[11px] text-gray-400">
+                        Optional. Enter a custom email to receive alerts, or leave blank to alert the project owner.
+                      </p>
                     </div>
                   )}
                 </div>
