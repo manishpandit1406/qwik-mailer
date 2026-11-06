@@ -1,7 +1,7 @@
 "use client";
 import { formatIST } from "@/lib/dateUtils";
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Edit3, Share2, ClipboardList, RefreshCw, BarChart2, X, Mail, Users, MessageSquare, Bug, Calendar, Video, Briefcase, FileText, Sparkles, Link as LinkIcon, Check, Download, FileSpreadsheet } from "lucide-react";
+import { Plus, Trash2, Edit3, Share2, ClipboardList, RefreshCw, BarChart2, X, Mail, Users, MessageSquare, Bug, Calendar, Video, Briefcase, FileText, Sparkles, Link as LinkIcon, Check, Download, FileSpreadsheet, Bell, BellOff } from "lucide-react";
 import * as XLSX from "xlsx";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -336,6 +336,41 @@ export default function FormsPage() {
     }
   }
 
+  async function toggleFormNotification(formId: string, e?: React.MouseEvent) {
+    if (e) e.stopPropagation();
+    const targetForm = forms.find(f => f.id === formId);
+    if (!targetForm) return;
+    const currentVal = targetForm.settings?.notifyAdmin !== false;
+    const nextVal = !currentVal;
+
+    // Optimistic update
+    setForms(prev => prev.map(f => {
+      if (f.id === formId) {
+        return { ...f, settings: { ...(f.settings || {}), notifyAdmin: nextVal } };
+      }
+      return f;
+    }));
+
+    try {
+      const res = await fetch(`${API}/v1/forms/${formId}/notifications`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notifyAdmin: nextVal }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setForms(prev => prev.map(f => f.id === formId ? targetForm : f));
+        alert(json.error || "Failed to update notification setting");
+      }
+    } catch {
+      setForms(prev => prev.map(f => f.id === formId ? targetForm : f));
+      alert("Network error updating notification setting");
+    }
+  }
+
   async function createForm(template: typeof FORM_TEMPLATES[0]) {
     setCreating(true);
     try {
@@ -514,7 +549,31 @@ export default function FormsPage() {
                 </div>
                 
                 <div className="p-4 flex-1 flex flex-col">
-                  <h3 className="font-bold text-gray-900 text-base mb-1 line-clamp-1 pr-2">{form.name}</h3>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <h3 className="font-bold text-gray-900 text-base line-clamp-1 pr-1">{form.name}</h3>
+                    <button
+                      type="button"
+                      onClick={(e) => toggleFormNotification(form.id, e)}
+                      title={form.settings?.notifyAdmin !== false ? "Submission email alerts: ON. Click to turn OFF." : "Submission email alerts: OFF. Click to turn ON."}
+                      className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-all ${
+                        form.settings?.notifyAdmin !== false
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                          : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200"
+                      }`}
+                    >
+                      {form.settings?.notifyAdmin !== false ? (
+                        <>
+                          <Bell size={11} className="text-emerald-600 fill-emerald-600" />
+                          <span>Alerts ON</span>
+                        </>
+                      ) : (
+                        <>
+                          <BellOff size={11} className="text-gray-400" />
+                          <span>Alerts OFF</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <p className="text-[11px] text-gray-400 mb-4">Created {formatIST(form.createdAt, false)}</p>
                   
                   <div className="flex items-center gap-3 mb-1">

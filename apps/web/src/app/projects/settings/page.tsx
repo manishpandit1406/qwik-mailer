@@ -229,9 +229,6 @@ export default function SettingsPage() {
   const [notifSaved, setNotifSaved] = useState(false);
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifSettings, setNotifSettings] = useState({
-    septetInternshipApplications: true,
-    septetInterviewScheduled: true,
-    generalFormSubmissions: true,
     deliveryFailures: true,
     highBounceRate: true,
     domainExpiry: true,
@@ -1160,103 +1157,8 @@ export default function SettingsPage() {
                   Notification Preferences
                 </h3>
                 <p className="text-xs text-gray-500 mt-1">
-                  Manage email alerts sent to <strong>{profile.email || "your account"}</strong> when new applications or form responses arrive.
+                  Manage delivery warnings, system alerts, and reports sent to <strong>{profile.email || "your account"}</strong>. Form submission alerts are configured individually inside each form's settings.
                 </p>
-              </div>
-
-              {/* Form & Application Notifications */}
-              <div className="space-y-3">
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  Forms &amp; Applications Notifications
-                </div>
-
-                {/* Septet Labs Remote Internship Applications */}
-                <div className="flex items-start justify-between p-4.5 rounded-xl bg-white border border-gray-200 shadow-xs hover:border-gray-300 transition-colors">
-                  <div className="pr-4">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-gray-900">
-                        Septet Labs — Remote Internship Applications
-                      </p>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                        Septet Labs
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      Receive "New Application" email notifications at <strong>{profile.email}</strong> whenever a candidate applies for the Remote Internship Program.
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                    <input
-                      type="checkbox"
-                      checked={notifSettings.septetInternshipApplications}
-                      onChange={(e) =>
-                        setNotifSettings((prev) => ({
-                          ...prev,
-                          septetInternshipApplications: e.target.checked,
-                        }))
-                      }
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-
-                {/* Septet Labs Interview Availability */}
-                <div className="flex items-start justify-between p-4.5 rounded-xl bg-white border border-gray-200 shadow-xs hover:border-gray-300 transition-colors">
-                  <div className="pr-4">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-gray-900">
-                        Septet Labs — Interview Slot Submissions
-                      </p>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                        Septet Labs
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      Receive email notifications when an applicant submits their preferred interview date and time slot.
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                    <input
-                      type="checkbox"
-                      checked={notifSettings.septetInterviewScheduled}
-                      onChange={(e) =>
-                        setNotifSettings((prev) => ({
-                          ...prev,
-                          septetInterviewScheduled: e.target.checked,
-                        }))
-                      }
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-
-                {/* General Form Submissions */}
-                <div className="flex items-start justify-between p-4.5 rounded-xl bg-white border border-gray-200 shadow-xs hover:border-gray-300 transition-colors">
-                  <div className="pr-4">
-                    <p className="text-sm font-semibold text-gray-900">
-                      General Form Submissions
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      Receive submission alert emails for responses on all other active forms and landing pages.
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                    <input
-                      type="checkbox"
-                      checked={notifSettings.generalFormSubmissions}
-                      onChange={(e) =>
-                        setNotifSettings((prev) => ({
-                          ...prev,
-                          generalFormSubmissions: e.target.checked,
-                        }))
-                      }
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                  </label>
-                </div>
               </div>
 
               {/* System & Delivery Alerts */}

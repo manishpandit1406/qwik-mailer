@@ -22,6 +22,8 @@ import {
   Filter,
   Copy,
   SlidersHorizontal,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { formatIST } from "@/lib/dateUtils";
@@ -382,6 +384,47 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
                 >
                   {exportingExcel ? <RefreshCw size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
                   Export Excel
+                </button>
+
+                <button
+                  onClick={async () => {
+                    const currentNotify = form?.settings?.notifyAdmin !== false;
+                    const nextNotify = !currentNotify;
+                    setForm((prev: any) => ({
+                      ...prev,
+                      settings: { ...(prev?.settings || {}), notifyAdmin: nextNotify },
+                    }));
+                    try {
+                      await fetch(`${API}/v1/forms/${formId}/notifications`, {
+                        method: "PATCH",
+                        headers: {
+                          Authorization: `Bearer ${getToken()}`,
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ notifyAdmin: nextNotify }),
+                      });
+                    } catch (err) {
+                      console.error("Failed to toggle notification", err);
+                    }
+                  }}
+                  className={`btn-secondary text-xs flex items-center gap-1.5 py-2 px-3 shadow-sm border transition-all ${
+                    form?.settings?.notifyAdmin !== false
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 font-semibold"
+                      : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200"
+                  }`}
+                  title={form?.settings?.notifyAdmin !== false ? "Email notifications are ON for submissions. Click to turn OFF." : "Email notifications are OFF for submissions. Click to turn ON."}
+                >
+                  {form?.settings?.notifyAdmin !== false ? (
+                    <>
+                      <Bell size={14} className="text-emerald-600 fill-emerald-600" />
+                      <span>Email Alerts: <strong>ON</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <BellOff size={14} className="text-gray-500" />
+                      <span>Email Alerts: <strong>OFF</strong></span>
+                    </>
+                  )}
                 </button>
               </>
             )}
