@@ -17,6 +17,32 @@ interface PreviewData {
 
 type Step = "audience" | "preview" | "compose" | "sending" | "done";
 
+function renderCellValue(val: any) {
+  if (val === undefined || val === null || val === "") return "—";
+  if (typeof val === "object") {
+    if (val.url || val.name) {
+      return (
+        <a
+          href={val.url || "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline max-w-[150px] truncate"
+        >
+          <span>📎</span>
+          <span className="truncate">{val.name || "File"}</span>
+        </a>
+      );
+    }
+    if (Array.isArray(val)) return val.map(v => typeof v === "object" ? JSON.stringify(v) : String(v)).join(", ");
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return "[Object]";
+    }
+  }
+  return String(val);
+}
+
 export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () => void }) {
   const [step, setStep] = useState<Step>("audience");
 
@@ -344,10 +370,12 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
                     ? preview.recipients.slice(0, 100).map((r, i) => (
                       <tr key={i}>
                         <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "var(--text-muted)" }}>{i + 1}</td>
-                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>{r.name || "-"}</td>
-                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "#818cf8" }}>{r.email}</td>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>{renderCellValue(r.name)}</td>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "#818cf8" }}>{renderCellValue(r.email)}</td>
                         {preview.columns.filter(c => !["name", "Name", "email", "Email", "EMAIL", "NAME", "email_address", "full_name"].includes(c)).map(c => (
-                          <td key={c} style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{r[c] || "-"}</td>
+                          <td key={c} style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                            {renderCellValue(r[c])}
+                          </td>
                         ))}
                       </tr>
                     ))
@@ -355,8 +383,8 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
                       <tr key={i}>
                         <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>Row {e.row}</td>
                         <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>-</td>
-                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>{(e.data as any).email || "-"}</td>
-                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "#f59e0b" }}>{e.reason}</td>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5" }}>{renderCellValue((e.data as any)?.email)}</td>
+                        <td style={{ padding: "8px 16px", borderBottom: "1px solid #f5f5f5", color: "#f59e0b" }}>{renderCellValue(e.reason)}</td>
                       </tr>
                     ))
                   }

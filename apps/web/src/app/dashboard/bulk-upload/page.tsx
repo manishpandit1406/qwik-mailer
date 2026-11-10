@@ -46,6 +46,33 @@ interface SendResult {
   skippedDetails: { email: string; reason: string }[];
 }
 type Step = "upload" | "preview" | "compose" | "sending" | "done";
+
+function renderCellValue(val: any) {
+  if (val === undefined || val === null || val === "") return "—";
+  if (typeof val === "object") {
+    if (val.url || val.name) {
+      return (
+        <a
+          href={val.url || "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline max-w-[150px] truncate"
+        >
+          <span>📎</span>
+          <span className="truncate">{val.name || "File"}</span>
+        </a>
+      );
+    }
+    if (Array.isArray(val)) return val.map(v => typeof v === "object" ? JSON.stringify(v) : String(v)).join(", ");
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return "[Object]";
+    }
+  }
+  return String(val);
+}
+
 export default function BulkUploadPage() {
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -854,10 +881,10 @@ export default function BulkUploadPage() {
                             color: "var(--text-secondary)",
                           }}
                         >
-                          {r.name || "—"}
+                          {renderCellValue(r.name)}
                         </td>
                         <td style={{ padding: "9px 16px", color: "#818cf8" }}>
-                          {r.email}
+                          {renderCellValue(r.email)}
                         </td>
                         {preview.columns
                           .filter(
@@ -882,7 +909,7 @@ export default function BulkUploadPage() {
                                 whiteSpace: "nowrap"
                               }}
                             >
-                              {r[c] || "—"}
+                              {renderCellValue(r[c])}
                             </td>
                           ))}
                       </tr>

@@ -415,12 +415,24 @@ export default function ContactsPage() {
               </div>
 
               <div className="space-y-4">
-                {Object.keys(viewingContact.customFields || {}).map(key => (
-                  <div key={key}>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{key}</p>
-                    <p className="text-sm text-gray-900 bg-gray-50 p-2.5 rounded-xl border border-gray-100 break-words whitespace-pre-wrap">{String(viewingContact.customFields[key])}</p>
-                  </div>
-                ))}
+                {Object.keys(viewingContact.customFields || {}).map(key => {
+                  const val = viewingContact.customFields[key];
+                  return (
+                    <div key={key}>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{key}</p>
+                      {typeof val === "object" && val !== null && (val.url || val.name) ? (
+                        <a href={val.url || "#"} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                          <span>📄</span>
+                          <span>{val.name || "File"}</span>
+                        </a>
+                      ) : (
+                        <p className="text-sm text-gray-900 bg-gray-50 p-2.5 rounded-xl border border-gray-100 break-words whitespace-pre-wrap">
+                          {typeof val === "object" ? JSON.stringify(val) : String(val ?? "—")}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
                 {Object.keys(viewingContact.customFields || {}).length === 0 && (
                    <div className="text-center py-6">
                      <p className="text-gray-500 text-sm">No custom fields attached to this contact.</p>
