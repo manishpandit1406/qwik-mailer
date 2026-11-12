@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { db } from "@qwikmailer/db";
 import { teamMembers, users } from "@qwikmailer/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { validateApiKey } from "../services/api-key.service.js";
 
 declare module "fastify" {
@@ -18,6 +18,34 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
     const apiKey =
       (req.headers["x-api-key"] as string) ||
       (authHeader && authHeader.startsWith("Bearer mf_live_") ? authHeader.replace("Bearer ", "").trim() : undefined);
+
+    // Support OAuth 2.0 Bearer Token (Claude, ChatGPT, etc.)
+    if (authHeader && authHeader.startsWith("Bearer qm_at_")) {
+      const oauthToken = authHeader.replace("Bearer ", "").trim();
+      const oauthRes = await db.execute(sql`
+        SELECT t.*, u.email, u.name, u.role, u.plan, u.is_active, u.is_suspended
+        FROM oauth_tokens t
+        JOIN users u ON u.id = t.user_id
+        WHERE t.token = ${oauthToken} AND t.expires_at > now()
+      `);
+      if (oauthRes.length) {
+        const row = oauthRes[0] as any;
+        if (!row.is_active || row.is_suspended) {
+          return reply.code(401).send({ success: false, error: "Account inactive or suspended" });
+        }
+        req.user = {
+          sub: row.user_id,
+          email: row.email,
+          role: row.role,
+          plan: row.plan,
+          source: "oauth",
+        } as any;
+        req.teamId = row.team_id;
+        req.teamRole = "admin";
+        return;
+      }
+      return reply.code(401).send({ success: false, error: "Invalid or expired OAuth token" });
+    }
 
     if (apiKey) {
       // statically imported

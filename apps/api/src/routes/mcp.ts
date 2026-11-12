@@ -1,10 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, sql } from "drizzle-orm";
 import { db, forms, formSubmissions, teams, teamMembers } from "@qwikmailer/db";
 import { validateApiKey } from "../services/api-key.service.js";
 
 const FORMS_URL = process.env.NEXT_PUBLIC_FORMS_URL || "https://forms.qwikmailer.in";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://qwikmailer.in";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
 
 const TOOLS = [
   {
@@ -169,7 +170,24 @@ async function resolveTeamId(req: any, app: FastifyInstance): Promise<string | n
     } catch {}
   }
 
-  // 2. JWT validation (User signed in to platform / dashboard token)
+  // 2. OAuth 2.0 Bearer Token (Claude, ChatGPT, etc.)
+  const bearerToken =
+    authHeader && authHeader.startsWith("Bearer ")
+      ? authHeader.replace("Bearer ", "").trim()
+      : (req.query?.token as string);
+
+  if (bearerToken) {
+    try {
+      const oauthRes = await db.execute(sql`
+        SELECT team_id FROM oauth_tokens WHERE token = ${bearerToken} AND expires_at > now()
+      `);
+      if (oauthRes.length && (oauthRes[0] as any)?.team_id) {
+        return (oauthRes[0] as any).team_id as string;
+      }
+    } catch {}
+  }
+
+  // 3. JWT validation (User signed in to platform / dashboard token)
   const jwtToken =
     req.query?.token ||
     req.query?.jwt ||
@@ -278,6 +296,7 @@ export async function mcpRoutes(app: FastifyInstance) {
 
       case "tools/call": {
         if (!teamId) {
+          reply.header("WWW-Authenticate", `Bearer error="invalid_token", resource_metadata="${API_URL}/.well-known/oauth-protected-resource"`);
           return reply.send({
             jsonrpc: "2.0",
             id,
@@ -286,7 +305,7 @@ export async function mcpRoutes(app: FastifyInstance) {
               content: [
                 {
                   type: "text",
-                  text: "❌ Authentication Required: No valid API Key or user login found.\n\nPlease connect your Claude / MCP connector using your own Qwik Mailer API Key:\nURL: https://api.qwikmailer.in/mcp?apiKey=YOUR_API_KEY\n\nYou can find or create your API Key in your dashboard: https://qwikmailer.in/dashboard/api-keys",
+                  text: `❌ Authentication Required: Please sign in to connect your Qwik Mailer account with Claude, or provide your API Key.\n\n• Sign in & Authorize: ${APP_URL}/oauth/authorize\n• Or get your API Key: ${APP_URL}/dashboard/api-keys`,
                 },
               ],
             },

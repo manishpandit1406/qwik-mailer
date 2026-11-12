@@ -40,6 +40,7 @@ import { inboxRoutes } from "./routes/inbox.js";
 import { uploadRoutes } from "./routes/uploads.js";
 import { chatgptRoutes } from "./routes/chatgpt.js";
 import { mcpRoutes } from "./routes/mcp.js";
+import { oauthRoutes } from "./routes/oauth.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { db } from "@qwikmailer/db";
 import { sql } from "drizzle-orm";
@@ -106,6 +107,43 @@ export async function buildApp() {
     await db.execute(sql`CREATE INDEX IF NOT EXISTS sandbox_emails_expires_at_idx ON sandbox_emails (expires_at)`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS sandbox_emails_created_at_idx ON sandbox_emails (created_at)`);
     console.log("✅ Sandbox DB migration complete");
+
+    // ─── Auto-migrate: ensure oauth tables exist ──────────────────────────────
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS oauth_clients (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        client_id text UNIQUE NOT NULL,
+        client_secret text,
+        client_name text NOT NULL DEFAULT 'AI Client',
+        redirect_uris text[] NOT NULL DEFAULT '{}',
+        created_at timestamp DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS oauth_codes (
+        code text PRIMARY KEY,
+        client_id text NOT NULL,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        team_id uuid NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+        redirect_uri text NOT NULL,
+        code_challenge text,
+        code_challenge_method text,
+        scope text DEFAULT 'forms:read forms:write',
+        expires_at timestamp NOT NULL,
+        created_at timestamp DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS oauth_tokens (
+        token text PRIMARY KEY,
+        refresh_token text UNIQUE,
+        client_id text NOT NULL,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        team_id uuid NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+        scope text DEFAULT 'forms:read forms:write',
+        expires_at timestamp NOT NULL,
+        created_at timestamp DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS oauth_tokens_token_idx ON oauth_tokens (token);
+      CREATE INDEX IF NOT EXISTS oauth_tokens_refresh_token_idx ON oauth_tokens (refresh_token);
+    `);
+    console.log("✅ OAuth DB migration complete");
   } catch (err) {
     console.error("⚠️ Sandbox migration error (non-fatal):", err);
   }
@@ -222,6 +260,7 @@ export async function buildApp() {
   await app.register(uploadRoutes, { prefix: "/v1/uploads" });
   await app.register(chatgptRoutes);
   await app.register(mcpRoutes);
+  await app.register(oauthRoutes);
 
   return app;
 }
