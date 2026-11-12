@@ -8,6 +8,7 @@ declare module "fastify" {
   interface FastifyRequest {
     teamId?: string;
     teamRole?: string;
+    oauthScopes?: string[];
   }
 }
 
@@ -42,6 +43,7 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
         } as any;
         req.teamId = row.team_id;
         req.teamRole = "admin";
+        req.oauthScopes = row.scope ? String(row.scope).split(/\s+/).filter(Boolean) : [];
         return;
       }
       return reply.code(401).send({ success: false, error: "Invalid or expired OAuth token" });
@@ -145,6 +147,22 @@ export function requirePermission(permission: string) {
         return;
       }
       return reply.code(403).send({ success: false, error: "Insufficient permissions for this API key" });
+    }
+  };
+}
+
+export function requireScope(scope: string) {
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    if ((req.user as any)?.source === "oauth") {
+      const scopes = req.oauthScopes || [];
+      if (!scopes.includes(scope)) {
+        return reply.code(403).send({
+          success: false,
+          error: `Permission Denied: Your connection was not granted the '${scope}' permission.`,
+          requiredScope: scope,
+          grantedScopes: scopes,
+        });
+      }
     }
   };
 }

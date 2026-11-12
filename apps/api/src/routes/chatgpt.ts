@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { eq, and, desc, count } from "drizzle-orm";
 import { db, forms, formSubmissions } from "@qwikmailer/db";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, requireScope } from "../middleware/auth.js";
 
 const FORMS_URL = process.env.NEXT_PUBLIC_FORMS_URL || "https://forms.qwikmailer.in";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://qwikmailer.in";
@@ -398,7 +398,7 @@ export async function chatgptRoutes(app: FastifyInstance) {
 
   // ─── 3. ChatGPT Natural Language Form Creation Endpoint ─────────────────────
   // POST /v1/chatgpt/create-form-from-prompt
-  app.post("/v1/chatgpt/create-form-from-prompt", { preHandler: authenticate }, async (req, reply) => {
+  app.post("/v1/chatgpt/create-form-from-prompt", { preHandler: [authenticate, requireScope("forms:write")] }, async (req, reply) => {
     const teamId = (req as any).teamId;
     if (!teamId) {
       return reply.code(400).send({ success: false, error: "Team ID is required" });

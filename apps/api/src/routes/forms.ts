@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { eq, and, desc, sql, count, or, ilike } from "drizzle-orm";
 import { db, forms, formSubmissions, contacts, contactListMembers, teams, users } from "@qwikmailer/db";
-import { authenticate, requireTeamRole } from "../middleware/auth.js";
+import { authenticate, requireTeamRole, requireScope } from "../middleware/auth.js";
 import { safeFetch } from "../utils/ssrf.js";
 import {
   isSeptetLabsForm,
@@ -51,7 +51,7 @@ export async function formRoutes(app: FastifyInstance) {
   });
 
   // GET /v1/forms
-  app.get("/", { preHandler: authenticate }, async (req, reply) => {
+  app.get("/", { preHandler: [authenticate, requireScope("forms:read")] }, async (req, reply) => {
     const teamId = req.teamId!;
     const userForms = await db.query.forms.findMany({
       where: eq(forms.teamId, teamId),
@@ -61,7 +61,7 @@ export async function formRoutes(app: FastifyInstance) {
   });
 
   // POST /v1/forms
-  app.post("/", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
+  app.post("/", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"]), requireScope("forms:write")] }, async (req, reply) => {
     const teamId = req.teamId!;
     const body = formSchema.parse(req.body);
     const [newForm] = await db.insert(forms).values({
@@ -76,7 +76,7 @@ export async function formRoutes(app: FastifyInstance) {
   });
 
   // GET /v1/forms/:id
-  app.get("/:id", { preHandler: authenticate }, async (req, reply) => {
+  app.get("/:id", { preHandler: [authenticate, requireScope("forms:read")] }, async (req, reply) => {
     const teamId = req.teamId!;
     const { id } = req.params as { id: string };
     const form = await db.query.forms.findFirst({
@@ -87,7 +87,7 @@ export async function formRoutes(app: FastifyInstance) {
   });
 
   // PUT /v1/forms/:id
-  app.put("/:id", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
+  app.put("/:id", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"]), requireScope("forms:write")] }, async (req, reply) => {
     const teamId = req.teamId!;
     const { id } = req.params as { id: string };
     const body = formSchema.partial().parse(req.body);
@@ -103,7 +103,7 @@ export async function formRoutes(app: FastifyInstance) {
   });
 
   // PATCH /v1/forms/:id/notifications
-  app.patch("/:id/notifications", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
+  app.patch("/:id/notifications", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"]), requireScope("forms:write")] }, async (req, reply) => {
     const teamId = req.teamId!;
     const { id } = req.params as { id: string };
     const { notifyAdmin, notifyEmail } = z.object({
@@ -133,7 +133,7 @@ export async function formRoutes(app: FastifyInstance) {
   });
 
   // DELETE /v1/forms/:id
-  app.delete("/:id", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])] }, async (req, reply) => {
+  app.delete("/:id", { preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"]), requireScope("forms:delete")] }, async (req, reply) => {
     const teamId = req.teamId!;
     const { id } = req.params as { id: string };
     const [deletedForm] = await db.delete(forms)
@@ -147,7 +147,7 @@ export async function formRoutes(app: FastifyInstance) {
   // ─── Submissions ──────────────────────────────────────────────────────────
 
   // GET /v1/forms/:id/submissions — paginated
-  app.get("/:id/submissions", { preHandler: authenticate }, async (req, reply) => {
+  app.get("/:id/submissions", { preHandler: [authenticate, requireScope("submissions:read")] }, async (req, reply) => {
     const teamId = req.teamId!;
     const { id } = req.params as { id: string };
     const { page = "1", limit = "50" } = req.query as { page?: string; limit?: string };
@@ -187,7 +187,7 @@ export async function formRoutes(app: FastifyInstance) {
 
   // GET /v1/forms/:id/submissions/export — CSV download
   // NOTE: This route must be registered BEFORE /:id/submissions/:subId to avoid routing conflict
-  app.get("/:id/submissions/export", { preHandler: authenticate }, async (req, reply) => {
+  app.get("/:id/submissions/export", { preHandler: [authenticate, requireScope("submissions:read")] }, async (req, reply) => {
     const teamId = req.teamId!;
     const { id } = req.params as { id: string };
 
@@ -244,7 +244,7 @@ export async function formRoutes(app: FastifyInstance) {
 
   // DELETE /v1/forms/:id/submissions/:subId
   app.delete("/:id/submissions/:subId", {
-    preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"])],
+    preHandler: [authenticate, requireTeamRole(["owner", "admin", "member"]), requireScope("forms:delete")],
   }, async (req, reply) => {
     const teamId = req.teamId!;
     const { id, subId } = req.params as { id: string; subId: string };

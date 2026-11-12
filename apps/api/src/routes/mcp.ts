@@ -152,7 +152,23 @@ const TOOLS = [
   },
 ];
 
-async function resolveTeamId(req: any, app: FastifyInstance): Promise<string | null> {
+interface AuthContext {
+  teamId: string;
+  scopes: string[];
+}
+
+const ALL_SCOPES = ["forms:read", "forms:write", "submissions:read", "forms:delete"];
+
+const TOOL_SCOPE_MAP: Record<string, string> = {
+  create_form_from_prompt: "forms:write",
+  create_form: "forms:write",
+  list_forms: "forms:read",
+  get_form: "forms:read",
+  get_form_submissions: "submissions:read",
+  delete_form: "forms:delete",
+};
+
+async function resolveAuth(req: any, app: FastifyInstance): Promise<AuthContext | null> {
   const queryKey = req.query?.apiKey || req.query?.key;
   const authHeader = req.headers?.authorization;
   const headerKey =
@@ -166,7 +182,12 @@ async function resolveTeamId(req: any, app: FastifyInstance): Promise<string | n
   if (candidateKey) {
     try {
       const user = await validateApiKey(candidateKey, req.ip);
-      if (user?.teamId) return user.teamId;
+      if (user?.teamId) {
+        return {
+          teamId: user.teamId,
+          scopes: ALL_SCOPES,
+        };
+      }
     } catch {}
   }
 
@@ -179,10 +200,16 @@ async function resolveTeamId(req: any, app: FastifyInstance): Promise<string | n
   if (bearerToken) {
     try {
       const oauthRes = await db.execute(sql`
-        SELECT team_id FROM oauth_tokens WHERE token = ${bearerToken} AND expires_at > now()
+        SELECT team_id, scope FROM oauth_tokens WHERE token = ${bearerToken} AND expires_at > now()
       `);
       if (oauthRes.length && (oauthRes[0] as any)?.team_id) {
-        return (oauthRes[0] as any).team_id as string;
+        const row = oauthRes[0] as any;
+        const rawScope = String(row.scope || "").trim();
+        const scopes = rawScope ? rawScope.split(/\s+/).filter(Boolean) : [];
+        return {
+          teamId: row.team_id as string,
+          scopes,
+        };
       }
     } catch {}
   }
@@ -205,7 +232,12 @@ async function resolveTeamId(req: any, app: FastifyInstance): Promise<string | n
         const member = await db.query.teamMembers.findFirst({
           where: eq(teamMembers.userId, userId),
         });
-        if (member?.teamId) return member.teamId;
+        if (member?.teamId) {
+          return {
+            teamId: member.teamId,
+            scopes: ALL_SCOPES,
+          };
+        }
       }
     } catch {}
   }
@@ -240,21 +272,22 @@ export async function mcpRoutes(app: FastifyInstance) {
       return;
     }
 
-    const teamId = await resolveTeamId(req, app);
+    const auth = await resolveAuth(req, app);
 
     return reply.send({
       name: "qwikforms",
       version: "1.0.0",
       description: "QwikForms Remote MCP Server for Claude & AI assistants",
       status: "online",
-      authenticated: !!teamId,
+      authenticated: !!auth?.teamId,
+      grantedScopes: auth?.scopes || [],
       endpoints: {
         mcp: `${req.protocol}://${req.hostname}/mcp`,
       },
       toolsCount: TOOLS.length,
-      authInstructions: teamId
+      authInstructions: auth?.teamId
         ? "Authenticated successfully."
-        : "Authentication required. Connect with your API key: https://api.qwikmailer.in/mcp?apiKey=YOUR_API_KEY. Generate keys at https://qwikmailer.in/dashboard/api-keys",
+        : "Authentication required. Connect with OAuth or your API key: https://api.qwikmailer.in/mcp?apiKey=YOUR_API_KEY. Generate keys at https://qwikmailer.in/dashboard/api-keys",
     });
   });
 
@@ -264,7 +297,7 @@ export async function mcpRoutes(app: FastifyInstance) {
     reply.header("Access-Control-Expose-Headers", "WWW-Authenticate, Authorization");
     reply.header("Content-Type", "application/json");
 
-    const teamId = await resolveTeamId(req, app);
+    const auth = await resolveAuth(req, app);
     const body = (req.body || {}) as any;
     const { id, method, params } = body;
 
@@ -288,17 +321,26 @@ export async function mcpRoutes(app: FastifyInstance) {
       case "notifications/initialized":
         return reply.status(200).send();
 
-      case "tools/list":
+      case "tools/list": {
+        // Only advertise tools that the current connection has permission to invoke
+        const availableTools = auth?.scopes
+          ? TOOLS.filter((t) => {
+              const reqScope = TOOL_SCOPE_MAP[t.name];
+              return !reqScope || auth.scopes.includes(reqScope);
+            })
+          : TOOLS;
+
         return reply.send({
           jsonrpc: "2.0",
           id,
           result: {
-            tools: TOOLS,
+            tools: availableTools,
           },
         });
+      }
 
       case "tools/call": {
-        if (!teamId) {
+        if (!auth?.teamId) {
           reply.header("WWW-Authenticate", `Bearer error="invalid_token", resource_metadata="${API_URL}/.well-known/oauth-protected-resource"`);
           return reply.send({
             jsonrpc: "2.0",
@@ -308,7 +350,7 @@ export async function mcpRoutes(app: FastifyInstance) {
               content: [
                 {
                   type: "text",
-                  text: `❌ Authentication Required: Please sign in to connect your Qwik Mailer account with Claude, or provide your API Key.\n\n• Sign in & Authorize: ${APP_URL}/oauth/authorize\n• Or get your API Key: ${APP_URL}/dashboard/api-keys`,
+                  text: `❌ Authentication Required: Please sign in to connect your Qwik Mailer account with ChatGPT or Claude, or provide your API Key.\n\n• Sign in & Authorize: ${APP_URL}/oauth/authorize\n• Or get your API Key: ${APP_URL}/dashboard/api-keys`,
                 },
               ],
             },
@@ -316,6 +358,25 @@ export async function mcpRoutes(app: FastifyInstance) {
         }
 
         const { name, arguments: args = {} } = params || {};
+        const teamId = auth.teamId;
+
+        // Check granular permission / scope
+        const requiredScope = TOOL_SCOPE_MAP[name];
+        if (requiredScope && !auth.scopes.includes(requiredScope)) {
+          return reply.send({
+            jsonrpc: "2.0",
+            id,
+            result: {
+              isError: true,
+              content: [
+                {
+                  type: "text",
+                  text: `❌ Permission Denied: This operation requires the '${requiredScope}' permission, but your connection was only granted [${auth.scopes.join(", ") || "none"}]. Form deletion and submissions access are strictly blocked. Please re-authorize with '${requiredScope}' permission enabled if you need this capability.`,
+                },
+              ],
+            },
+          });
+        }
         try {
           let toolResult: any;
 
