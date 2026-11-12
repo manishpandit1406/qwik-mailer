@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Plus, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy, Image as ImageIcon, UploadCloud, Star, Calendar, Clock, Phone, Link2, FileUp, Sparkles, Sliders, Mail } from "lucide-react";
+import { ArrowLeft, Save, Plus, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy, Image as ImageIcon, UploadCloud, Star, Calendar, Clock, Phone, Link2, FileUp, Sparkles, Sliders, Mail, FileText, Check, FileArchive, FileSpreadsheet, HardDrive } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -166,19 +166,121 @@ function SortableField({ field, onUpdate, onRemove, schema }: any) {
         )}
 
         {/* File upload configuration */}
-        {field.type === "file" && (
-          <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
-            <label className="block text-xs font-medium text-gray-500">Accepted File Formats</label>
-            <input
-              type="text"
-              className="input text-xs"
-              placeholder=".pdf, image/*, .docx"
-              value={field.accept || ".pdf"}
-              onChange={e => onUpdate(field.id, { accept: e.target.value })}
-            />
-            <p className="text-[11px] text-gray-400">Examples: <code>.pdf</code> for Documents, <code>image/*</code> for Photos, or <code>.pdf,.docx,.zip</code></p>
-          </div>
-        )}
+        {field.type === "file" && (() => {
+          const fileTypePresets = [
+            { id: "docs", label: "Documents", sub: "PDF, Word, TXT", value: ".pdf,.doc,.docx,.txt", icon: FileText },
+            { id: "images", label: "Images", sub: "JPG, PNG, WebP", value: "image/*", icon: ImageIcon },
+            { id: "pdf", label: "PDF Only", sub: "Single / Multi PDF", value: ".pdf", icon: FileText },
+            { id: "sheets", label: "Spreadsheets", sub: "Excel, CSV", value: ".xlsx,.xls,.csv", icon: FileSpreadsheet },
+            { id: "archives", label: "Archives", sub: "ZIP, RAR, 7Z", value: ".zip,.rar,.7z", icon: FileArchive },
+            { id: "any", label: "Any File", sub: "All Formats", value: "*", icon: UploadCloud },
+          ];
+
+          const sizePresets = [5, 10, 25, 50, 100];
+          const currentSize = field.maxSizeMb || (field.helperText?.match(/(\d+)\s*mb/i)?.[1] ? parseInt(field.helperText.match(/(\d+)\s*mb/i)[1], 10) : 10);
+          const currentAccept = field.accept || ".pdf";
+
+          return (
+            <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+              {/* File Size Selector */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                    <HardDrive size={13} className="text-indigo-600" />
+                    Max File Size Limit
+                  </label>
+                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                    {currentSize} MB Selected
+                  </span>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {sizePresets.map((size) => {
+                    const isSelected = currentSize === size;
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => {
+                          const updates: any = { maxSizeMb: size };
+                          if (!field.helperText || /^max\s+\d+\s*mb/i.test(field.helperText.trim())) {
+                            updates.helperText = `Max ${size} MB`;
+                          }
+                          onUpdate(field.id, updates);
+                        }}
+                        className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all border ${
+                          isSelected
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-200"
+                            : "bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {size} MB
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* File Type Presets */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                    <FileUp size={13} className="text-indigo-600" />
+                    Allowed File Formats
+                  </label>
+                  <span className="text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 truncate max-w-[160px]">
+                    {currentAccept}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {fileTypePresets.map((preset) => {
+                    const Icon = preset.icon;
+                    const isSelected = currentAccept === preset.value;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => onUpdate(field.id, { accept: preset.value })}
+                        className={`p-2.5 rounded-xl border text-left transition-all relative ${
+                          isSelected
+                            ? "border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600 text-indigo-950 shadow-2xs"
+                            : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/70 text-gray-800"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Icon size={15} className={isSelected ? "text-indigo-600" : "text-gray-400"} />
+                          {isSelected && <Check size={13} className="text-indigo-600 font-bold" />}
+                        </div>
+                        <div className="text-xs font-bold mt-1.5">{preset.label}</div>
+                        <div className="text-[10px] text-gray-400 leading-tight mt-0.5 truncate">{preset.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Optional manual override toggle */}
+                <div className="mt-2.5 pt-2">
+                  <details className="group">
+                    <summary className="text-[11px] text-gray-400 hover:text-indigo-600 cursor-pointer select-none font-medium flex items-center gap-1">
+                      <span>Advanced: Custom file extension input</span>
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      <input
+                        type="text"
+                        className="input text-xs py-1.5"
+                        placeholder="e.g. .pdf, .docx, image/*, .zip"
+                        value={field.accept || ""}
+                        onChange={(e) => onUpdate(field.id, { accept: e.target.value })}
+                      />
+                      <p className="text-[10px] text-gray-400">
+                        Comma-separated extensions (e.g. <code>.pdf, .png, .docx</code>) or MIME wildcards (e.g. <code>image/*</code>).
+                      </p>
+                    </div>
+                  </details>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Linear scale configuration */}
         {(field.type === "range" || field.type === "scale") && (
@@ -420,6 +522,7 @@ function BuilderContent() {
     } else if (type === "file") {
       newField.label = customProps?.label || "Upload File / Document";
       newField.accept = customProps?.accept || ".pdf";
+      newField.maxSizeMb = customProps?.maxSizeMb || 10;
       newField.helperText = customProps?.helperText || "Max 10 MB";
     } else if (type === "rating") {
       newField.label = customProps?.label || "Rate your experience";

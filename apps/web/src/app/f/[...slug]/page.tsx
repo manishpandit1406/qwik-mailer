@@ -1144,11 +1144,40 @@ export default function HostedFormPage() {
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
-                              if (file.size > 10 * 1024 * 1024) {
-                                alert("File exceeds maximum allowed size of 10 MB.");
+
+                              // Parse configured size limit (from field.maxSizeMb or helperText "Max X MB", default 10MB)
+                              const configuredLimitMb = field.maxSizeMb || (field.helperText?.match(/(\d+)\s*mb/i)?.[1] ? parseInt(field.helperText.match(/(\d+)\s*mb/i)[1], 10) : 10);
+                              const maxSizeBytes = configuredLimitMb * 1024 * 1024;
+
+                              // 1. Check size limit FIRST
+                              if (file.size > maxSizeBytes) {
+                                alert(`File size exceeds maximum allowed limit of ${configuredLimitMb} MB.`);
                                 e.target.value = "";
                                 return;
                               }
+
+                              // 2. Client-side format validation against field.accept
+                              if (field.accept && field.accept !== "*" && field.accept.trim() !== "") {
+                                const allowedParts = field.accept.split(",").map((p: string) => p.trim().toLowerCase());
+                                const lowerName = file.name.toLowerCase();
+                                const lowerType = (file.type || "").toLowerCase();
+                                const isMatch = allowedParts.some((part: string) => {
+                                  if (part === "*") return true;
+                                  if (part.startsWith(".")) return lowerName.endsWith(part);
+                                  if (part.endsWith("/*")) {
+                                    const prefix = part.slice(0, -2);
+                                    return lowerType.startsWith(prefix + "/");
+                                  }
+                                  return lowerType === part;
+                                });
+
+                                if (!isMatch) {
+                                  alert(`File type not allowed. Please upload a file matching: ${field.accept}`);
+                                  e.target.value = "";
+                                  return;
+                                }
+                              }
+
                               const fieldKey = field.label || field.name;
                               setFileUploadState((prev) => ({ ...prev, [fieldKey]: "uploading" }));
                               try {
@@ -1166,6 +1195,8 @@ export default function HostedFormPage() {
                                     contentType: file.type || "application/octet-stream",
                                     filename: file.name,
                                     formId: id,
+                                    maxSizeMb: configuredLimitMb,
+                                    accept: field.accept || "*",
                                   }),
                                 });
                                 const json = await res.json();
@@ -1196,7 +1227,7 @@ export default function HostedFormPage() {
                           />
                         </label>
                         <p className="text-[11px] text-gray-400 mt-1">
-                          Supports: {field.accept || ".pdf"} (Max 10 MB)
+                          Supports: {field.accept || "Any file"} (Max {field.maxSizeMb || (field.helperText?.match(/(\d+)\s*mb/i)?.[1] ? parseInt(field.helperText.match(/(\d+)\s*mb/i)[1], 10) : 10)} MB)
                         </p>
                       </div>
 

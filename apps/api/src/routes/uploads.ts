@@ -155,21 +155,57 @@ export async function uploadRoutes(app: FastifyInstance) {
    */
   app.post("/submission-file", async (req, reply) => {
     const body = req.body as any;
-    const { base64, contentType, formId, filename } = body ?? {};
+    const { base64, contentType, formId, filename, maxSizeMb, accept } = body ?? {};
 
     if (!base64 || !contentType || !formId) {
       return reply.status(400).send({ success: false, error: "Missing base64, contentType, or formId" });
     }
 
-    if (!ALLOWED_TYPES.any.includes(contentType)) {
-      return reply.status(400).send({ success: false, error: "File type not allowed" });
-    }
-
     const rawBase64 = base64.replace(/^data:[^;]+;base64,/, "");
     const buffer = Buffer.from(rawBase64, "base64");
 
-    if (buffer.length > MAX_FILE_SIZE) {
-      return reply.status(413).send({ success: false, error: "File exceeds 10 MB limit" });
+    // 1. Validate file size FIRST before any other checks
+    const limitMb = Math.min(Math.max(Number(maxSizeMb) || 10, 1), 100);
+    const maxSizeBytes = limitMb * 1024 * 1024;
+
+    if (buffer.length > maxSizeBytes) {
+      return reply.status(413).send({
+        success: false,
+        error: `File size exceeds maximum allowed limit of ${limitMb} MB.`,
+      });
+    }
+
+    // 2. Reject executable / malicious file extensions
+    const ext = (filename || "").split(".").pop()?.toLowerCase() || "";
+    const blockedExtensions = ["exe", "bat", "cmd", "sh", "php", "pl", "cgi", "vbs", "msi", "com", "scr"];
+    if (blockedExtensions.includes(ext)) {
+      return reply.status(400).send({
+        success: false,
+        error: "Executable files (.exe, .bat, etc.) are not allowed.",
+      });
+    }
+
+    // 3. Optional accept filter check (if form specified a specific format)
+    if (accept && accept !== "*" && accept.trim() !== "") {
+      const allowedParts = accept.split(",").map((p: string) => p.trim().toLowerCase());
+      const lowerName = (filename || "").toLowerCase();
+      const lowerType = (contentType || "").toLowerCase();
+      const isAllowed = allowedParts.some((part: string) => {
+        if (part === "*") return true;
+        if (part.startsWith(".")) return lowerName.endsWith(part);
+        if (part.endsWith("/*")) {
+          const prefix = part.slice(0, -2);
+          return lowerType.startsWith(prefix + "/");
+        }
+        return lowerType === part;
+      });
+
+      if (!isAllowed) {
+        return reply.status(400).send({
+          success: false,
+          error: `File type not allowed. Please upload a format matching: ${accept}`,
+        });
+      }
     }
 
     // Sanitize original filename for use in the key
