@@ -5,7 +5,9 @@ import { db, users, teams } from "@qwikmailer/db";
 import { authenticate } from "../middleware/auth.js";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://qwikmailer.in";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.includes("localhost")
+  ? process.env.NEXT_PUBLIC_APP_URL
+  : "https://www.qwikmailer.in";
 
 export async function oauthRoutes(app: FastifyInstance) {
   // ─── 1. RFC 9728: OAuth Protected Resource Metadata ────────────────────────
