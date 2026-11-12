@@ -155,7 +155,7 @@ export async function uploadRoutes(app: FastifyInstance) {
    */
   app.post("/submission-file", async (req, reply) => {
     const body = req.body as any;
-    const { base64, contentType, formId, filename, maxSizeMb, accept } = body ?? {};
+    const { base64, contentType, formId, filename, maxSizeMb, maxSizeBytes, minSizeBytes, accept } = body ?? {};
 
     if (!base64 || !contentType || !formId) {
       return reply.status(400).send({ success: false, error: "Missing base64, contentType, or formId" });
@@ -164,14 +164,33 @@ export async function uploadRoutes(app: FastifyInstance) {
     const rawBase64 = base64.replace(/^data:[^;]+;base64,/, "");
     const buffer = Buffer.from(rawBase64, "base64");
 
-    // 1. Validate file size FIRST before any other checks
-    const limitMb = Math.min(Math.max(Number(maxSizeMb) || 10, 1), 100);
-    const maxSizeBytes = limitMb * 1024 * 1024;
+    const formatBytes = (bytes: number) => {
+      if (!bytes || bytes <= 0) return "0 KB";
+      if (bytes >= 1024 * 1024 * 1024 && bytes % (1024 * 1024 * 1024) === 0) {
+        return `${bytes / (1024 * 1024 * 1024)} GB`;
+      }
+      if (bytes >= 1024 * 1024 && bytes % (1024 * 1024) === 0) {
+        return `${bytes / (1024 * 1024)} MB`;
+      }
+      return `${Math.round(bytes / 1024)} KB`;
+    };
 
-    if (buffer.length > maxSizeBytes) {
+    // 1. Validate file size (Min and Max) FIRST before any other checks
+    const effectiveMinBytes = Math.max(0, Number(minSizeBytes) || 0);
+    const limitMb = Math.min(Math.max(Number(maxSizeMb) || 10, 1), 10240);
+    const effectiveMaxBytes = Number(maxSizeBytes) || (limitMb * 1024 * 1024);
+
+    if (effectiveMinBytes > 0 && buffer.length < effectiveMinBytes) {
+      return reply.status(400).send({
+        success: false,
+        error: `File size is too small. Minimum required size is ${formatBytes(effectiveMinBytes)}.`,
+      });
+    }
+
+    if (buffer.length > effectiveMaxBytes) {
       return reply.status(413).send({
         success: false,
-        error: `File size exceeds maximum allowed limit of ${limitMb} MB.`,
+        error: `File size exceeds maximum allowed limit of ${formatBytes(effectiveMaxBytes)}.`,
       });
     }
 

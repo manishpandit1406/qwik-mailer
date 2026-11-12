@@ -47,6 +47,17 @@ interface FormSection {
   fields: any[];
 }
 
+function formatBytes(bytes: number): string {
+  if (!bytes || bytes <= 0) return "0 KB";
+  if (bytes >= 1024 * 1024 * 1024 && bytes % (1024 * 1024 * 1024) === 0) {
+    return `${bytes / (1024 * 1024 * 1024)} GB`;
+  }
+  if (bytes >= 1024 * 1024 && bytes % (1024 * 1024) === 0) {
+    return `${bytes / (1024 * 1024)} MB`;
+  }
+  return `${Math.round(bytes / 1024)} KB`;
+}
+
 function parseJwt(token: string) {
   try {
     const base64Url = token.split(".")[1];
@@ -1145,13 +1156,20 @@ export default function HostedFormPage() {
                               const file = e.target.files?.[0];
                               if (!file) return;
 
-                              // Parse configured size limit (from field.maxSizeMb or helperText "Max X MB", default 10MB)
-                              const configuredLimitMb = field.maxSizeMb || (field.helperText?.match(/(\d+)\s*mb/i)?.[1] ? parseInt(field.helperText.match(/(\d+)\s*mb/i)[1], 10) : 10);
-                              const maxSizeBytes = configuredLimitMb * 1024 * 1024;
+                              // Parse configured size limits (both min and max)
+                              const configuredLimitMb = field.maxSizeMb || (field.helperText?.match(/(\d+)\s*gb/i)?.[1] ? parseInt(field.helperText.match(/(\d+)\s*gb/i)[1], 10) * 1024 : (field.helperText?.match(/(\d+)\s*mb/i)?.[1] ? parseInt(field.helperText.match(/(\d+)\s*mb/i)[1], 10) : 10));
+                              const maxSizeBytes = field.maxSizeBytes || (configuredLimitMb * 1024 * 1024);
+                              const minSizeBytes = field.minSizeBytes || 0;
 
-                              // 1. Check size limit FIRST
+                              // 1. Check size limits FIRST (Min and Max)
+                              if (minSizeBytes > 0 && file.size < minSizeBytes) {
+                                alert(`File size is too small. Minimum required size is ${formatBytes(minSizeBytes)}.`);
+                                e.target.value = "";
+                                return;
+                              }
+
                               if (file.size > maxSizeBytes) {
-                                alert(`File size exceeds maximum allowed limit of ${configuredLimitMb} MB.`);
+                                alert(`File size exceeds maximum allowed limit of ${formatBytes(maxSizeBytes)}.`);
                                 e.target.value = "";
                                 return;
                               }
@@ -1196,6 +1214,8 @@ export default function HostedFormPage() {
                                     filename: file.name,
                                     formId: id,
                                     maxSizeMb: configuredLimitMb,
+                                    maxSizeBytes,
+                                    minSizeBytes,
                                     accept: field.accept || "*",
                                   }),
                                 });
@@ -1227,7 +1247,7 @@ export default function HostedFormPage() {
                           />
                         </label>
                         <p className="text-[11px] text-gray-400 mt-1">
-                          Supports: {field.accept || "Any file"} (Max {field.maxSizeMb || (field.helperText?.match(/(\d+)\s*mb/i)?.[1] ? parseInt(field.helperText.match(/(\d+)\s*mb/i)[1], 10) : 10)} MB)
+                          Supports: {field.accept || "Any file"} ({field.minSizeBytes && field.minSizeBytes > 0 ? `Min ${formatBytes(field.minSizeBytes)} • ` : ""}Max {formatBytes(field.maxSizeBytes || (field.maxSizeMb ? field.maxSizeMb * 1024 * 1024 : 10 * 1024 * 1024))})
                         </p>
                       </div>
 

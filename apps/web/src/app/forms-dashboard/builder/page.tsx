@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Plus, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy, Image as ImageIcon, UploadCloud, Star, Calendar, Clock, Phone, Link2, FileUp, Sparkles, Sliders, Mail, FileText, Check, FileArchive, FileSpreadsheet, HardDrive } from "lucide-react";
+import { ArrowLeft, Save, Plus, Minus, ChevronDown, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy, Image as ImageIcon, UploadCloud, Star, Calendar, Clock, Phone, Link2, FileUp, Sparkles, Sliders, Mail, FileText, Check, FileArchive, FileSpreadsheet, HardDrive } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -167,115 +167,317 @@ function SortableField({ field, onUpdate, onRemove, schema }: any) {
 
         {/* File upload configuration */}
         {field.type === "file" && (() => {
-          const fileTypePresets = [
-            { id: "docs", label: "Documents", sub: "PDF, Word, TXT", value: ".pdf,.doc,.docx,.txt", icon: FileText },
-            { id: "images", label: "Images", sub: "JPG, PNG, WebP", value: "image/*", icon: ImageIcon },
-            { id: "pdf", label: "PDF Only", sub: "Single / Multi PDF", value: ".pdf", icon: FileText },
-            { id: "sheets", label: "Spreadsheets", sub: "Excel, CSV", value: ".xlsx,.xls,.csv", icon: FileSpreadsheet },
-            { id: "archives", label: "Archives", sub: "ZIP, RAR, 7Z", value: ".zip,.rar,.7z", icon: FileArchive },
-            { id: "any", label: "Any File", sub: "All Formats", value: "*", icon: UploadCloud },
+          const FILE_CATEGORIES = [
+            { id: "document", label: "Document", ext: ".doc,.docx,.txt,.rtf,.odt" },
+            { id: "presentation", label: "Presentation", ext: ".ppt,.pptx" },
+            { id: "spreadsheet", label: "Spreadsheet", ext: ".xls,.xlsx,.csv" },
+            { id: "drawing", label: "Drawing", ext: ".svg,.ai,.psd,.sketch" },
+            { id: "pdf", label: "PDF", ext: ".pdf" },
+            { id: "image", label: "Image", ext: "image/*" },
+            { id: "video", label: "Video", ext: "video/*" },
+            { id: "audio", label: "Audio", ext: "audio/*" },
+            { id: "archive", label: "Archive (ZIP, TAR, 7Z)", ext: ".zip,.rar,.tar,.gz,.7z" },
           ];
 
-          const sizePresets = [5, 10, 25, 50, 100];
-          const currentSize = field.maxSizeMb || (field.helperText?.match(/(\d+)\s*mb/i)?.[1] ? parseInt(field.helperText.match(/(\d+)\s*mb/i)[1], 10) : 10);
           const currentAccept = field.accept || ".pdf";
+          const isAllowedSpecific = field.allowSpecificTypes ?? (currentAccept !== "*" && currentAccept !== "");
+
+          function isCategorySelected(cat: typeof FILE_CATEGORIES[number]): boolean {
+            if (Array.isArray(field.selectedCategories)) {
+              return field.selectedCategories.includes(cat.id);
+            }
+            if (!currentAccept || currentAccept === "*") return false;
+            return currentAccept.includes(cat.ext.split(",")[0]);
+          }
+
+          function toggleCategory(catId: string) {
+            const currentSelected = FILE_CATEGORIES.filter(c => isCategorySelected(c)).map(c => c.id);
+            const nextSelected = currentSelected.includes(catId)
+              ? currentSelected.filter(id => id !== catId)
+              : [...currentSelected, catId];
+
+            const exts = nextSelected.length > 0
+              ? nextSelected.map(id => FILE_CATEGORIES.find(c => c.id === id)?.ext).filter(Boolean).join(",")
+              : ".pdf";
+
+            onUpdate(field.id, {
+              allowSpecificTypes: true,
+              selectedCategories: nextSelected,
+              accept: exts,
+            });
+          }
+
+          function toggleAllowSpecific(enabled: boolean) {
+            if (enabled) {
+              const defaultCats = field.selectedCategories?.length ? field.selectedCategories : ["document", "pdf"];
+              const exts = defaultCats.map((id: string) => FILE_CATEGORIES.find(c => c.id === id)?.ext).filter(Boolean).join(",");
+              onUpdate(field.id, {
+                allowSpecificTypes: true,
+                selectedCategories: defaultCats,
+                accept: exts || ".pdf",
+              });
+            } else {
+              onUpdate(field.id, {
+                allowSpecificTypes: false,
+                accept: "*",
+              });
+            }
+          }
+
+          // Min size resolution (KB, MB, GB)
+          const currentMinUnit: "KB" | "MB" | "GB" = field.minSizeUnit || "KB";
+          const currentMinValue: number = field.minSizeValue ?? (
+            field.minSizeBytes
+              ? (currentMinUnit === "GB" ? Math.round(field.minSizeBytes / (1024 * 1024 * 1024))
+                : currentMinUnit === "MB" ? Math.round(field.minSizeBytes / (1024 * 1024))
+                : Math.round(field.minSizeBytes / 1024))
+              : 0
+          );
+
+          function handleMinChange(val: number, unit: "KB" | "MB" | "GB" = currentMinUnit) {
+            const clamped = Math.max(0, val);
+            const multiplier = unit === "GB" ? 1024 * 1024 * 1024 : unit === "MB" ? 1024 * 1024 : 1024;
+            const bytes = clamped > 0 ? clamped * multiplier : 0;
+            onUpdate(field.id, {
+              minSizeBytes: bytes,
+              minSizeUnit: unit,
+              minSizeValue: clamped,
+            });
+          }
+
+          function handleMinUnitChange(newUnit: "KB" | "MB" | "GB") {
+            const multiplier = newUnit === "GB" ? 1024 * 1024 * 1024 : newUnit === "MB" ? 1024 * 1024 : 1024;
+            const bytes = currentMinValue > 0 ? currentMinValue * multiplier : 0;
+            onUpdate(field.id, {
+              minSizeBytes: bytes,
+              minSizeUnit: newUnit,
+              minSizeValue: currentMinValue,
+            });
+          }
+
+          // Max size resolution (KB, MB, GB)
+          const currentMaxUnit: "KB" | "MB" | "GB" = field.maxSizeUnit || (field.sizeUnit as any) || (
+            field.maxSizeMb && field.maxSizeMb >= 1024 && field.maxSizeMb % 1024 === 0 ? "GB" : "MB"
+          );
+          const currentMaxBytes = field.maxSizeBytes || (field.maxSizeMb ? field.maxSizeMb * 1024 * 1024 : 10 * 1024 * 1024);
+          const currentMaxValue: number = field.maxSizeValue ?? (field.sizeValue as any) ?? (
+            currentMaxUnit === "GB" ? Math.max(1, Math.round(currentMaxBytes / (1024 * 1024 * 1024)))
+            : currentMaxUnit === "KB" ? Math.max(1, Math.round(currentMaxBytes / 1024))
+            : Math.max(1, Math.round(currentMaxBytes / (1024 * 1024)))
+          );
+
+          function handleMaxChange(val: number, unit: "KB" | "MB" | "GB" = currentMaxUnit) {
+            let maxLimit = unit === "GB" ? 10 : (unit === "MB" ? 10240 : 10485760);
+            const clamped = Math.min(maxLimit, Math.max(1, val));
+            const multiplier = unit === "GB" ? 1024 * 1024 * 1024 : unit === "MB" ? 1024 * 1024 : 1024;
+            const bytes = clamped * multiplier;
+            onUpdate(field.id, {
+              maxSizeBytes: bytes,
+              maxSizeMb: Math.max(1, Math.round(bytes / (1024 * 1024))),
+              maxSizeUnit: unit,
+              sizeUnit: unit,
+              maxSizeValue: clamped,
+              sizeValue: clamped,
+            });
+          }
+
+          function handleMaxUnitChange(newUnit: "KB" | "MB" | "GB") {
+            const multiplier = newUnit === "GB" ? 1024 * 1024 * 1024 : newUnit === "MB" ? 1024 * 1024 : 1024;
+            let val = currentMaxValue;
+            if (newUnit === "GB" && val > 10) val = 10;
+            const bytes = val * multiplier;
+            onUpdate(field.id, {
+              maxSizeBytes: bytes,
+              maxSizeMb: Math.max(1, Math.round(bytes / (1024 * 1024))),
+              maxSizeUnit: newUnit,
+              sizeUnit: newUnit,
+              maxSizeValue: val,
+              sizeValue: val,
+            });
+          }
 
           return (
             <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
-              {/* File Size Selector */}
+              {/* Allow only specific file types (Google Forms Style) */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                    <HardDrive size={13} className="text-indigo-600" />
-                    Max File Size Limit
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-xs font-semibold text-gray-700">Allow only specific file types</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isAllowedSpecific}
+                      onChange={(e) => toggleAllowSpecific(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
                   </label>
-                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
-                    {currentSize} MB Selected
-                  </span>
                 </div>
-                <div className="grid grid-cols-5 gap-2">
-                  {sizePresets.map((size) => {
-                    const isSelected = currentSize === size;
-                    return (
-                      <button
-                        key={size}
-                        type="button"
-                        onClick={() => {
-                          const updates: any = { maxSizeMb: size };
-                          if (!field.helperText || /^max\s+\d+\s*mb/i.test(field.helperText.trim())) {
-                            updates.helperText = `Max ${size} MB`;
-                          }
-                          onUpdate(field.id, updates);
-                        }}
-                        className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all border ${
-                          isSelected
-                            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-200"
-                            : "bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        {size} MB
-                      </button>
-                    );
-                  })}
-                </div>
+
+                {/* 2-Column Checkbox Grid */}
+                {isAllowedSpecific && (
+                  <div className="mt-2.5 pt-2 border-t border-gray-100 space-y-3">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                      {/* Left Column: Document, Spreadsheet, PDF, Video, Archive */}
+                      <div className="space-y-2.5">
+                        {[FILE_CATEGORIES[0], FILE_CATEGORIES[2], FILE_CATEGORIES[4], FILE_CATEGORIES[6], FILE_CATEGORIES[8]].map((cat) => {
+                          const checked = isCategorySelected(cat);
+                          return (
+                            <label key={cat.id} className="flex items-center gap-2.5 text-xs font-medium text-gray-700 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleCategory(cat.id)}
+                                className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-gray-300 cursor-pointer"
+                              />
+                              <span>{cat.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+
+                      {/* Right Column: Presentation, Drawing, Image, Audio */}
+                      <div className="space-y-2.5">
+                        {[FILE_CATEGORIES[1], FILE_CATEGORIES[3], FILE_CATEGORIES[5], FILE_CATEGORIES[7]].map((cat) => {
+                          const checked = isCategorySelected(cat);
+                          return (
+                            <label key={cat.id} className="flex items-center gap-2.5 text-xs font-medium text-gray-700 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleCategory(cat.id)}
+                                className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-gray-300 cursor-pointer"
+                              />
+                              <span>{cat.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Custom Extensions Input */}
+                    <div className="pt-2 border-t border-gray-100/80">
+                      <details className="group">
+                        <summary className="text-[11px] text-gray-500 hover:text-amber-700 cursor-pointer font-medium select-none">
+                          + Custom extensions (e.g. <code>.tar, .zip, .csv</code>)
+                        </summary>
+                        <div className="mt-2 space-y-1">
+                          <input
+                            type="text"
+                            className="input text-xs py-1.5"
+                            placeholder=".zip, .tar, .docx, .fig"
+                            value={field.accept || ""}
+                            onChange={(e) => onUpdate(field.id, { accept: e.target.value })}
+                          />
+                          <p className="text-[10px] text-gray-400">
+                            Active filter: <code className="font-mono text-gray-600">{field.accept || "*"}</code>
+                          </p>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* File Type Presets */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                    <FileUp size={13} className="text-indigo-600" />
-                    Allowed File Formats
+              {/* File size limits (Minimum & Maximum with KB / MB / GB support) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Minimum file size */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">
+                    Minimum file size <span className="text-[10px] font-normal text-gray-400">(Optional)</span>
                   </label>
-                  <span className="text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 truncate max-w-[160px]">
-                    {currentAccept}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {fileTypePresets.map((preset) => {
-                    const Icon = preset.icon;
-                    const isSelected = currentAccept === preset.value;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => onUpdate(field.id, { accept: preset.value })}
-                        className={`p-2.5 rounded-xl border text-left transition-all relative ${
-                          isSelected
-                            ? "border-indigo-600 bg-indigo-50/70 ring-1 ring-indigo-600 text-indigo-950 shadow-2xs"
-                            : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/70 text-gray-800"
-                        }`}
+                  <div className="inline-flex items-center border border-gray-300 rounded-xl bg-white shadow-2xs focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => handleMinChange(Math.max(0, currentMinValue - 1))}
+                      className="px-3.5 py-2 text-gray-600 hover:text-indigo-600 hover:bg-gray-100 transition-colors border-r border-gray-200"
+                      title={`Decrease 1 ${currentMinUnit}`}
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <div className="flex items-center px-2.5 py-1">
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={currentMinValue || ""}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? 0 : parseInt(e.target.value, 10);
+                          if (!isNaN(val)) handleMinChange(Math.max(0, val));
+                        }}
+                        className="w-14 text-center font-bold text-gray-900 text-sm focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <select
+                        value={currentMinUnit}
+                        onChange={(e) => handleMinUnitChange(e.target.value as "KB" | "MB" | "GB")}
+                        className="text-xs font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-md ml-1 py-1 px-1.5 focus:outline-none cursor-pointer hover:bg-gray-200"
                       >
-                        <div className="flex items-center justify-between">
-                          <Icon size={15} className={isSelected ? "text-indigo-600" : "text-gray-400"} />
-                          {isSelected && <Check size={13} className="text-indigo-600 font-bold" />}
-                        </div>
-                        <div className="text-xs font-bold mt-1.5">{preset.label}</div>
-                        <div className="text-[10px] text-gray-400 leading-tight mt-0.5 truncate">{preset.sub}</div>
-                      </button>
-                    );
-                  })}
+                        <option value="KB">KB</option>
+                        <option value="MB">MB</option>
+                        <option value="GB">GB</option>
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleMinChange(currentMinValue + 1)}
+                      className="px-3.5 py-2 text-gray-600 hover:text-indigo-600 hover:bg-gray-100 transition-colors border-l border-gray-200"
+                      title={`Increase 1 ${currentMinUnit}`}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    0 = no minimum limit.
+                  </p>
                 </div>
 
-                {/* Optional manual override toggle */}
-                <div className="mt-2.5 pt-2">
-                  <details className="group">
-                    <summary className="text-[11px] text-gray-400 hover:text-indigo-600 cursor-pointer select-none font-medium flex items-center gap-1">
-                      <span>Advanced: Custom file extension input</span>
-                    </summary>
-                    <div className="mt-2 space-y-1">
+                {/* Maximum file size */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">
+                    Maximum file size
+                  </label>
+                  <div className="inline-flex items-center border border-gray-300 rounded-xl bg-white shadow-2xs focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => handleMaxChange(currentMaxValue - 1)}
+                      className="px-3.5 py-2 text-gray-600 hover:text-indigo-600 hover:bg-gray-100 transition-colors border-r border-gray-200"
+                      title={`Decrease 1 ${currentMaxUnit}`}
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <div className="flex items-center px-2.5 py-1">
                       <input
-                        type="text"
-                        className="input text-xs py-1.5"
-                        placeholder="e.g. .pdf, .docx, image/*, .zip"
-                        value={field.accept || ""}
-                        onChange={(e) => onUpdate(field.id, { accept: e.target.value })}
+                        type="number"
+                        min={1}
+                        max={currentMaxUnit === "GB" ? 10 : (currentMaxUnit === "MB" ? 10240 : 10485760)}
+                        value={currentMaxValue}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val)) handleMaxChange(val);
+                        }}
+                        className="w-14 text-center font-bold text-gray-900 text-sm focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
-                      <p className="text-[10px] text-gray-400">
-                        Comma-separated extensions (e.g. <code>.pdf, .png, .docx</code>) or MIME wildcards (e.g. <code>image/*</code>).
-                      </p>
+                      <select
+                        value={currentMaxUnit}
+                        onChange={(e) => handleMaxUnitChange(e.target.value as "KB" | "MB" | "GB")}
+                        className="text-xs font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded-md ml-1 py-1 px-1.5 focus:outline-none cursor-pointer hover:bg-gray-200"
+                      >
+                        <option value="KB">KB</option>
+                        <option value="MB">MB</option>
+                        <option value="GB">GB</option>
+                      </select>
                     </div>
-                  </details>
+                    <button
+                      type="button"
+                      onClick={() => handleMaxChange(currentMaxValue + 1)}
+                      className="px-3.5 py-2 text-gray-600 hover:text-indigo-600 hover:bg-gray-100 transition-colors border-l border-gray-200"
+                      title={`Increase 1 ${currentMaxUnit}`}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Up to 10 GB limit.
+                  </p>
                 </div>
               </div>
             </div>
@@ -521,9 +723,9 @@ function BuilderContent() {
       newField.options = ['Option 1', 'Option 2', 'Option 3'];
     } else if (type === "file") {
       newField.label = customProps?.label || "Upload File / Document";
-      newField.accept = customProps?.accept || ".pdf";
+      newField.accept = customProps?.accept || "*";
       newField.maxSizeMb = customProps?.maxSizeMb || 10;
-      newField.helperText = customProps?.helperText || "Max 10 MB";
+      newField.helperText = customProps?.helperText || "";
     } else if (type === "rating") {
       newField.label = customProps?.label || "Rate your experience";
       newField.maxStars = 5;
