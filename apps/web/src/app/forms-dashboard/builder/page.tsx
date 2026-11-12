@@ -420,7 +420,7 @@ function BuilderContent() {
     } else if (type === "file") {
       newField.label = customProps?.label || "Upload File / Document";
       newField.accept = customProps?.accept || ".pdf";
-      newField.helperText = customProps?.helperText || "Max 10 MB (stored securely in AWS S3)";
+      newField.helperText = customProps?.helperText || "Max 10 MB";
     } else if (type === "rating") {
       newField.label = customProps?.label || "Rate your experience";
       newField.maxStars = 5;
@@ -629,9 +629,9 @@ func main() {
                     </p>
                   </div>
 
-                  {/* ── S3 Cloud File Upload ── */}
+                  {/* ── File Upload ── */}
                   <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <UploadCloud size={13} className="text-indigo-600" /> File Storage (AWS S3)
+                    <FileUp size={13} className="text-indigo-600" /> File Attachment
                   </h4>
                   <div className="mb-5">
                     <button
@@ -640,9 +640,9 @@ func main() {
                     >
                       <span className="flex items-center gap-2">
                         <FileUp size={16} className="text-indigo-600 group-hover:scale-110 transition-transform" />
-                        File Upload (Resume, PDF, Images)
+                        File Upload
                       </span>
-                      <span className="text-[10px] bg-indigo-600 text-white font-mono px-2 py-0.5 rounded-full">S3</span>
+                      <span className="text-[10px] bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full border border-indigo-200">Attachment</span>
                     </button>
                   </div>
 
@@ -753,7 +753,7 @@ func main() {
                       />
                       {uploadingBanner ? (
                         <div className="flex items-center gap-2 text-xs text-indigo-600 font-medium">
-                          <RefreshCw size={14} className="animate-spin" /> Uploading to S3…
+                          <RefreshCw size={14} className="animate-spin" /> Uploading…
                         </div>
                       ) : (
                         <>
@@ -814,7 +814,7 @@ func main() {
                       />
                       {uploadingLogo ? (
                         <div className="flex items-center gap-2 text-xs text-indigo-600 font-medium">
-                          <RefreshCw size={14} className="animate-spin" /> Uploading to S3…
+                          <RefreshCw size={14} className="animate-spin" /> Uploading…
                         </div>
                       ) : (
                         <>
