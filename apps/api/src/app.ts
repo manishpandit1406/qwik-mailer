@@ -186,7 +186,8 @@ export async function buildApp() {
       return cb(null, true);
     },
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Team-ID"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Team-ID", "Accept"],
+    exposedHeaders: ["WWW-Authenticate", "Authorization"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 
@@ -230,6 +231,23 @@ export async function buildApp() {
           obj[key] = val;
         });
         done(null, obj);
+      } catch (err: any) {
+        done(err, undefined);
+      }
+    }
+  );
+
+  // Support extended JSON / MCP formats (e.g. application/mcp+json, application/json-rpc, text/json)
+  app.addContentTypeParser(
+    ["application/mcp+json", "application/json-rpc", "application/x-ndjson", "text/json"],
+    { parseAs: "string" },
+    (_req, body, done) => {
+      try {
+        if (!body || !(body as string).trim()) {
+          done(null, {});
+          return;
+        }
+        done(null, JSON.parse(body as string));
       } catch (err: any) {
         done(err, undefined);
       }

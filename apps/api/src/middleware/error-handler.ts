@@ -15,20 +15,13 @@ export function errorHandler(
     });
   }
 
-  // Fastify validation errors
-  if ((error as { statusCode?: number }).statusCode === 400) {
-    return reply.code(400).send({
+  // Preserve client error status codes (e.g. 400, 401, 403, 404, 415, 429)
+  const statusCode = (error as { statusCode?: number }).statusCode;
+  if (statusCode && statusCode >= 400 && statusCode < 500) {
+    return reply.code(statusCode).send({
       success: false,
-      error: "Bad request",
-      details: error.message,
-    });
-  }
-
-  // Rate limit errors
-  if ((error as { statusCode?: number }).statusCode === 429) {
-    return reply.code(429).send({
-      success: false,
-      error: "Rate limit exceeded. Please slow down.",
+      error: error.message || "Request error",
+      code: (error as any).code,
     });
   }
 

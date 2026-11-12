@@ -219,12 +219,14 @@ export async function mcpRoutes(app: FastifyInstance) {
     reply.header("Access-Control-Allow-Origin", "*");
     reply.header("Access-Control-Allow-Headers", "*");
     reply.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    reply.header("Access-Control-Expose-Headers", "WWW-Authenticate, Authorization");
     return reply.status(204).send();
   });
 
   // GET /mcp — Server discovery or SSE stream
   app.get("/mcp", async (req, reply) => {
     reply.header("Access-Control-Allow-Origin", "*");
+    reply.header("Access-Control-Expose-Headers", "WWW-Authenticate, Authorization");
     const accept = req.headers.accept || "";
 
     if (accept.includes("text/event-stream")) {
@@ -259,6 +261,7 @@ export async function mcpRoutes(app: FastifyInstance) {
   // POST /mcp — Standard Streamable HTTP Transport (Claude Connectors & MCP Clients)
   app.post("/mcp", async (req, reply) => {
     reply.header("Access-Control-Allow-Origin", "*");
+    reply.header("Access-Control-Expose-Headers", "WWW-Authenticate, Authorization");
     reply.header("Content-Type", "application/json");
 
     const teamId = await resolveTeamId(req, app);

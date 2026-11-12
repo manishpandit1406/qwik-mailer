@@ -23,6 +23,12 @@ export async function oauthRoutes(app: FastifyInstance) {
     return reply.send(protectedResourceMetadata);
   });
 
+  // RFC 9728 §3.1: Path-based metadata discovery for resource https://api.qwikmailer.in/mcp
+  app.get("/.well-known/oauth-protected-resource/mcp", async (_, reply) => {
+    reply.header("Access-Control-Allow-Origin", "*");
+    return reply.send(protectedResourceMetadata);
+  });
+
   app.get("/mcp/.well-known/oauth-protected-resource", async (_, reply) => {
     reply.header("Access-Control-Allow-Origin", "*");
     return reply.send(protectedResourceMetadata);
@@ -47,7 +53,23 @@ export async function oauthRoutes(app: FastifyInstance) {
     return reply.send(authorizationServerMetadata);
   });
 
+  app.get("/.well-known/oauth-authorization-server/mcp", async (_, reply) => {
+    reply.header("Access-Control-Allow-Origin", "*");
+    return reply.send(authorizationServerMetadata);
+  });
+
   app.get("/oauth/.well-known/oauth-authorization-server", async (_, reply) => {
+    reply.header("Access-Control-Allow-Origin", "*");
+    return reply.send(authorizationServerMetadata);
+  });
+
+  // OpenID Connect Configuration discovery aliases requested by clients (OpenAI, Claude, etc.)
+  app.get("/.well-known/openid-configuration", async (_, reply) => {
+    reply.header("Access-Control-Allow-Origin", "*");
+    return reply.send(authorizationServerMetadata);
+  });
+
+  app.get("/mcp/.well-known/openid-configuration", async (_, reply) => {
     reply.header("Access-Control-Allow-Origin", "*");
     return reply.send(authorizationServerMetadata);
   });
