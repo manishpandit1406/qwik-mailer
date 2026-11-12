@@ -17,6 +17,22 @@ import {
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
 
+function OpenAILogo({ className = "w-7 h-7" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.8956zm16.0993 3.8558L12.5973 8.3829l2.02-1.1638a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.4022-.6813zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813v6.7227zm1.1448-1.9213l2.55-1.4716 2.55 1.4716v2.9433l-2.55 1.4716-2.55-1.4716v-2.9433z"/>
+    </svg>
+  );
+}
+
+function ClaudeLogo({ className = "w-7 h-7" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M17.41 12.79a33.58 33.58 0 0 0 4.79-1.07 1 1 0 0 0 .62-1.25 1 1 0 0 0-.91-.71c-1.83-.09-3.66.19-5.42.84a14.28 14.28 0 0 1 .92-2.31c.88-1.7 1.95-3.3 3.19-4.77a1 1 0 0 0-.15-1.41 1 1 0 0 0-1.41.15c-1.12 1.41-2.09 2.94-2.88 4.56-.47.96-.86 1.96-1.17 2.98-.67-1.42-1.55-2.74-2.61-3.92a1 1 0 0 0-1.46 0 1 1 0 0 0 0 1.46c1.15 1.25 2.08 2.68 2.76 4.23a15.7 15.7 0 0 1-2.45-.63c-1.74-.6-3.4-1.39-4.96-2.35a1 1 0 0 0-1.37.36 1 1 0 0 0 .36 1.37c1.47.91 3.03 1.66 4.67 2.23.8.28 1.62.49 2.45.64a13.9 13.9 0 0 1-1.63 1.83c-1.34 1.25-2.83 2.33-4.44 3.21a1 1 0 0 0-.43 1.35 1 1 0 0 0 1.35.43c1.55-.84 2.98-1.87 4.26-3.07.67-.63 1.29-1.32 1.84-2.05.24 1.54.67 3.04 1.27 4.48a1 1 0 0 0 1.25.56 1 1 0 0 0 .56-1.25c-.64-1.49-1.07-3.06-1.28-4.67a14.4 14.4 0 0 1 2.22 1.2c1.54 1.01 2.94 2.21 4.17 3.56a1 1 0 0 0 1.41.08 1 1 0 0 0 .08-1.41c-1.22-1.33-2.6-2.51-4.11-3.5-.7-.46-1.44-.86-2.2-1.2z" />
+    </svg>
+  );
+}
+
 type AccessPreset = "full" | "read_write" | "read_only" | "custom";
 
 interface PermissionItem {
@@ -278,17 +294,21 @@ function OAuthAuthorizeContent() {
       <div className="w-full max-w-lg bg-white border border-slate-200/90 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
         {/* Brand connection header */}
         <div className="flex items-center justify-center space-x-4 pt-1">
-          <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
-            QM
+          <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 p-2.5 shadow-xs flex items-center justify-center">
+            <img
+              src="/qwikmailer-icon.png"
+              alt="Qwik Mailer"
+              className="w-full h-full object-contain rounded-lg"
+            />
           </div>
-          <ArrowRight className="w-4 h-4 text-slate-400" />
-          <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm">
-            {clientName === "ChatGPT" ? (
-              <span className="text-emerald-600 font-extrabold text-xs">GPT</span>
-            ) : clientName === "Claude" ? (
-              <span className="text-amber-600 font-extrabold text-xs">Claude</span>
+          <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
+          <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 p-2.5 shadow-xs flex items-center justify-center">
+            {clientName.toLowerCase().includes("chatgpt") || clientId.toLowerCase().includes("chatgpt") ? (
+              <OpenAILogo className="w-8 h-8 text-[#10a37f]" />
+            ) : clientName.toLowerCase().includes("claude") || clientId.toLowerCase().includes("claude") ? (
+              <ClaudeLogo className="w-8 h-8 text-[#D97757]" />
             ) : (
-              <Sparkles className="w-5 h-5 text-indigo-600" />
+              <Sparkles className="w-7 h-7 text-indigo-600" />
             )}
           </div>
         </div>
