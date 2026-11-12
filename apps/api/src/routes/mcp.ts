@@ -1,11 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { eq, and, desc, count } from "drizzle-orm";
-import { db, forms, formSubmissions, teams } from "@qwikmailer/db";
+import { db, forms, formSubmissions, teams, teamMembers } from "@qwikmailer/db";
 import { validateApiKey } from "../services/api-key.service.js";
 
 const FORMS_URL = process.env.NEXT_PUBLIC_FORMS_URL || "https://forms.qwikmailer.in";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://qwikmailer.in";
-const DEFAULT_TEAM_ID = "a7e0f4df-49ab-47ad-8064-c45948634d8b"; // Septet Labs (work.manishpandit1406@gmail.com)
 
 const TOOLS = [
   {
@@ -152,12 +151,17 @@ const TOOLS = [
   },
 ];
 
-async function resolveTeamId(req: any): Promise<string> {
+async function resolveTeamId(req: any, app: FastifyInstance): Promise<string | null> {
   const queryKey = req.query?.apiKey || req.query?.key;
   const authHeader = req.headers?.authorization;
-  const headerKey = req.headers?.["x-api-key"] || (authHeader?.startsWith("Bearer ") ? authHeader.replace("Bearer ", "").trim() : undefined);
+  const headerKey =
+    req.headers?.["x-api-key"] ||
+    (authHeader && authHeader.startsWith("Bearer mf_live_")
+      ? authHeader.replace("Bearer ", "").trim()
+      : undefined);
   const candidateKey = queryKey || headerKey;
 
+  // 1. API Key validation
   if (candidateKey) {
     try {
       const user = await validateApiKey(candidateKey, req.ip);
@@ -165,8 +169,30 @@ async function resolveTeamId(req: any): Promise<string> {
     } catch {}
   }
 
-  // Fallback to default team (Septet Labs)
-  return DEFAULT_TEAM_ID;
+  // 2. JWT validation (User signed in to platform / dashboard token)
+  const jwtToken =
+    req.query?.token ||
+    req.query?.jwt ||
+    (authHeader && !authHeader.startsWith("Bearer mf_live_") && authHeader.startsWith("Bearer ")
+      ? authHeader.replace("Bearer ", "").trim()
+      : undefined) ||
+    req.cookies?.token ||
+    req.cookies?.auth_token;
+
+  if (jwtToken) {
+    try {
+      const decoded = app.jwt.verify(jwtToken) as any;
+      const userId = decoded?.sub || decoded?.id;
+      if (userId) {
+        const member = await db.query.teamMembers.findFirst({
+          where: eq(teamMembers.userId, userId),
+        });
+        if (member?.teamId) return member.teamId;
+      }
+    } catch {}
+  }
+
+  return null;
 }
 
 export async function mcpRoutes(app: FastifyInstance) {
@@ -194,15 +220,21 @@ export async function mcpRoutes(app: FastifyInstance) {
       return;
     }
 
+    const teamId = await resolveTeamId(req, app);
+
     return reply.send({
       name: "qwikforms",
       version: "1.0.0",
       description: "QwikForms Remote MCP Server for Claude & AI assistants",
       status: "online",
+      authenticated: !!teamId,
       endpoints: {
         mcp: `${req.protocol}://${req.hostname}/mcp`,
       },
       toolsCount: TOOLS.length,
+      authInstructions: teamId
+        ? "Authenticated successfully."
+        : "Authentication required. Connect with your API key: https://api.qwikmailer.in/mcp?apiKey=YOUR_API_KEY. Generate keys at https://qwikmailer.in/dashboard/api-keys",
     });
   });
 
@@ -211,7 +243,7 @@ export async function mcpRoutes(app: FastifyInstance) {
     reply.header("Access-Control-Allow-Origin", "*");
     reply.header("Content-Type", "application/json");
 
-    const teamId = await resolveTeamId(req);
+    const teamId = await resolveTeamId(req, app);
     const body = (req.body || {}) as any;
     const { id, method, params } = body;
 
@@ -245,6 +277,22 @@ export async function mcpRoutes(app: FastifyInstance) {
         });
 
       case "tools/call": {
+        if (!teamId) {
+          return reply.send({
+            jsonrpc: "2.0",
+            id,
+            result: {
+              isError: true,
+              content: [
+                {
+                  type: "text",
+                  text: "❌ Authentication Required: No valid API Key or user login found.\n\nPlease connect your Claude / MCP connector using your own Qwik Mailer API Key:\nURL: https://api.qwikmailer.in/mcp?apiKey=YOUR_API_KEY\n\nYou can find or create your API Key in your dashboard: https://qwikmailer.in/dashboard/api-keys",
+                },
+              ],
+            },
+          });
+        }
+
         const { name, arguments: args = {} } = params || {};
         try {
           let toolResult: any;
@@ -439,3 +487,4 @@ export async function mcpRoutes(app: FastifyInstance) {
     }
   });
 }
+
