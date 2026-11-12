@@ -13,8 +13,11 @@ declare module "fastify" {
 
 export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
   try {
-    // Support both Bearer token (JWT) and API key
-    const apiKey = req.headers["x-api-key"] as string;
+    // Support both Bearer token (JWT), Bearer API Key, and X-API-Key header
+    const authHeader = req.headers["authorization"] as string | undefined;
+    const apiKey =
+      (req.headers["x-api-key"] as string) ||
+      (authHeader && authHeader.startsWith("Bearer mf_live_") ? authHeader.replace("Bearer ", "").trim() : undefined);
 
     if (apiKey) {
       // statically imported

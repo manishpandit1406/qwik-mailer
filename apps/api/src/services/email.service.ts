@@ -741,8 +741,11 @@ export async function sendFormSubmissionConfirmationEmail(params: {
   isSeptet: boolean;
   data: Record<string, any>;
   schema?: any[];
+  customSubject?: string;
+  customBody?: string;
+  includeSummary?: boolean;
 }): Promise<void> {
-  const { toEmail, respondentName, formName, isSeptet, data, schema } = params;
+  const { toEmail, respondentName, formName, isSeptet, data, schema, customSubject, customBody, includeSummary = true } = params;
 
   const formattedFields = formatSubmissionFields(data, schema);
   const rowsHtml = formattedFields.map(f => `
@@ -823,15 +826,7 @@ export async function sendFormSubmissionConfirmationEmail(params: {
     console.log(`[EmailService] Sent Septet Labs confirmation email to ${toEmail} for ${formName}`);
   } else {
     // Platform-related (Qwik Mailer)
-    const content = `
-      <h1 style="color:#111827;font-size:22px;font-weight:700;margin:0 0 12px 0;">Submission Confirmed</h1>
-      <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 16px 0;">
-        Hi <strong>${escapeHtml(respondentName || "there")}</strong>,
-      </p>
-      <p style="color:#4b5563;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
-        Thank you for submitting <strong>${escapeHtml(formName)}</strong>. We have successfully received your response.
-      </p>
-
+    const summarySection = includeSummary !== false ? `
       <div style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px;margin:0 0 24px 0;">
         <div style="font-size:11px;font-weight:700;color:#4f46e5;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
           Submission Summary
@@ -840,7 +835,23 @@ export async function sendFormSubmissionConfirmationEmail(params: {
           ${rowsHtml}
         </table>
       </div>
+    ` : "";
 
+    const userMessage = customBody?.trim()
+      ? `<p style="color:#4b5563;font-size:14px;line-height:1.6;margin:0 0 24px 0;">${escapeHtml(customBody).replace(/\n/g, '<br/>')}</p>`
+      : `<p style="color:#4b5563;font-size:14px;line-height:1.6;margin:0 0 24px 0;">Thank you for submitting <strong>${escapeHtml(formName)}</strong>. We have successfully received your response.</p>`;
+
+    const subjectLine = customSubject?.trim()
+      ? customSubject.replace(/\{form_name\}/gi, formName)
+      : `Submission Confirmed — ${formName}`;
+
+    const content = `
+      <h1 style="color:#111827;font-size:22px;font-weight:700;margin:0 0 12px 0;">Submission Confirmed</h1>
+      <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 16px 0;">
+        Hi <strong>${escapeHtml(respondentName || "there")}</strong>,
+      </p>
+      ${userMessage}
+      ${summarySection}
       <p style="color:#6b7280;font-size:13px;margin:24px 0 0 0;">
         Best regards,<br/>
         <strong style="color:#111827;">Qwik Mailer</strong>
@@ -851,7 +862,7 @@ export async function sendFormSubmissionConfirmationEmail(params: {
       from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
       to: toEmail,
       replyTo: process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in",
-      subject: `Submission Confirmed — ${formName}`,
+      subject: subjectLine,
       html: emailLayout(content, `Your response for ${formName} was recorded successfully.`),
       text: `Hi ${respondentName || "there"},\n\nYour response for ${formName} was recorded successfully.\n\nBest regards,\nQwik Mailer`,
     });

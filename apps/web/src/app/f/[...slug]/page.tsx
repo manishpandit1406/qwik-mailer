@@ -17,6 +17,8 @@ import {
   FileText,
   X,
   ExternalLink,
+  Lock,
+  PenTool,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
@@ -83,6 +85,130 @@ function GoogleIcon({ className = "w-5 h-5" }: { className?: string }) {
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
     </svg>
+  );
+}
+
+function SignatureField({
+  value,
+  onChange,
+  accentColor,
+}: {
+  value?: string;
+  onChange: (dataUrl: string) => void;
+  accentColor: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(!!value);
+
+  const getCoordinates = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
+  ) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if ("touches" in e) {
+      const touch = e.touches[0];
+      return {
+        x: (touch.clientX - rect.left) * scaleX,
+        y: (touch.clientY - rect.top) * scaleY,
+      };
+    }
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const startDrawing = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
+  ) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    setIsDrawing(true);
+    const coords = getCoordinates(e);
+    ctx.beginPath();
+    ctx.moveTo(coords.x, coords.y);
+  };
+
+  const draw = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
+  ) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const coords = getCoordinates(e);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#1e293b";
+    ctx.lineTo(coords.x, coords.y);
+    ctx.stroke();
+    setHasDrawn(true);
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      onChange(canvas.toDataURL("image/png"));
+    }
+  };
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn(false);
+    onChange("");
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="relative border-2 border-dashed border-gray-300 rounded-2xl bg-white overflow-hidden shadow-2xs hover:border-gray-400 transition-colors">
+        <canvas
+          ref={canvasRef}
+          width={500}
+          height={160}
+          onMouseDown={startDrawing}
+          onMouseMove={draw}
+          onMouseUp={stopDrawing}
+          onMouseLeave={stopDrawing}
+          onTouchStart={startDrawing}
+          onTouchMove={draw}
+          onTouchEnd={stopDrawing}
+          className="w-full h-36 touch-none cursor-crosshair block"
+        />
+        {!hasDrawn && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-gray-400 text-xs gap-1.5">
+            <PenTool size={13} className="text-gray-400" />
+            <span>Draw your signature here with touch or mouse</span>
+          </div>
+        )}
+        <div className="absolute bottom-6 left-6 right-6 border-b border-gray-200 pointer-events-none"></div>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-gray-400">Digital verification of submission</span>
+        {hasDrawn && (
+          <button
+            type="button"
+            onClick={clearSignature}
+            className="text-xs text-red-600 hover:text-red-700 font-medium py-0.5 px-2 rounded-md hover:bg-red-50 transition-colors"
+          >
+            Clear signature
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -321,6 +447,7 @@ export default function HostedFormPage() {
       const queryParams = new URLSearchParams();
       if (isPreview) queryParams.append("preview", "true");
       if (sessionId) queryParams.append("sessionId", sessionId);
+      if (respondent?.email) queryParams.append("respondentEmail", respondent.email);
 
       const res = await fetch(
         `${API}/v1/forms/${id}/public?${queryParams.toString()}`
@@ -751,8 +878,32 @@ export default function HostedFormPage() {
             </div>
           )}
 
-          {/* If Google sign-in is required and respondent is NOT signed in: Display Compact Sign-In Screen */}
-          {requiresGoogle && !respondent && !isPreview ? (
+          {/* Form Closed or Already Submitted Message */}
+          {form?.isClosed || form?.alreadySubmitted ? (
+            <div className="py-10 px-6 text-center animate-fade-up bg-amber-50/60 border border-amber-200/90 rounded-2xl w-full shadow-xs">
+              <div className="w-12 h-12 bg-white border border-amber-200 shadow-xs rounded-2xl flex items-center justify-center mx-auto mb-3 text-amber-700">
+                <Lock size={22} />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900 mb-1.5">
+                {form.alreadySubmitted ? "Response Already Recorded" : "Form Closed"}
+              </h2>
+              <p className="text-sm text-gray-600 max-w-md mx-auto leading-relaxed">
+                {form.closedMessage || (form.alreadySubmitted ? "You have already submitted a response to this form. Only 1 response is permitted per respondent." : "This form is no longer accepting responses.")}
+              </p>
+              {respondent && (
+                <div className="mt-5 pt-4 border-t border-amber-200/70 inline-flex items-center gap-2 text-xs text-gray-500">
+                  <span>Signed in as <strong>{respondent.email}</strong></span>
+                  <button
+                    type="button"
+                    onClick={handleSignOutRespondent}
+                    className="text-amber-800 font-semibold underline hover:text-amber-950 ml-1 cursor-pointer"
+                  >
+                    Switch account
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : requiresGoogle && !respondent && !isPreview ? (
             <div className="py-5 px-4 sm:px-6 text-center animate-fade-up bg-gray-50/80 border border-gray-200/90 rounded-2xl w-full shadow-xs">
               <div className="w-10 h-10 bg-white border border-gray-200/80 shadow-xs rounded-xl flex items-center justify-center mx-auto mb-2.5">
                 <GoogleIcon className="w-5 h-5" />
@@ -849,37 +1000,43 @@ export default function HostedFormPage() {
                   className="animate-fade-up"
                   style={{ animationDelay: `${80 + idx * 40}ms` }}
                 >
-                  <label className="block text-sm font-semibold text-gray-800 mb-1">
-                    {field.label}{" "}
-                    {field.required && <span style={{ color: accentColor }}>*</span>}
-                  </label>
-                  {field.helperText && (
-                    <p className="text-xs text-gray-500 mb-2 leading-relaxed">
-                      {field.helperText.includes("http") ? (
-                        field.helperText.split(/(https?:\/\/[^\s]+)/g).map((part: string, idx: number) =>
-                          part.startsWith("http") ? (
-                            <a
-                              key={idx}
-                              href={part}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 underline font-medium inline-flex items-center gap-0.5"
-                            >
-                              {part} <ExternalLink size={11} className="inline ml-0.5" />
-                            </a>
-                          ) : (
-                            part
+                    <label className="block text-sm font-semibold text-gray-800 mb-1">
+                      {field.label}{" "}
+                      {field.required && <span style={{ color: accentColor }}>*</span>}
+                    </label>
+                    {field.helperText && (
+                      <p className="text-xs text-gray-500 mb-2 leading-relaxed">
+                        {field.helperText.includes("http") ? (
+                          field.helperText.split(/(https?:\/\/[^\s]+)/g).map((part: string, idx: number) =>
+                            part.startsWith("http") ? (
+                              <a
+                                key={idx}
+                                href={part}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline font-medium inline-flex items-center gap-0.5"
+                              >
+                                {part} <ExternalLink size={11} className="inline ml-0.5" />
+                              </a>
+                            ) : (
+                              part
+                            )
                           )
-                        )
-                      ) : (
-                        field.helperText
-                      )}
-                    </p>
-                  )}
+                        ) : (
+                          field.helperText
+                        )}
+                      </p>
+                    )}
 
-                  {/* 1. Paragraph / Textarea */}
-                  {field.type === "textarea" ? (
-                    <textarea
+                    {/* Signature Field */}
+                    {field.type === "signature" ? (
+                      <SignatureField
+                        value={formData[field.label || field.name] || ""}
+                        onChange={(dataUrl) => handleInputChange(field.label || field.name, dataUrl)}
+                        accentColor={accentColor}
+                      />
+                    ) : field.type === "textarea" ? (
+                      <textarea
                       name={field.label || field.name}
                       required={field.required}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white transition-all min-h-[100px] text-sm text-gray-900 placeholder:text-gray-400"

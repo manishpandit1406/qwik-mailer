@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Plus, Minus, ChevronDown, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy, Image as ImageIcon, UploadCloud, Star, Calendar, Clock, Phone, Link2, FileUp, Sparkles, Sliders, Mail, FileText, Check, FileArchive, FileSpreadsheet, HardDrive } from "lucide-react";
+import { ArrowLeft, Save, Plus, Minus, ChevronDown, Settings, Code, RefreshCw, X, GripVertical, Trash2, Palette, Layers, Webhook, CheckCircle2, Globe, Eye, Terminal, Copy, Image as ImageIcon, UploadCloud, Star, Calendar, Clock, Phone, Link2, FileUp, Sparkles, Sliders, Mail, FileText, Check, FileArchive, FileSpreadsheet, HardDrive, PenTool, GitBranch, Users, Timer, ShieldAlert, Send } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -509,6 +509,20 @@ function SortableField({ field, onUpdate, onRemove, schema }: any) {
             </div>
           </div>
         )}
+
+        {/* Digital Signature Field Preview */}
+        {field.type === "signature" && (
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <div className="border border-dashed border-gray-300 rounded-xl bg-gray-50/60 p-4 text-center">
+              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-600 font-semibold mb-2">
+                <PenTool size={14} className="text-violet-600" /> Digital Signature Pad
+              </div>
+              <div className="h-16 border-b border-gray-300 flex items-end justify-center pb-2">
+                <span className="text-[11px] text-gray-400 italic">Respondents will draw their digital signature here</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -557,6 +571,18 @@ function BuilderContent() {
   const [apiCodeCopied, setApiCodeCopied] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [availableLists, setAvailableLists] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch(`${API}/v1/lists`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.success && Array.isArray(j.data)) setAvailableLists(j.data);
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleAssetUpload(file: File, folder: "forms/banners" | "forms/logos") {
     if (!file) return null;
@@ -742,6 +768,10 @@ function BuilderContent() {
       newField.label = customProps?.label || "Select Date";
     } else if (type === "time") {
       newField.label = customProps?.label || "Select Time";
+    } else if (type === "signature") {
+      newField.label = customProps?.label || "Digital Signature";
+      newField.required = customProps?.required ?? true;
+      newField.helperText = customProps?.helperText || "Draw your signature using mouse or finger";
     }
 
     setSchema([...schema, newField]);
@@ -973,6 +1003,9 @@ func main() {
                     </button>
                     <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("time")}>
                       <Clock size={14} className="text-purple-500" /> Time Picker
+                    </button>
+                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors" onClick={() => addField("signature")}>
+                      <PenTool size={14} className="text-violet-600" /> Digital Signature
                     </button>
                   </div>
 
@@ -1350,6 +1383,199 @@ func main() {
                       <p className="text-[11px] text-gray-400">
                         Optional. Enter a custom email to receive alerts, or leave blank to alert the project owner.
                       </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Auto-Responder Email (Confirmation to Respondent) */}
+                <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-xs">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center shrink-0 mt-0.5 text-purple-600">
+                        <Send size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-gray-900">Confirmation Email to Respondent</h4>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${settings.sendConfirmationEmail !== false ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                            {settings.sendConfirmationEmail !== false ? "Enabled" : "Disabled"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                          Automatically send a confirmation receipt email to the applicant / respondent upon submission.
+                        </p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={settings.sendConfirmationEmail !== false}
+                        onChange={e => setSettings({ ...settings, sendConfirmationEmail: e.target.checked })}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+
+                  {settings.sendConfirmationEmail !== false && (
+                    <div className="mt-4 pt-3.5 border-t border-gray-100 space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          Email Subject
+                        </label>
+                        <input
+                          type="text"
+                          className="input text-xs"
+                          placeholder="Submission Confirmed — {form_name}"
+                          value={settings.confirmationSubject || ""}
+                          onChange={e => setSettings({ ...settings, confirmationSubject: e.target.value })}
+                        />
+                        <p className="text-[10px] text-gray-400 mt-1">
+                          Tip: Use <code>&#123;form_name&#125;</code> to dynamically include the form title.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          Custom Confirmation Message (Optional)
+                        </label>
+                        <textarea
+                          rows={2}
+                          className="input text-xs"
+                          placeholder="Thank you for submitting! We have received your response and will review it shortly."
+                          value={settings.confirmationBody || ""}
+                          onChange={e => setSettings({ ...settings, confirmationBody: e.target.value })}
+                        />
+                      </div>
+
+                      <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer pt-1">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-600"
+                          checked={settings.includeSubmissionSummary !== false}
+                          onChange={e => setSettings({ ...settings, includeSubmissionSummary: e.target.checked })}
+                        />
+                        Include table of submitted responses in email
+                      </label>
+                    </div>
+                  )}
+                </div>
+
+                {/* Response Limits & Expiry */}
+                <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-xs">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 mt-0.5 text-amber-600">
+                      <Timer size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900">Response Limits &amp; Expiry</h4>
+                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                        Control how many responses this form can accept and set an automatic closing deadline.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between py-2 border-y border-gray-100">
+                      <div>
+                        <span className="text-xs font-semibold text-gray-800">Limit to 1 response per person</span>
+                        <p className="text-[11px] text-gray-400">Prevents multiple submissions from the same respondent email.</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={!!settings.limitOneResponse}
+                          onChange={e => setSettings({ ...settings, limitOneResponse: e.target.checked })}
+                        />
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          Form Expiry Date &amp; Time <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="input text-xs"
+                          value={settings.expiresAt || ""}
+                          onChange={e => setSettings({ ...settings, expiresAt: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          Maximum Submissions <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder="e.g. 100"
+                          className="input text-xs"
+                          value={settings.maxSubmissions || ""}
+                          onChange={e => setSettings({ ...settings, maxSubmissions: e.target.value ? parseInt(e.target.value, 10) : "" })}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Closed Form Message
+                      </label>
+                      <input
+                        type="text"
+                        className="input text-xs"
+                        placeholder="This form is no longer accepting responses."
+                        value={settings.closedMessage || ""}
+                        onChange={e => setSettings({ ...settings, closedMessage: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sync to Contact Lists */}
+                <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-xs">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0 mt-0.5 text-emerald-600">
+                      <Users size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900">Sync Respondents to Contact Lists</h4>
+                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                        Automatically add respondents who fill this form to your Qwik Mailer contact lists.
+                      </p>
+                    </div>
+                  </div>
+
+                  {availableLists.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-gray-100">
+                      No contact lists created yet. You can create lists under the Contacts section.
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto p-1">
+                      {availableLists.map((l: any) => {
+                        const isSelected = Array.isArray(settings.targetLists) && settings.targetLists.includes(l.id);
+                        return (
+                          <label key={l.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer border border-transparent hover:border-gray-200 transition-colors">
+                            <span className="text-xs font-medium text-gray-800">{l.name}</span>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const current = Array.isArray(settings.targetLists) ? [...settings.targetLists] : [];
+                                if (e.target.checked) {
+                                  setSettings({ ...settings, targetLists: [...current, l.id] });
+                                } else {
+                                  setSettings({ ...settings, targetLists: current.filter(id => id !== l.id) });
+                                }
+                              }}
+                              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-600"
+                            />
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

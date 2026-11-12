@@ -1,0 +1,31 @@
+{
+  "name": "@qwikmailer/mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol (MCP) Server for QwikForms & Qwik Mailer",
+  "main": "dist/index.js",
+  "bin": {
+    "qwikforms-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "qwikmailer",
+    "qwikforms",
+    "ai",
+    "chatgpt",
+    "claude",
+    "cursor"
+  ],
+  "author": "Qwik Mailer",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^22.0.0"
+  }
+}
+

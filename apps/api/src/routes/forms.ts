@@ -291,12 +291,55 @@ export async function formRoutes(app: FastifyInstance) {
         schema: true,
         design: true,
         settings: true,
+        submissions: true,
       }
     });
     
     if (!form) return reply.code(404).send({ success: false, error: "Form not found or inactive" });
 
-    const isGoogleRequired = (form.settings as any)?.requireGoogleAuth !== false;
+    const formSettings = (form.settings || {}) as any;
+
+    // Check if form is expired or reached max submissions limit
+    if (preview !== 'true') {
+      const now = Date.now();
+      const isExpired = !!(formSettings.expiresAt && new Date(formSettings.expiresAt).getTime() <= now);
+      const isMaxReached = !!(formSettings.maxSubmissions && Number(formSettings.maxSubmissions) > 0 && (form.submissions || 0) >= Number(formSettings.maxSubmissions));
+
+      if (isExpired || isMaxReached) {
+        return reply.send({
+          success: true,
+          data: {
+            ...form,
+            isClosed: true,
+            closedReason: isExpired ? "expired" : "max_submissions",
+            closedMessage: formSettings.closedMessage || (isExpired ? "This form has expired and is no longer accepting responses." : "This form has reached the maximum number of responses."),
+          }
+        });
+      }
+
+      // Check if Limit 1 response per respondent is enabled
+      if (formSettings.limitOneResponse && respondentEmail) {
+        const cleanEmail = respondentEmail.trim().toLowerCase();
+        const existingSub = await db.query.formSubmissions.findFirst({
+          where: and(
+            eq(formSubmissions.formId, id),
+            sql`(${formSubmissions.data}->>'Verified Google Email' ILIKE ${cleanEmail} OR ${formSubmissions.data}->>'email' ILIKE ${cleanEmail} OR ${formSubmissions.data}->>'Email' ILIKE ${cleanEmail})`
+          ),
+        });
+        if (existingSub) {
+          return reply.send({
+            success: true,
+            data: {
+              ...form,
+              alreadySubmitted: true,
+              closedMessage: "You have already responded to this form. Only 1 response is allowed per respondent.",
+            }
+          });
+        }
+      }
+    }
+
+    const isGoogleRequired = formSettings.requireGoogleAuth !== false;
 
     // View tracking rules:
     // If form requires Google Sign-In: Only count view when authenticated Google ID is present, and count exactly 1 unique view per Google ID
@@ -399,6 +442,24 @@ export async function formRoutes(app: FastifyInstance) {
     if (!form) return reply.code(404).send({ success: false, error: "Form not found or inactive" });
     const settings = (form.settings || {}) as any;
 
+    // Check expiry & submission limits
+    const now = Date.now();
+    const isExpired = !!(settings.expiresAt && new Date(settings.expiresAt).getTime() <= now);
+    if (isExpired) {
+      return reply.code(400).send({
+        success: false,
+        error: settings.closedMessage || "This form has expired and is no longer accepting responses.",
+      });
+    }
+
+    const isMaxReached = !!(settings.maxSubmissions && Number(settings.maxSubmissions) > 0 && (form.submissions || 0) >= Number(settings.maxSubmissions));
+    if (isMaxReached) {
+      return reply.code(400).send({
+        success: false,
+        error: settings.closedMessage || "This form has reached the maximum number of responses.",
+      });
+    }
+
     let verifiedEmail = respondent?.email ? respondent.email.trim().toLowerCase() : undefined;
     let verifiedName = respondent?.name ? respondent.name.trim() : undefined;
 
@@ -471,6 +532,25 @@ export async function formRoutes(app: FastifyInstance) {
 
     if (!emailValue && verifiedEmail) {
       emailValue = verifiedEmail;
+    }
+
+    // Check Limit 1 response per respondent
+    if (settings.limitOneResponse) {
+      const checkEmail = (verifiedEmail || emailValue || "").trim().toLowerCase();
+      if (checkEmail) {
+        const existingSub = await db.query.formSubmissions.findFirst({
+          where: and(
+            eq(formSubmissions.formId, form.id),
+            sql`(${formSubmissions.data}->>'Verified Google Email' ILIKE ${checkEmail} OR ${formSubmissions.data}->>'email' ILIKE ${checkEmail} OR ${formSubmissions.data}->>'Email' ILIKE ${checkEmail})`
+          ),
+        });
+        if (existingSub) {
+          return reply.code(400).send({
+            success: false,
+            error: "You have already submitted a response to this form. Only 1 response is allowed per respondent.",
+          });
+        }
+      }
     }
 
     // ── Name fields ─────────────────────────────────────────────────────
@@ -596,17 +676,23 @@ export async function formRoutes(app: FastifyInstance) {
 
     // Send confirmation email to respondent (applicant)
     if (emailValue) {
-      sendFormSubmissionConfirmationEmail({
-        toEmail: emailValue,
-        respondentName: applicantName,
-        formName: form.name,
-        formId: form.id,
-        isSeptet,
-        data,
-        schema,
-      }).catch((err) =>
-        console.error(`[Forms] Failed to send confirmation email to respondent ${emailValue}:`, err)
-      );
+      const shouldSend = settings.sendConfirmationEmail !== false || isSeptet;
+      if (shouldSend) {
+        sendFormSubmissionConfirmationEmail({
+          toEmail: emailValue,
+          respondentName: applicantName,
+          formName: form.name,
+          formId: form.id,
+          isSeptet,
+          data,
+          schema,
+          customSubject: settings.confirmationSubject,
+          customBody: settings.confirmationBody,
+          includeSummary: settings.includeSubmissionSummary !== false,
+        }).catch((err) =>
+          console.error(`[Forms] Failed to send confirmation email to respondent ${emailValue}:`, err)
+        );
+      }
     }
 
     // Send admin notification to form's notifyEmail or team owner (if enabled)
