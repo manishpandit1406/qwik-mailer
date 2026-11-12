@@ -14,7 +14,7 @@ export async function oauthRoutes(app: FastifyInstance) {
   const protectedResourceMetadata = {
     resource: `${API_URL}/mcp`,
     authorization_servers: [API_URL],
-    scopes_supported: ["forms:read", "forms:write"],
+    scopes_supported: ["forms:read", "forms:write", "submissions:read", "forms:delete"],
     bearer_methods_supported: ["header"],
   };
 
@@ -23,7 +23,6 @@ export async function oauthRoutes(app: FastifyInstance) {
     return reply.send(protectedResourceMetadata);
   });
 
-  // Also handle sub-path for /mcp
   app.get("/mcp/.well-known/oauth-protected-resource", async (_, reply) => {
     reply.header("Access-Control-Allow-Origin", "*");
     return reply.send(protectedResourceMetadata);
@@ -36,7 +35,7 @@ export async function oauthRoutes(app: FastifyInstance) {
     token_endpoint: `${API_URL}/v1/oauth/token`,
     registration_endpoint: `${API_URL}/v1/oauth/register`,
     userinfo_endpoint: `${API_URL}/v1/oauth/userinfo`,
-    scopes_supported: ["forms:read", "forms:write", "offline_access"],
+    scopes_supported: ["forms:read", "forms:write", "submissions:read", "forms:delete", "offline_access"],
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     token_endpoint_auth_methods_supported: ["none", "client_secret_post", "client_secret_basic"],
@@ -63,28 +62,33 @@ export async function oauthRoutes(app: FastifyInstance) {
 
   app.post("/v1/oauth/register", async (req, reply) => {
     reply.header("Access-Control-Allow-Origin", "*");
-    const body = (req.body || {}) as any;
-    const clientName = body.client_name || "AI Assistant";
-    const redirectUris = Array.isArray(body.redirect_uris) ? body.redirect_uris : [];
+    try {
+      const body = (req.body || {}) as any;
+      const clientName = body.client_name || "AI Assistant";
+      const redirectUris = Array.isArray(body.redirect_uris) ? body.redirect_uris : [];
 
-    const clientId = `qm_client_${crypto.randomBytes(12).toString("hex")}`;
-    const clientSecret = `qm_sec_${crypto.randomBytes(24).toString("hex")}`;
-    const pgArrayLiteral = `{${redirectUris.map((u: string) => `"${u.replace(/"/g, '\\"')}"`).join(",")}}`;
+      const clientId = `qm_client_${crypto.randomBytes(12).toString("hex")}`;
+      const clientSecret = `qm_sec_${crypto.randomBytes(24).toString("hex")}`;
+      const pgArrayLiteral = `{${redirectUris.map((u: string) => `"${u.replace(/"/g, '\\"')}"`).join(",")}}`;
 
-    await db.execute(sql`
-      INSERT INTO oauth_clients (client_id, client_secret, client_name, redirect_uris)
-      VALUES (${clientId}, ${clientSecret}, ${clientName}, ${pgArrayLiteral}::text[])
-    `);
+      await db.execute(sql`
+        INSERT INTO oauth_clients (client_id, client_secret, client_name, redirect_uris)
+        VALUES (${clientId}, ${clientSecret}, ${clientName}, ${pgArrayLiteral}::text[])
+      `);
 
-    return reply.status(201).send({
-      client_id: clientId,
-      client_secret: clientSecret,
-      client_name: clientName,
-      redirect_uris: redirectUris,
-      grant_types: ["authorization_code", "refresh_token"],
-      response_types: ["code"],
-      token_endpoint_auth_method: "client_secret_post",
-    });
+      return reply.status(201).send({
+        client_id: clientId,
+        client_secret: clientSecret,
+        client_name: clientName,
+        redirect_uris: redirectUris,
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        token_endpoint_auth_method: "client_secret_post",
+      });
+    } catch (err: any) {
+      req.log.error(err, "OAuth register error");
+      return reply.code(500).send({ success: false, error: err.message });
+    }
   });
 
   // ─── 4. Client Info Lookup (For consent UI) ───────────────────────────────
@@ -95,17 +99,24 @@ export async function oauthRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "missing client_id" });
     }
 
-    // Known static clients (ChatGPT / Claude / QwikForms)
-    if (clientId === "chatgpt" || clientId === "claude" || clientId === "qwikforms") {
+    if (clientId === "chatgpt" || clientId.toLowerCase().includes("chatgpt")) {
       return reply.send({
-        client_name: clientId === "chatgpt" ? "ChatGPT" : clientId === "claude" ? "Claude" : "QwikForms Connector",
+        client_name: "ChatGPT",
         client_id: clientId,
+        icon: "chatgpt",
+      });
+    }
+
+    if (clientId === "claude" || clientId.toLowerCase().includes("claude")) {
+      return reply.send({
+        client_name: "Claude",
+        client_id: clientId,
+        icon: "claude",
       });
     }
 
     const res = await db.execute(sql`SELECT client_name, client_id FROM oauth_clients WHERE client_id = ${clientId}`);
     if (!res.length) {
-      // Default fallback info so user flow never breaks
       return reply.send({
         client_name: "AI Connector",
         client_id: clientId,
@@ -125,44 +136,56 @@ export async function oauthRoutes(app: FastifyInstance) {
 
   app.post("/v1/oauth/consent", { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
     reply.header("Access-Control-Allow-Origin", "*");
-    const userId = (req.user as any)?.sub || (req.user as any)?.id;
-    const body = (req.body || {}) as any;
+    try {
+      const userId = (req.user as any)?.sub || (req.user as any)?.id;
+      const body = (req.body || {}) as any;
 
-    const {
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      team_id: requestedTeamId,
-      code_challenge: codeChallenge,
-      code_challenge_method: codeChallengeMethod,
-      scope,
-    } = body;
+      const {
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        team_id: requestedTeamId,
+        code_challenge: codeChallenge,
+        code_challenge_method: codeChallengeMethod,
+        scope,
+      } = body;
 
-    if (!clientId || !redirectUri) {
-      return reply.code(400).send({ success: false, error: "Missing client_id or redirect_uri" });
+      if (!clientId) {
+        return reply.code(400).send({ success: false, error: "Missing client_id" });
+      }
+
+      // Default to user's first available team if not explicitly passed
+      let teamId = requestedTeamId || req.teamId;
+      if (!teamId && userId) {
+        const teamRes = await db.execute(sql`SELECT id FROM teams WHERE owner_id = ${userId} LIMIT 1`);
+        if (teamRes.length && (teamRes[0] as any)?.id) {
+          teamId = (teamRes[0] as any).id as string;
+        }
+      }
+
+      if (!teamId) {
+        return reply.code(400).send({ success: false, error: "Please select a Project/Team to grant access." });
+      }
+
+      const code = `qmc_${crypto.randomBytes(24).toString("hex")}`;
+      const expiresAtIso = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes TTL
+
+      await db.execute(sql`
+        INSERT INTO oauth_codes (
+          code, client_id, user_id, team_id, redirect_uri, code_challenge, code_challenge_method, scope, expires_at
+        ) VALUES (
+          ${code}, ${clientId}, ${userId}, ${teamId}, ${redirectUri || ""}, ${codeChallenge || null}, ${codeChallengeMethod || null}, ${scope || "forms:read forms:write"}, ${expiresAtIso}::timestamp
+        )
+      `);
+
+      return reply.send({
+        success: true,
+        code,
+        redirect_uri: redirectUri,
+      });
+    } catch (err: any) {
+      req.log.error(err, "OAuth consent error");
+      return reply.code(500).send({ success: false, error: err.message || "Failed to process consent" });
     }
-
-    // Default to req.teamId if not explicitly passed
-    const teamId = requestedTeamId || req.teamId;
-    if (!teamId) {
-      return reply.code(400).send({ success: false, error: "Active team context is required" });
-    }
-
-    const code = `qmc_${crypto.randomBytes(24).toString("hex")}`;
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes TTL
-
-    await db.execute(sql`
-      INSERT INTO oauth_codes (
-        code, client_id, user_id, team_id, redirect_uri, code_challenge, code_challenge_method, scope, expires_at
-      ) VALUES (
-        ${code}, ${clientId}, ${userId}, ${teamId}, ${redirectUri}, ${codeChallenge || null}, ${codeChallengeMethod || null}, ${scope || "forms:read forms:write"}, ${expiresAt}
-      )
-    `);
-
-    return reply.send({
-      success: true,
-      code,
-      redirect_uri: redirectUri,
-    });
   });
 
   // ─── 6. RFC 6749: Token Exchange Endpoint ──────────────────────────────────
@@ -177,102 +200,106 @@ export async function oauthRoutes(app: FastifyInstance) {
     reply.header("Access-Control-Allow-Origin", "*");
     reply.header("Content-Type", "application/json");
 
-    // RFC 6749 allows body as application/x-www-form-urlencoded or application/json
-    const body = (req.body || {}) as any;
-    const grantType = body.grant_type;
+    try {
+      const body = (req.body || {}) as any;
+      const grantType = body.grant_type;
 
-    if (grantType === "authorization_code") {
-      const { code, redirect_uri: redirectUri, client_id: clientId, code_verifier: codeVerifier } = body;
+      if (grantType === "authorization_code") {
+        const { code, redirect_uri: redirectUri, client_id: clientId, code_verifier: codeVerifier } = body;
 
-      if (!code) {
-        return reply.code(400).send({ error: "invalid_request", error_description: "Missing code" });
-      }
-
-      const codeRes = await db.execute(sql`
-        SELECT * FROM oauth_codes WHERE code = ${code} AND expires_at > now()
-      `);
-
-      if (!codeRes.length) {
-        return reply.code(400).send({ error: "invalid_grant", error_description: "Authorization code invalid or expired" });
-      }
-
-      const codeRow = codeRes[0] as any;
-
-      // Verify PKCE if present
-      if (codeRow.code_challenge) {
-        if (!codeVerifier) {
-          return reply.code(400).send({ error: "invalid_grant", error_description: "Missing code_verifier for PKCE" });
+        if (!code) {
+          return reply.code(400).send({ error: "invalid_request", error_description: "Missing code" });
         }
 
-        const method = (codeRow.code_challenge_method || "S256").toUpperCase();
-        let computedChallenge = "";
-        if (method === "S256") {
-          computedChallenge = crypto.createHash("sha256").update(codeVerifier).digest("base64url");
-        } else {
-          computedChallenge = codeVerifier;
+        const codeRes = await db.execute(sql`
+          SELECT * FROM oauth_codes WHERE code = ${code} AND expires_at > now()
+        `);
+
+        if (!codeRes.length) {
+          return reply.code(400).send({ error: "invalid_grant", error_description: "Authorization code invalid or expired" });
         }
 
-        if (computedChallenge !== codeRow.code_challenge) {
-          return reply.code(400).send({ error: "invalid_grant", error_description: "PKCE verification failed" });
+        const codeRow = codeRes[0] as any;
+
+        // Verify PKCE if present
+        if (codeRow.code_challenge) {
+          if (!codeVerifier) {
+            return reply.code(400).send({ error: "invalid_grant", error_description: "Missing code_verifier for PKCE" });
+          }
+
+          const method = (codeRow.code_challenge_method || "S256").toUpperCase();
+          let computedChallenge = "";
+          if (method === "S256") {
+            computedChallenge = crypto.createHash("sha256").update(codeVerifier).digest("base64url");
+          } else {
+            computedChallenge = codeVerifier;
+          }
+
+          if (computedChallenge !== codeRow.code_challenge) {
+            return reply.code(400).send({ error: "invalid_grant", error_description: "PKCE verification failed" });
+          }
         }
+
+        // Delete code (one-time use)
+        await db.execute(sql`DELETE FROM oauth_codes WHERE code = ${code}`);
+
+        // Generate Access Token and Refresh Token
+        const accessToken = `qm_at_${crypto.randomBytes(32).toString("hex")}`;
+        const refreshToken = `qm_rt_${crypto.randomBytes(32).toString("hex")}`;
+        const expiresAtIso = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days validity
+
+        await db.execute(sql`
+          INSERT INTO oauth_tokens (token, refresh_token, client_id, user_id, team_id, scope, expires_at)
+          VALUES (${accessToken}, ${refreshToken}, ${codeRow.client_id}, ${codeRow.user_id}, ${codeRow.team_id}, ${codeRow.scope || "forms:read forms:write"}, ${expiresAtIso}::timestamp)
+        `);
+
+        return reply.send({
+          access_token: accessToken,
+          token_type: "Bearer",
+          expires_in: 90 * 24 * 60 * 60,
+          refresh_token: refreshToken,
+          scope: codeRow.scope || "forms:read forms:write",
+        });
       }
 
-      // Delete code (one-time use)
-      await db.execute(sql`DELETE FROM oauth_codes WHERE code = ${code}`);
+      if (grantType === "refresh_token") {
+        const { refresh_token: refreshToken } = body;
+        if (!refreshToken) {
+          return reply.code(400).send({ error: "invalid_request", error_description: "Missing refresh_token" });
+        }
 
-      // Generate Access Token and Refresh Token
-      const accessToken = `qm_at_${crypto.randomBytes(32).toString("hex")}`;
-      const refreshToken = `qm_rt_${crypto.randomBytes(32).toString("hex")}`;
-      const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days validity
+        const tokenRes = await db.execute(sql`
+          SELECT * FROM oauth_tokens WHERE refresh_token = ${refreshToken} AND expires_at > now()
+        `);
 
-      await db.execute(sql`
-        INSERT INTO oauth_tokens (token, refresh_token, client_id, user_id, team_id, scope, expires_at)
-        VALUES (${accessToken}, ${refreshToken}, ${codeRow.client_id}, ${codeRow.user_id}, ${codeRow.team_id}, ${codeRow.scope || "forms:read forms:write"}, ${expiresAt})
-      `);
+        if (!tokenRes.length) {
+          return reply.code(400).send({ error: "invalid_grant", error_description: "Invalid or expired refresh token" });
+        }
 
-      return reply.send({
-        access_token: accessToken,
-        token_type: "Bearer",
-        expires_in: 90 * 24 * 60 * 60,
-        refresh_token: refreshToken,
-        scope: codeRow.scope || "forms:read forms:write",
-      });
+        const existing = tokenRes[0] as any;
+        const newAccessToken = `qm_at_${crypto.randomBytes(32).toString("hex")}`;
+        const expiresAtIso = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+
+        await db.execute(sql`
+          UPDATE oauth_tokens
+          SET token = ${newAccessToken}, expires_at = ${expiresAtIso}::timestamp
+          WHERE refresh_token = ${refreshToken}
+        `);
+
+        return reply.send({
+          access_token: newAccessToken,
+          token_type: "Bearer",
+          expires_in: 90 * 24 * 60 * 60,
+          refresh_token: refreshToken,
+          scope: existing.scope,
+        });
+      }
+
+      return reply.code(400).send({ error: "unsupported_grant_type" });
+    } catch (err: any) {
+      req.log.error(err, "OAuth token exchange error");
+      return reply.code(500).send({ error: "server_error", error_description: err.message });
     }
-
-    if (grantType === "refresh_token") {
-      const { refresh_token: refreshToken } = body;
-      if (!refreshToken) {
-        return reply.code(400).send({ error: "invalid_request", error_description: "Missing refresh_token" });
-      }
-
-      const tokenRes = await db.execute(sql`
-        SELECT * FROM oauth_tokens WHERE refresh_token = ${refreshToken} AND expires_at > now()
-      `);
-
-      if (!tokenRes.length) {
-        return reply.code(400).send({ error: "invalid_grant", error_description: "Invalid or expired refresh token" });
-      }
-
-      const existing = tokenRes[0] as any;
-      const newAccessToken = `qm_at_${crypto.randomBytes(32).toString("hex")}`;
-      const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-
-      await db.execute(sql`
-        UPDATE oauth_tokens
-        SET token = ${newAccessToken}, expires_at = ${expiresAt}
-        WHERE refresh_token = ${refreshToken}
-      `);
-
-      return reply.send({
-        access_token: newAccessToken,
-        token_type: "Bearer",
-        expires_in: 90 * 24 * 60 * 60,
-        refresh_token: refreshToken,
-        scope: existing.scope,
-      });
-    }
-
-    return reply.code(400).send({ error: "unsupported_grant_type" });
   });
 
   // ─── 7. Userinfo Endpoint ──────────────────────────────────────────────────
@@ -304,5 +331,66 @@ export async function oauthRoutes(app: FastifyInstance) {
       team_id: row.team_id,
       team_name: row.team_name,
     });
+  });
+
+  // ─── 8. Connected Apps Management (List & Revoke from Settings) ─────────────
+  app.get("/v1/oauth/connected-apps", { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
+    reply.header("Access-Control-Allow-Origin", "*");
+    const userId = (req.user as any)?.sub || (req.user as any)?.id;
+    if (!userId) return reply.code(401).send({ success: false, error: "Unauthorized" });
+
+    const res = await db.execute(sql`
+      SELECT 
+        t.token,
+        t.client_id,
+        t.scope,
+        t.created_at,
+        t.expires_at,
+        tm.name as team_name,
+        tm.id as team_id,
+        c.client_name
+      FROM oauth_tokens t
+      LEFT JOIN oauth_clients c ON c.client_id = t.client_id
+      LEFT JOIN teams tm ON tm.id = t.team_id
+      WHERE t.user_id = ${userId} AND t.expires_at > now()
+      ORDER BY t.created_at DESC
+    `);
+
+    const apps = res.map((row: any) => {
+      let displayName = row.client_name;
+      if (!displayName) {
+        if (row.client_id === "chatgpt" || String(row.client_id).includes("chatgpt")) displayName = "ChatGPT";
+        else if (row.client_id === "claude" || String(row.client_id).includes("claude")) displayName = "Claude";
+        else displayName = "AI Connector";
+      }
+
+      return {
+        id: row.token,
+        clientName: displayName,
+        clientId: row.client_id,
+        teamName: row.team_name || "Default Project",
+        teamId: row.team_id,
+        scope: row.scope || "forms:read forms:write",
+        createdAt: row.created_at,
+        expiresAt: row.expires_at,
+      };
+    });
+
+    return reply.send({ success: true, apps });
+  });
+
+  app.delete("/v1/oauth/connected-apps/:tokenId", { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
+    reply.header("Access-Control-Allow-Origin", "*");
+    const userId = (req.user as any)?.sub || (req.user as any)?.id;
+    const { tokenId } = req.params as { tokenId: string };
+
+    if (!userId) return reply.code(401).send({ success: false, error: "Unauthorized" });
+
+    await db.execute(sql`
+      DELETE FROM oauth_tokens
+      WHERE (token = ${tokenId} OR client_id = ${tokenId}) AND user_id = ${userId}
+    `);
+
+    return reply.send({ success: true, message: "Connected app revoked successfully" });
   });
 }

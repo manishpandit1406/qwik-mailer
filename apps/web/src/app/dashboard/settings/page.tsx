@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Settings, Save, Trash2, AlertTriangle, RefreshCw, X, Check } from "lucide-react";
+import { Settings, Save, Trash2, AlertTriangle, RefreshCw, X, Check, Sparkles, Shield, Unplug } from "lucide-react";
 import { LogoLoader } from "@/components/LogoLoader";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -31,9 +31,56 @@ export default function ProjectSettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
+  // Connected Apps State
+  const [connectedApps, setConnectedApps] = useState<any[]>([]);
+  const [loadingApps, setLoadingApps] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchActiveTeam();
+    fetchConnectedApps();
   }, []);
+
+  async function fetchConnectedApps() {
+    setLoadingApps(true);
+    try {
+      const res = await fetch(`${API}/v1/oauth/connected-apps`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.apps)) {
+        setConnectedApps(json.apps);
+      }
+    } catch (err) {
+      console.error("Failed to fetch connected apps", err);
+    } finally {
+      setLoadingApps(false);
+    }
+  }
+
+  async function handleRevokeApp(appId: string) {
+    if (!confirm("Are you sure you want to disconnect this app? It will no longer be able to access your forms.")) {
+      return;
+    }
+    setRevokingId(appId);
+    try {
+      const res = await fetch(`${API}/v1/oauth/connected-apps/${encodeURIComponent(appId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setConnectedApps((prev) => prev.filter((a) => a.id !== appId && a.clientId !== appId));
+        setSuccess("Connected application disconnected successfully.");
+      } else {
+        setError(json.error || "Failed to disconnect application.");
+      }
+    } catch {
+      setError("Failed to disconnect application.");
+    } finally {
+      setRevokingId(null);
+    }
+  }
 
   async function fetchActiveTeam() {
     setLoading(true);
@@ -210,6 +257,98 @@ export default function ProjectSettingsPage() {
                 />
                 <p className="text-xs text-gray-500 mt-2">The unique identifier for this project. Cannot be changed.</p>
               </div>
+            </div>
+          </div>
+
+          {/* Connected AI & OAuth Applications */}
+          <div className="glass-card overflow-hidden">
+            <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
+              <div>
+                <h3 className="font-bold text-lg flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
+                  <Sparkles size={18} className="text-indigo-600" /> Connected AI Applications
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Manage AI assistants (ChatGPT, Claude) and integrations authorized to access your account.
+                </p>
+              </div>
+              <button
+                onClick={fetchConnectedApps}
+                disabled={loadingApps}
+                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition"
+                title="Refresh connected apps"
+              >
+                <RefreshCw size={14} className={loadingApps ? "animate-spin" : ""} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {loadingApps ? (
+                <div className="py-8 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
+                  <RefreshCw size={14} className="animate-spin text-indigo-600" />
+                  Loading connected applications...
+                </div>
+              ) : connectedApps.length === 0 ? (
+                <div className="py-8 text-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-2">
+                    <Shield size={18} />
+                  </div>
+                  <p className="text-xs font-semibold text-gray-800">No AI Connectors Connected</p>
+                  <p className="text-xs text-gray-500 max-w-sm mx-auto mt-0.5">
+                    When you authorize ChatGPT or Claude with Qwik Mailer, they will appear here with options to manage or disconnect.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {connectedApps.map((app) => (
+                    <div key={app.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-xs shrink-0">
+                          {app.clientName === "ChatGPT" ? (
+                            <span className="text-emerald-600 font-extrabold text-[11px]">GPT</span>
+                          ) : app.clientName === "Claude" ? (
+                            <span className="text-amber-600 font-extrabold text-[11px]">Claude</span>
+                          ) : (
+                            <Sparkles size={16} className="text-indigo-600" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900 truncate">{app.clientName}</h4>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Active
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">
+                            Project: <span className="font-medium text-gray-700">{app.teamName}</span> • Permissions:{" "}
+                            <span className="text-gray-600">{app.scope || "forms:read forms:write"}</span>
+                          </p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            Connected {new Date(app.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleRevokeApp(app.id)}
+                        disabled={revokingId === app.id}
+                        className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition shrink-0 flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {revokingId === app.id ? (
+                          <>
+                            <RefreshCw size={12} className="animate-spin" />
+                            Revoking...
+                          </>
+                        ) : (
+                          <>
+                            <Unplug size={12} />
+                            Disconnect
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
