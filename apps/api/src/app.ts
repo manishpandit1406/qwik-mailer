@@ -218,6 +218,24 @@ export async function buildApp() {
     },
   });
 
+  // Support application/x-www-form-urlencoded (standard for OAuth 2.0 token requests from ChatGPT, Claude, etc.)
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_req, body, done) => {
+      try {
+        const parsed = new URLSearchParams(body as string);
+        const obj: Record<string, string> = {};
+        parsed.forEach((val, key) => {
+          obj[key] = val;
+        });
+        done(null, obj);
+      } catch (err: any) {
+        done(err, undefined);
+      }
+    }
+  );
+
   // ─── Error Handler ───────────────────────────────────────────────────────
   app.setErrorHandler(errorHandler);
 

@@ -198,14 +198,32 @@ export async function oauthRoutes(app: FastifyInstance) {
 
   app.post("/v1/oauth/token", async (req, reply) => {
     reply.header("Access-Control-Allow-Origin", "*");
-    reply.header("Content-Type", "application/json");
+    reply.header("Content-Type", "application/json;charset=UTF-8");
+    reply.header("Cache-Control", "no-store");
+    reply.header("Pragma", "no-cache");
 
     try {
       const body = (req.body || {}) as any;
+      let clientId = body.client_id;
+      let clientSecret = body.client_secret;
+
+      // Extract client credentials from Basic Auth header if present (Standard OAuth 2.0 RFC 6749)
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Basic ")) {
+        try {
+          const credentials = Buffer.from(authHeader.replace("Basic ", "").trim(), "base64").toString("utf-8");
+          const colonIndex = credentials.indexOf(":");
+          if (colonIndex !== -1) {
+            clientId = credentials.substring(0, colonIndex);
+            clientSecret = credentials.substring(colonIndex + 1);
+          }
+        } catch {}
+      }
+
       const grantType = body.grant_type;
 
       if (grantType === "authorization_code") {
-        const { code, redirect_uri: redirectUri, client_id: clientId, code_verifier: codeVerifier } = body;
+        const { code, redirect_uri: redirectUri, code_verifier: codeVerifier } = body;
 
         if (!code) {
           return reply.code(400).send({ error: "invalid_request", error_description: "Missing code" });
