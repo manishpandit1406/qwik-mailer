@@ -67,10 +67,11 @@ export async function oauthRoutes(app: FastifyInstance) {
 
     const clientId = `qm_client_${crypto.randomBytes(12).toString("hex")}`;
     const clientSecret = `qm_sec_${crypto.randomBytes(24).toString("hex")}`;
+    const pgArrayLiteral = `{${redirectUris.map((u: string) => `"${u.replace(/"/g, '\\"')}"`).join(",")}}`;
 
     await db.execute(sql`
       INSERT INTO oauth_clients (client_id, client_secret, client_name, redirect_uris)
-      VALUES (${clientId}, ${clientSecret}, ${clientName}, ${redirectUris}::text[])
+      VALUES (${clientId}, ${clientSecret}, ${clientName}, ${pgArrayLiteral}::text[])
     `);
 
     return reply.status(201).send({
