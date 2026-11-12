@@ -680,7 +680,7 @@ export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: {
                 }`}
               >
                 <FileText size={12} className="text-indigo-600" />
-                Files/Resume
+                With Files
               </button>
             </div>
 

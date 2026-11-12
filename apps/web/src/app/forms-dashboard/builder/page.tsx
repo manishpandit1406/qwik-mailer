@@ -176,7 +176,7 @@ function SortableField({ field, onUpdate, onRemove, schema }: any) {
               value={field.accept || ".pdf"}
               onChange={e => onUpdate(field.id, { accept: e.target.value })}
             />
-            <p className="text-[11px] text-gray-400">Examples: <code>.pdf</code> for Resumes, <code>image/*</code> for Photos, or <code>.pdf,.docx,.zip</code></p>
+            <p className="text-[11px] text-gray-400">Examples: <code>.pdf</code> for Documents, <code>image/*</code> for Photos, or <code>.pdf,.docx,.zip</code></p>
           </div>
         )}
 
@@ -625,7 +625,7 @@ func main() {
                       <Layers size={15} /> + Add Section (New Page)
                     </button>
                     <p className="text-[10px] text-indigo-700 mt-2 text-center">
-                      Splits your form into multi-step pages with Next & Back buttons (like Google Forms).
+                      Splits your form into multi-step pages with Next &amp; Back navigation buttons.
                     </p>
                   </div>
 
@@ -1163,7 +1163,7 @@ func main() {
               </div>
 
               <div>
-                <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2"><Code size={18} /> Iframe Embed (Like Google Forms)</h4>
+                <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2"><Code size={18} /> Responsive Iframe Embed</h4>
                 <p className="text-sm text-gray-500 mb-3">Copy and paste this code into your website (WordPress, Webflow, custom HTML).</p>
                 <div className="relative">
                   <textarea readOnly className="input font-mono text-sm bg-gray-900 text-gray-300 h-24" value={iframeEmbedCode} />
