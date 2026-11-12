@@ -396,6 +396,14 @@ export async function oauthRoutes(app: FastifyInstance) {
       ORDER BY t.created_at DESC
     `);
 
+    const toIsoUtc = (val: any) => {
+      if (!val) return new Date().toISOString();
+      if (val instanceof Date) return val.toISOString();
+      const str = String(val).trim();
+      if (str.endsWith("Z") || str.includes("+")) return new Date(str).toISOString();
+      return new Date(str.replace(" ", "T") + "Z").toISOString();
+    };
+
     const apps = res.map((row: any) => {
       let displayName = row.client_name;
       if (!displayName) {
@@ -411,8 +419,8 @@ export async function oauthRoutes(app: FastifyInstance) {
         teamName: row.team_name || "Default Project",
         teamId: row.team_id,
         scope: row.scope || "forms:read forms:write",
-        createdAt: row.created_at,
-        expiresAt: row.expires_at,
+        createdAt: toIsoUtc(row.created_at),
+        expiresAt: toIsoUtc(row.expires_at),
       };
     });
 

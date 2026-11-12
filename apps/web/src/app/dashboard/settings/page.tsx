@@ -74,6 +74,24 @@ export default function ProjectSettingsPage() {
     }
   }
 
+  function formatConnectedDate(val: string) {
+    if (!val) return "";
+    try {
+      const raw = String(val).trim();
+      const iso = raw.endsWith("Z") || raw.includes("+") ? raw : raw.replace(" ", "T") + "Z";
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return val;
+    }
+  }
+
   async function handleRevokeApp(appId: string) {
     if (!confirm("Are you sure you want to disconnect this app? It will no longer be able to access your forms.")) {
       return;
@@ -339,7 +357,7 @@ export default function ProjectSettingsPage() {
                             <span className="text-gray-600">{app.scope || "forms:read forms:write"}</span>
                           </p>
                           <p className="text-[11px] text-gray-400 mt-0.5">
-                            Connected {new Date(app.createdAt).toLocaleDateString()}
+                            Connected {formatConnectedDate(app.createdAt)}
                           </p>
                         </div>
                       </div>
