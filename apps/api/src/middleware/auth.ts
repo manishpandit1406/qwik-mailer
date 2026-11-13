@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { db } from "@qwikmailer/db";
-import { teamMembers, users } from "@qwikmailer/db";
+import { teamMembers, users, teams } from "@qwikmailer/db";
 import { eq, and, sql } from "drizzle-orm";
 import { validateApiKey } from "../services/api-key.service.js";
 
@@ -82,7 +82,12 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
     req.user = { ...(req.user as any), source: "dashboard" };
 
     // Resolve active team
-    const requestedTeamId = req.headers["x-team-id"] as string;
+    const rawTeamId =
+      (req.headers["x-team-id"] as string) ||
+      (req.params as any)?.teamId ||
+      (req.params as any)?.id;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const requestedTeamId = rawTeamId && isUuid.test(rawTeamId) ? rawTeamId : undefined;
     
     if (requestedTeamId) {
       const member = await db.query.teamMembers.findFirst({
@@ -94,6 +99,17 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
       if (member) {
         req.teamId = member.teamId;
         req.teamRole = member.role;
+      } else {
+        const ownedTeam = await db.query.teams.findFirst({
+          where: and(
+            eq(teams.id, requestedTeamId),
+            eq(teams.ownerId, (req.user as any).sub)
+          )
+        });
+        if (ownedTeam) {
+          req.teamId = ownedTeam.id;
+          req.teamRole = "owner";
+        }
       }
     }
     
@@ -105,6 +121,14 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
       if (member) {
         req.teamId = member.teamId;
         req.teamRole = member.role;
+      } else {
+        const ownedTeam = await db.query.teams.findFirst({
+          where: eq(teams.ownerId, (req.user as any).sub)
+        });
+        if (ownedTeam) {
+          req.teamId = ownedTeam.id;
+          req.teamRole = "owner";
+        }
       }
     }
 

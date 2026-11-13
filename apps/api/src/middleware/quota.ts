@@ -100,28 +100,46 @@ export async function checkContactQuota(req: FastifyRequest, reply: FastifyReply
 }
 
 export async function checkTeamMemberLimit(req: FastifyRequest, reply: FastifyReply) {
-  const user = await getUserPlanAndUsage(req);
-  if (!user) return reply.code(401).send({ success: false, error: "Unauthorized" });
+  try {
+    const user = await getUserPlanAndUsage(req);
+    if (!user) return reply.code(401).send({ success: false, error: "Unauthorized" });
 
-  const plan = (user.plan || "free") as PlanType;
-  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
-  const teamId = (req.params as any).id || req.teamId;
+    const teamId = (req.params as any).id || req.teamId;
+    if (!teamId) return;
 
-  if (!teamId) return;
+    // Get the team owner's plan so limits apply accurately to the team
+    const team = await db.query.teams.findFirst({
+      where: eq(teams.id, teamId),
+      columns: { ownerId: true },
+    });
+    const ownerId = team?.ownerId || user.id;
+    const owner = await db.query.users.findFirst({
+      where: eq(users.id, ownerId),
+      columns: { plan: true },
+    });
 
-  const res = await db.execute(sql`SELECT COUNT(*) as count FROM team_members WHERE team_id = ${teamId}`);
-  const rows = (res as any).rows || res;
-  const currentMembers = Number(rows[0]?.count || 0);
+    const plan = (owner?.plan || user.plan || "free") as PlanType;
+    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
-  const resInv = await db.execute(sql`SELECT COUNT(*) as count FROM team_invites WHERE team_id = ${teamId} AND status = 'pending'`);
-  const rowsInv = (resInv as any).rows || resInv;
-  const pendingInvites = Number(rowsInv[0]?.count || 0);
+    const res = await db.execute(sql`SELECT COUNT(*) as count FROM team_members WHERE team_id = ${teamId}`);
+    const rows = (res as any).rows || res;
+    const currentMembers = Number(rows[0]?.count || 0);
 
-  // maxTeamMembers includes the owner. So allowed invites/members = maxTeamMembers - 1
-  const allowedExtraMembers = Math.max(0, limits.maxTeamMembers - 1);
+    const resInv = await db.execute(
+      sql`SELECT COUNT(*) as count FROM team_invites WHERE team_id = ${teamId} AND expires_at > now()`
+    );
+    const rowsInv = (resInv as any).rows || resInv;
+    const pendingInvites = Number(rowsInv[0]?.count || 0);
 
-  if (currentMembers + pendingInvites >= allowedExtraMembers) {
-    return reply.code(402).send({ success: false, error: `Team member limit exceeded. Your plan (${plan}) only allows ${limits.maxTeamMembers} total members (including the owner). Please upgrade.` });
+    if (currentMembers + pendingInvites >= limits.maxTeamMembers) {
+      return reply.code(402).send({
+        success: false,
+        error: `Team member limit exceeded. Your plan (${plan}) only allows ${limits.maxTeamMembers} total member${limits.maxTeamMembers === 1 ? "" : "s"} (including the owner). Please upgrade.`,
+      });
+    }
+  } catch (err) {
+    console.error("[checkTeamMemberLimit] Error:", err);
+    return reply.code(500).send({ success: false, error: "Failed to verify team member limits." });
   }
 }
 

@@ -82,6 +82,7 @@ export default function ProjectSettingsPage() {
         headers: {
           Authorization: `Bearer ${getToken()}`,
           "Content-Type": "application/json",
+          "x-team-id": activeTeam.id,
         },
         body: JSON.stringify({ name: newName.trim() }),
       });
@@ -110,7 +111,10 @@ export default function ProjectSettingsPage() {
     try {
       const res = await fetch(`${API}/v1/teams/${activeTeam.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "x-team-id": activeTeam.id,
+        },
       });
       const json = await res.json();
       if (json.success) {

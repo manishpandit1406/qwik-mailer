@@ -120,7 +120,10 @@ export default function TeamPage() {
     setMembersLoading(true);
     try {
       const res = await fetch(`${API}/v1/teams/${teamId}/members`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "x-team-id": teamId,
+        },
       });
       const json = await res.json();
       if (json.success) setMembers(json.data);
@@ -133,14 +136,16 @@ export default function TeamPage() {
   async function inviteMember() {
     if (!inviteEmail.trim() || !activeTeam) return;
     setInviting(true);
+    setError("");
     try {
       const res = await fetch(`${API}/v1/teams/${activeTeam.id}/invite`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${getToken()}`,
           "Content-Type": "application/json",
+          "x-team-id": activeTeam.id,
         },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
       });
       const json = await res.json();
       if (json.success) {
@@ -150,7 +155,7 @@ export default function TeamPage() {
         setError(json.error ?? "Failed to send invite.");
       }
     } catch {
-      setError("Network error.");
+      setError("Network error. Please try again.");
     } finally {
       setInviting(false);
     }
@@ -161,7 +166,10 @@ export default function TeamPage() {
     try {
       await fetch(`${API}/v1/teams/${activeTeam.id}/members/${memberId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "x-team-id": activeTeam.id,
+        },
       });
       setMembers((prev) => prev.filter((m) => m.id !== memberId));
     } catch {}

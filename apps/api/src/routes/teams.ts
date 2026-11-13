@@ -184,14 +184,45 @@ export async function teamRoutes(app: FastifyInstance) {
 
     try {
       // Only owner/admin can invite
-      const access = await db.execute(
-        sql`SELECT role FROM team_members WHERE team_id = ${id} AND user_id = ${user.sub}`
+      const isOwner = await db.execute(
+        sql`SELECT 1 FROM teams WHERE id = ${id} AND owner_id = ${user.sub}`
       );
-      const rows = (access as any).rows || access;
-      const myRole = rows[0]?.role;
+      const isOwnerRows = (isOwner as any).rows || isOwner;
+      const ownerExists = Array.isArray(isOwnerRows) ? isOwnerRows.length > 0 : !!isOwnerRows?.length;
+
+      let myRole: string | undefined;
+      if (ownerExists) {
+        myRole = "owner";
+      } else {
+        const access = await db.execute(
+          sql`SELECT role FROM team_members WHERE team_id = ${id} AND user_id = ${user.sub}`
+        );
+        const rows = (access as any).rows || access;
+        myRole = rows[0]?.role;
+      }
+
       if (!myRole || (myRole !== "owner" && myRole !== "admin")) {
         return reply.code(403).send({ success: false, error: "Only admins can invite members" });
       }
+
+      // Check if user being invited is already an active member of this project
+      const existingMember = await db.execute(
+        sql`SELECT 1 FROM team_members tm
+            JOIN users u ON u.id = tm.user_id
+            WHERE tm.team_id = ${id} AND LOWER(u.email) = LOWER(${email})`
+      );
+      const existingMemberRows = (existingMember as any).rows || existingMember;
+      if (Array.isArray(existingMemberRows) ? existingMemberRows.length > 0 : !!existingMemberRows?.length) {
+        return reply.code(400).send({
+          success: false,
+          error: "This user is already a member of this project.",
+        });
+      }
+
+      // Delete existing pending invites for this email in this team to prevent duplicate tokens
+      await db.execute(
+        sql`DELETE FROM team_invites WHERE team_id = ${id} AND LOWER(email) = LOWER(${email})`
+      );
 
       const token = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
