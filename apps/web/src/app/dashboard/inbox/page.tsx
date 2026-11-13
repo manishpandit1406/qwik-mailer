@@ -100,6 +100,7 @@ export default function DashboardInboxPage() {
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
   const [sendingCompose, setSendingCompose] = useState(false);
+  const [composeError, setComposeError] = useState("");
 
   useEffect(() => {
     fetchAccounts();
@@ -344,6 +345,7 @@ export default function DashboardInboxPage() {
     e.preventDefault();
     if (!composeTo || !composeSubject) return;
     setSendingCompose(true);
+    setComposeError("");
     try {
       const res = await fetch(`${API}/v1/inbox/send`, {
         method: "POST",
@@ -367,11 +369,11 @@ export default function DashboardInboxPage() {
         setComposeBody("");
         fetchEmails();
       } else {
-        alert(data.error || "Failed to send email");
+        setComposeError(data.error || "Failed to send email");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Network error sending email");
+      setComposeError(e.message || "Network error sending email");
     } finally {
       setSendingCompose(false);
     }
@@ -858,6 +860,12 @@ export default function DashboardInboxPage() {
               </button>
             </div>
 
+            {composeError && (
+              <div className="p-3 rounded-xl bg-red-50 text-red-700 text-xs border border-red-200">
+                {composeError}
+              </div>
+            )}
+
             <form onSubmit={handleQuickCompose} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">To</label>
@@ -918,3 +926,4 @@ export default function DashboardInboxPage() {
     </div>
   );
 }
+

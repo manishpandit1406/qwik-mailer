@@ -6,6 +6,12 @@ import { ImapFlow } from "imapflow";
 import * as nodemailer from "nodemailer";
 import { simpleParser } from "mailparser";
 import { GoogleGenAI } from "@google/genai";
+import { createEmailQueue, createRedisConnection } from "@qwikmailer/queue";
+import { resolveSenderDomain } from "./emails.js";
+import crypto from "crypto";
+
+const redis = createRedisConnection();
+const emailQueue = createEmailQueue(redis);
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -204,81 +210,134 @@ export async function inboxRoutes(app: FastifyInstance) {
     }
   });
 
-  // 4. Send an email
+  // 4. Send an email (via connected mailbox or team domain sender)
   app.post("/send", { preHandler: authenticate }, async (req, reply) => {
     const userId = (req.user as any).sub || (req.user as any).id;
+    const teamId = req.teamId!;
     const { accountId, to, subject, text, html } = req.body as any;
 
-    if (!accountId || !to || !subject) {
-      return reply.code(400).send({ error: "Missing required fields" });
+    if (!to || !subject) {
+      return reply.code(400).send({ error: "Missing required fields (to, subject)" });
     }
 
-    const [account] = await db.select().from(connectedMailAccounts).where(and(
-      eq(connectedMailAccounts.id, accountId),
-      eq(connectedMailAccounts.userId, userId)
-    ));
-
-    if (!account || !account.smtpHost || !account.appPassword) {
-      return reply.code(404).send({ error: "Account not found or missing SMTP config" });
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let account: any = null;
+    if (accountId && isUuid.test(accountId)) {
+      const [acc] = await db.select().from(connectedMailAccounts).where(and(
+        eq(connectedMailAccounts.id, accountId),
+        eq(connectedMailAccounts.userId, userId)
+      ));
+      account = acc;
     }
 
-    const transporter = nodemailer.createTransport({
-      host: account.smtpHost,
-      port: account.smtpPort || 465,
-      secure: account.smtpPort === 465, // true for 465, false for other ports
-      auth: {
-        user: account.emailAddress,
-        pass: account.appPassword,
-      },
-    });
+    // If a personal mailbox is connected with SMTP credentials, send via its SMTP server
+    if (account && account.smtpHost && account.appPassword) {
+      const transporter = nodemailer.createTransport({
+        host: account.smtpHost,
+        port: account.smtpPort || 465,
+        secure: account.smtpPort === 465, // true for 465, false for other ports
+        auth: {
+          user: account.emailAddress,
+          pass: account.appPassword,
+        },
+      });
 
+      try {
+        const isProd = process.env.NODE_ENV === 'production';
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || (isProd ? 'https://api.qwikmailer.in' : 'http://localhost:4000');
+        
+        const generatedMessageId = crypto.randomUUID();
+        const trackingUrl = `${baseUrl}/v1/inbox/track/${generatedMessageId}.png`;
+        const trackingPixel = `<img src="${trackingUrl}" width="1" height="1" style="display:none;" />`;
+        
+        let baseHtml = html;
+        if (!baseHtml && text) {
+          baseHtml = text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;")
+            .replace(/\n/g, "<br>");
+            
+          baseHtml = baseHtml.replace(/(https?:\/\/[^\s<]+)/g, (url: string) => {
+            return `<a href="${url}">${url}</a>`;
+          });
+        }
+
+        // Rewrite links for click tracking
+        const clickTrackingUrlBase = `${baseUrl}/v1/inbox/click/${generatedMessageId}?url=`;
+        if (baseHtml) {
+          baseHtml = baseHtml.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (match: string, url: string) => {
+            return `href="${clickTrackingUrlBase}${encodeURIComponent(url)}"`;
+          });
+        }
+
+        const finalHtml = baseHtml ? `${baseHtml}${trackingPixel}` : trackingPixel;
+
+        const info = await transporter.sendMail({
+          from: `"${account.emailAddress}" <${account.emailAddress}>`,
+          to,
+          subject,
+          text,
+          html: finalHtml,
+          messageId: `${generatedMessageId}@qwikmailer.in`,
+        });
+
+        return { success: true, messageId: info.messageId };
+      } catch (err: any) {
+        req.log.error(err);
+        return reply.code(500).send({ error: err.message || "Failed to send email via mailbox" });
+      }
+    }
+
+    // Otherwise send via team's verified sender domain using Qwik Mailer queue
     try {
-      const isProd = process.env.NODE_ENV === 'production';
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || (isProd ? 'https://api.qwikmailer.in' : 'http://localhost:4000');
-      
-      const generatedMessageId = require('crypto').randomUUID();
-      const trackingUrl = `${baseUrl}/v1/inbox/track/${generatedMessageId}.png`;
-      const trackingPixel = `<img src="${trackingUrl}" width="1" height="1" style="display:none;" />`;
-      
-      let baseHtml = html;
-      if (!baseHtml && text) {
-        baseHtml = text
+      let senderDetails;
+      try {
+        senderDetails = await resolveSenderDomain(teamId);
+      } catch (err: any) {
+        return reply.code(400).send({
+          error: "No verified sender identity found. Please create one in Sender Identities.",
+        });
+      }
+
+      const { fromEmail, fromName, replyTo } = senderDetails;
+      const batchId = crypto.randomUUID();
+
+      let finalHtml = html;
+      if (!finalHtml && text) {
+        finalHtml = text
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;")
           .replace(/'/g, "&#039;")
           .replace(/\n/g, "<br>");
-          
-        // Auto-linkify raw URLs in text-only emails so they can be tracked
-        baseHtml = baseHtml.replace(/(https?:\/\/[^\s<]+)/g, (url: string) => {
-          return `<a href="${url}">${url}</a>`;
-        });
       }
 
-      // Rewrite links for click tracking
-      const clickTrackingUrlBase = `${baseUrl}/v1/inbox/click/${generatedMessageId}?url=`;
-      if (baseHtml) {
-        baseHtml = baseHtml.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (match: string, url: string) => {
-          return `href="${clickTrackingUrlBase}${encodeURIComponent(url)}"`;
-        });
-      }
+      const [emailRecord] = await db
+        .insert(emails)
+        .values({
+          teamId,
+          batchId,
+          fromEmail,
+          fromName,
+          toEmail: to,
+          replyTo,
+          subject,
+          htmlBody: finalHtml || "",
+          textBody: text || "",
+          metadata: { _source: "inbox" },
+          status: "queued" as any,
+        })
+        .returning();
 
-      const finalHtml = baseHtml ? `${baseHtml}${trackingPixel}` : trackingPixel;
-
-      const info = await transporter.sendMail({
-        from: `"${account.emailAddress}" <${account.emailAddress}>`,
-        to,
-        subject,
-        text,
-        html: finalHtml,
-        messageId: `${generatedMessageId}@qwikmailer.in`,
-      });
-
-      return { success: true, messageId: info.messageId };
+      await emailQueue.add("send", { emailId: emailRecord.id, teamId });
+      return { success: true, messageId: emailRecord.id };
     } catch (err: any) {
       req.log.error(err);
-      return reply.code(500).send({ error: "Failed to send email" });
+      return reply.code(500).send({ error: err.message || "Failed to send email" });
     }
   });
 
