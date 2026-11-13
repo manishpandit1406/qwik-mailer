@@ -1,29 +1,29 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Inbox as InboxIcon,
   Send,
   Star,
-  Trash2,
   RefreshCw,
   Search,
-  Plus,
   Mail,
   Paperclip,
   Sparkles,
   CheckCircle2,
   AlertCircle,
-  Clock,
   X,
-  ExternalLink,
   ChevronDown,
   ShieldCheck,
   Eye,
-  MousePointerClick,
   Reply,
   ArrowLeft,
-  Settings,
+  ArrowRight,
+  Plus,
+  UserCheck,
+  AtSign,
+  Layers,
 } from "lucide-react";
 import { LogoLoader } from "@/components/LogoLoader";
 
@@ -41,11 +41,15 @@ function getTeamId() {
     : "";
 }
 
-interface Account {
+interface SenderIdentity {
   id: string;
-  provider: string;
-  emailAddress: string;
-  isActive: boolean;
+  email: string;
+  fromName: string;
+  replyTo?: string;
+  nickname?: string;
+  domain?: string;
+  isVerified?: boolean;
+  createdAt?: string;
 }
 
 interface EmailItem {
@@ -54,17 +58,24 @@ interface EmailItem {
   from?: string;
   fromName?: string;
   to?: string;
+  replyTo?: string;
   date: string;
   flags?: string[];
   status?: string;
   openCount?: number;
   clickCount?: number;
+  isStarred?: boolean;
+  direction?: "inbound" | "outbound";
 }
 
 export default function DashboardInboxPage() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<string>("team");
-  const [folder, setFolder] = useState<"INBOX" | "sent" | "starred" | "trash">("INBOX");
+  // Identities
+  const [identities, setIdentities] = useState<SenderIdentity[]>([]);
+  const [selectedIdentity, setSelectedIdentity] = useState<SenderIdentity | null>(null);
+  const [loadingIdentities, setLoadingIdentities] = useState(true);
+
+  // Mailbox Folders & Items
+  const [folder, setFolder] = useState<"INBOX" | "sent" | "received" | "starred">("INBOX");
   const [emails, setEmails] = useState<EmailItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -82,18 +93,6 @@ export default function DashboardInboxPage() {
   const [sendingReply, setSendingReply] = useState(false);
   const [replySuccess, setReplySuccess] = useState(false);
 
-  // Connect Account Modal
-  const [showConnectModal, setShowConnectModal] = useState(false);
-  const [connectProvider, setConnectProvider] = useState<"gmail" | "outlook" | "custom">("gmail");
-  const [connectEmail, setConnectEmail] = useState("");
-  const [connectPassword, setConnectPassword] = useState("");
-  const [connectImapHost, setConnectImapHost] = useState("imap.gmail.com");
-  const [connectImapPort, setConnectImapPort] = useState(993);
-  const [connectSmtpHost, setConnectSmtpHost] = useState("smtp.gmail.com");
-  const [connectSmtpPort, setConnectSmtpPort] = useState(465);
-  const [connecting, setConnecting] = useState(false);
-  const [connectError, setConnectError] = useState("");
-
   // Quick Compose Modal
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [composeTo, setComposeTo] = useState("");
@@ -102,52 +101,82 @@ export default function DashboardInboxPage() {
   const [sendingCompose, setSendingCompose] = useState(false);
   const [composeError, setComposeError] = useState("");
 
+  // Switch identity dropdown
+  const [showDropdown, setShowDropdown] = useState(false);
+
   useEffect(() => {
-    fetchAccounts();
+    fetchIdentities();
   }, []);
 
   useEffect(() => {
-    fetchEmails();
-  }, [selectedAccountId, folder]);
+    if (selectedIdentity) {
+      fetchEmails();
+    }
+  }, [selectedIdentity, folder]);
 
-  async function fetchAccounts() {
+  async function fetchIdentities() {
+    setLoadingIdentities(true);
     try {
-      const res = await fetch(`${API}/v1/inbox/accounts`, {
+      const res = await fetch(`${API}/v1/inbox/identities`, {
         headers: {
           Authorization: `Bearer ${getToken()}`,
           "x-team-id": getTeamId(),
         },
       });
       const data = await res.json();
-      if (data.accounts && Array.isArray(data.accounts)) {
-        setAccounts(data.accounts);
-        if (data.accounts.length > 0 && selectedAccountId === "team") {
-          setSelectedAccountId(data.accounts[0].id);
+      if (data.identities && Array.isArray(data.identities)) {
+        setIdentities(data.identities);
+
+        // Check if there was a previously remembered identity
+        const savedId = typeof window !== "undefined" ? localStorage.getItem("qwik_inbox_identity_id") : null;
+        if (savedId) {
+          const match = data.identities.find((i: SenderIdentity) => i.id === savedId);
+          if (match) {
+            setSelectedIdentity(match);
+          }
         }
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoadingIdentities(false);
+    }
+  }
+
+  function handleSelectIdentity(identity: SenderIdentity) {
+    setSelectedIdentity(identity);
+    setShowDropdown(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("qwik_inbox_identity_id", identity.id);
+    }
+  }
+
+  function handleBackToIdentities() {
+    setSelectedIdentity(null);
+    setSelectedEmail(null);
+    setSelectedEmailUid(null);
+    setShowDropdown(false);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("qwik_inbox_identity_id");
     }
   }
 
   async function fetchEmails() {
+    if (!selectedIdentity) return;
     setLoading(true);
     setSelectedEmail(null);
     setSelectedEmailUid(null);
 
-    let folderQuery = "INBOX";
-    if (folder === "sent") folderQuery = "[Gmail]/Sent Mail";
-    else if (folder === "starred") folderQuery = "[Gmail]/Starred";
-    else if (folder === "trash") folderQuery = "[Gmail]/Trash";
-
     try {
-      const accParam = selectedAccountId ? `?accountId=${encodeURIComponent(selectedAccountId)}&folder=${encodeURIComponent(folderQuery)}` : `?folder=${encodeURIComponent(folderQuery)}`;
-      const res = await fetch(`${API}/v1/inbox/emails${accParam}`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-          "x-team-id": getTeamId(),
-        },
-      });
+      const res = await fetch(
+        `${API}/v1/inbox/emails?identityId=${encodeURIComponent(selectedIdentity.id)}&folder=${encodeURIComponent(folder)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "x-team-id": getTeamId(),
+          },
+        }
+      );
       const data = await res.json();
       if (data.emails && Array.isArray(data.emails)) {
         setEmails(data.emails);
@@ -170,21 +199,13 @@ export default function DashboardInboxPage() {
     setReplyText("");
     setReplySuccess(false);
 
-    let folderQuery = "INBOX";
-    if (folder === "sent") folderQuery = "[Gmail]/Sent Mail";
-    else if (folder === "starred") folderQuery = "[Gmail]/Starred";
-    else if (folder === "trash") folderQuery = "[Gmail]/Trash";
-
     try {
-      const res = await fetch(
-        `${API}/v1/inbox/email?accountId=${encodeURIComponent(selectedAccountId)}&uid=${encodeURIComponent(uid)}&folder=${encodeURIComponent(folderQuery)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "x-team-id": getTeamId(),
-          },
-        }
-      );
+      const res = await fetch(`${API}/v1/inbox/email?uid=${encodeURIComponent(uid)}`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "x-team-id": getTeamId(),
+        },
+      });
       const data = await res.json();
       if (data.success && data.email) {
         setSelectedEmail(data.email);
@@ -196,61 +217,23 @@ export default function DashboardInboxPage() {
     }
   }
 
-  async function handleConnectAccount(e: React.FormEvent) {
-    e.preventDefault();
-    setConnecting(true);
-    setConnectError("");
-
+  async function toggleStar(e: React.MouseEvent, uid: string, currentlyStarred: boolean) {
+    e.stopPropagation();
     try {
-      let imapHost = connectImapHost;
-      let imapPort = Number(connectImapPort) || 993;
-      let smtpHost = connectSmtpHost;
-      let smtpPort = Number(connectSmtpPort) || 465;
-
-      if (connectProvider === "gmail") {
-        imapHost = "imap.gmail.com";
-        imapPort = 993;
-        smtpHost = "smtp.gmail.com";
-        smtpPort = 465;
-      } else if (connectProvider === "outlook") {
-        imapHost = "outlook.office365.com";
-        imapPort = 993;
-        smtpHost = "smtp.office365.com";
-        smtpPort = 587;
-      }
-
-      const res = await fetch(`${API}/v1/inbox/connect`, {
+      await fetch(`${API}/v1/inbox/star`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${getToken()}`,
           "Content-Type": "application/json",
           "x-team-id": getTeamId(),
         },
-        body: JSON.stringify({
-          provider: connectProvider,
-          emailAddress: connectEmail.trim(),
-          appPassword: connectPassword.trim(),
-          imapHost,
-          imapPort,
-          smtpHost,
-          smtpPort,
-        }),
+        body: JSON.stringify({ uid, starred: !currentlyStarred }),
       });
-
-      const data = await res.json();
-      if (data.success && data.account) {
-        setAccounts((prev) => [...prev, data.account]);
-        setSelectedAccountId(data.account.id);
-        setShowConnectModal(false);
-        setConnectEmail("");
-        setConnectPassword("");
-      } else {
-        setConnectError(data.error || "Failed to connect account.");
-      }
-    } catch (err: any) {
-      setConnectError(err.message || "Failed to connect account.");
-    } finally {
-      setConnecting(false);
+      setEmails((prev) =>
+        prev.map((item) => (item.uid === uid ? { ...item, isStarred: !currentlyStarred } : item))
+      );
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -308,9 +291,14 @@ export default function DashboardInboxPage() {
   }
 
   async function handleSendReply() {
-    if (!replyText.trim() || !selectedEmail) return;
+    if (!replyText.trim() || !selectedEmail || !selectedIdentity) return;
     setSendingReply(true);
     try {
+      const toRecipient =
+        selectedEmail.from && selectedEmail.from !== selectedIdentity.email
+          ? selectedEmail.from
+          : selectedEmail.to;
+
       const res = await fetch(`${API}/v1/inbox/send`, {
         method: "POST",
         headers: {
@@ -319,9 +307,11 @@ export default function DashboardInboxPage() {
           "x-team-id": getTeamId(),
         },
         body: JSON.stringify({
-          accountId: selectedAccountId,
-          to: selectedEmail.from || selectedEmail.to,
-          subject: selectedEmail.subject?.startsWith("Re:") ? selectedEmail.subject : `Re: ${selectedEmail.subject || ""}`,
+          identityId: selectedIdentity.id,
+          to: toRecipient,
+          subject: selectedEmail.subject?.startsWith("Re:")
+            ? selectedEmail.subject
+            : `Re: ${selectedEmail.subject || ""}`,
           text: replyText,
         }),
       });
@@ -330,6 +320,7 @@ export default function DashboardInboxPage() {
         setReplySuccess(true);
         setReplyText("");
         setTimeout(() => setReplySuccess(false), 4000);
+        fetchEmails();
       } else {
         alert(data.error || "Failed to send reply");
       }
@@ -343,7 +334,7 @@ export default function DashboardInboxPage() {
 
   async function handleQuickCompose(e: React.FormEvent) {
     e.preventDefault();
-    if (!composeTo || !composeSubject) return;
+    if (!composeTo || !composeSubject || !selectedIdentity) return;
     setSendingCompose(true);
     setComposeError("");
     try {
@@ -355,7 +346,7 @@ export default function DashboardInboxPage() {
           "x-team-id": getTeamId(),
         },
         body: JSON.stringify({
-          accountId: selectedAccountId,
+          identityId: selectedIdentity.id,
           to: composeTo.trim(),
           subject: composeSubject.trim(),
           text: composeBody,
@@ -384,55 +375,208 @@ export default function DashboardInboxPage() {
     return (
       item.subject?.toLowerCase().includes(q) ||
       item.from?.toLowerCase().includes(q) ||
-      item.fromName?.toLowerCase().includes(q)
+      item.fromName?.toLowerCase().includes(q) ||
+      item.to?.toLowerCase().includes(q)
     );
   });
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // VIEW 1: IDENTITY SELECTION SCREEN (When no identity is picked)
+  // ───────────────────────────────────────────────────────────────────────────
+  if (!selectedIdentity) {
+    return (
+      <div className="max-w-6xl mx-auto w-full py-6 px-4 space-y-8 animate-fade-in">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200/80 pb-6">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center shadow-sm">
+                <InboxIcon size={20} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-gray-900">Inbox Mailboxes</h1>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Select a sender identity to open its dedicated inbox for sending, receiving, and tracking emails.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Link
+            href="/dashboard/senders"
+            className="btn-secondary self-start sm:self-auto flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl"
+          >
+            <Plus size={14} /> New Sender Identity
+          </Link>
+        </div>
+
+        {/* Loading State */}
+        {loadingIdentities ? (
+          <div className="p-16 flex flex-col items-center justify-center text-center">
+            <RefreshCw size={24} className="animate-spin text-black mb-3" />
+            <p className="text-xs text-gray-400 font-medium">Loading sender identities...</p>
+          </div>
+        ) : identities.length === 0 ? (
+          /* Empty State: No Sender Identity Found */
+          <div className="glass-card rounded-3xl p-12 text-center max-w-lg mx-auto border border-gray-200 shadow-sm space-y-4">
+            <div className="w-16 h-16 rounded-3xl bg-gray-100 flex items-center justify-center mx-auto text-gray-400">
+              <Mail size={28} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">No Sender Identities Found</h3>
+              <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                Before you can use the inbox to send and receive emails, you need to create a sender identity under your verified domain.
+              </p>
+            </div>
+            <div className="pt-2">
+              <Link
+                href="/dashboard/senders"
+                className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl"
+              >
+                <Plus size={14} /> Create Sender Identity
+              </Link>
+            </div>
+          </div>
+        ) : (
+          /* Grid of Available Sender Identities */
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                Choose an Identity ({identities.length})
+              </h2>
+              <span className="text-xs text-gray-400">1-click to open conversation mailbox</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {identities.map((identity) => {
+                const initial = (identity.fromName || identity.email || "Q").charAt(0).toUpperCase();
+                return (
+                  <div
+                    key={identity.id}
+                    onClick={() => handleSelectIdentity(identity)}
+                    className="glass-card rounded-2xl p-5 border border-gray-200/90 hover:border-black/50 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-4 bg-white"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-gray-900 to-gray-700 text-white flex items-center justify-center font-bold text-lg shadow-sm group-hover:scale-105 transition-transform">
+                          {initial}
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <ShieldCheck size={11} /> Verified
+                        </span>
+                      </div>
+
+                      <div>
+                        <h3 className="text-base font-bold text-gray-900 group-hover:text-black transition-colors">
+                          {identity.fromName}
+                        </h3>
+                        <p className="text-xs font-mono text-gray-600 mt-0.5 truncate select-all">
+                          {identity.email}
+                        </p>
+                      </div>
+
+                      {identity.replyTo && identity.replyTo !== identity.email && (
+                        <div className="text-[11px] text-gray-400 flex items-center gap-1">
+                          <span>Reply-To:</span>
+                          <span className="text-gray-600 truncate">{identity.replyTo}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-semibold text-gray-900 group-hover:text-black">
+                      <span>Open Identity Mailbox</span>
+                      <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // VIEW 2: DEDICATED IDENTITY INBOX SCREEN
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-7xl mx-auto w-full h-[calc(100vh-140px)] flex flex-col space-y-4 pb-6 animate-fade-in">
       {/* Top Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Inbox</h1>
-            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              Live Sync
-            </span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleBackToIdentities}
+            className="p-2 rounded-xl border border-gray-200 hover:bg-gray-100 text-gray-600 transition-colors"
+            title="Back to all identities"
+          >
+            <ArrowLeft size={16} />
+          </button>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold tracking-tight text-gray-900">
+                {selectedIdentity.fromName}
+              </h1>
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                Active Identity
+              </span>
+            </div>
+            <p className="text-xs font-mono text-gray-500 mt-0.5">
+              {selectedIdentity.email}
+            </p>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Unified inbox for customer conversations, replies, and team emails.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Account Selector */}
+          {/* Identity Switcher Dropdown */}
           <div className="relative">
-            <select
-              value={selectedAccountId}
-              onChange={(e) => setSelectedAccountId(e.target.value)}
-              className="input text-xs font-medium py-2 pl-3 pr-8 rounded-xl bg-white shadow-sm"
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="btn-secondary flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-xl"
             >
-              {accounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.emailAddress} ({acc.provider})
-                </option>
-              ))}
-              <option value="team">Team Outbound Emails</option>
-            </select>
-          </div>
+              <AtSign size={13} className="text-gray-500" />
+              <span className="max-w-[140px] truncate">{selectedIdentity.fromName}</span>
+              <ChevronDown size={13} className="text-gray-400" />
+            </button>
 
-          <button
-            onClick={() => setShowConnectModal(true)}
-            className="btn-secondary flex items-center gap-1.5 px-3 py-2 text-xs rounded-xl"
-            title="Connect Email Account"
-          >
-            <Plus size={14} /> Connect Account
-          </button>
+            {showDropdown && (
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-200 p-2 z-50 animate-fade-in space-y-1">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-2 py-1">
+                  Switch Mailbox
+                </div>
+                {identities.map((idnt) => (
+                  <button
+                    key={idnt.id}
+                    onClick={() => handleSelectIdentity(idnt)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs flex flex-col transition-colors ${
+                      idnt.id === selectedIdentity.id
+                        ? "bg-black text-white font-semibold"
+                        : "hover:bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    <span>{idnt.fromName}</span>
+                    <span className={`text-[10px] font-mono truncate ${idnt.id === selectedIdentity.id ? "text-gray-300" : "text-gray-400"}`}>
+                      {idnt.email}
+                    </span>
+                  </button>
+                ))}
+                <div className="border-t border-gray-100 pt-1 mt-1">
+                  <button
+                    onClick={handleBackToIdentities}
+                    className="w-full text-left px-3 py-1.5 rounded-xl text-xs text-gray-500 hover:text-black hover:bg-gray-50 flex items-center gap-1.5 font-medium"
+                  >
+                    <Layers size={13} /> View All Identities
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={fetchEmails}
             className="btn-secondary p-2 flex items-center justify-center rounded-xl"
-            title="Refresh inbox"
+            title="Refresh mailbox"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
@@ -447,8 +591,8 @@ export default function DashboardInboxPage() {
       </div>
 
       {/* Main Mail Container (3-Column Layout) */}
-      <div className="glass-card flex-1 rounded-2xl overflow-hidden flex border border-gray-200 shadow-sm min-h-0">
-        {/* Left Folder Nav */}
+      <div className="glass-card flex-1 rounded-2xl overflow-hidden flex border border-gray-200 shadow-sm min-h-0 bg-white">
+        {/* Left Column: Folder Navigation */}
         <div className="w-48 border-r border-gray-200/80 bg-gray-50/50 p-3 space-y-1 shrink-0 flex flex-col justify-between">
           <div className="space-y-1">
             <button
@@ -460,11 +604,11 @@ export default function DashboardInboxPage() {
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <InboxIcon size={15} className={folder === "INBOX" ? "text-indigo-600" : "text-gray-400"} />
-                <span>Inbox</span>
+                <InboxIcon size={15} className={folder === "INBOX" ? "text-black" : "text-gray-400"} />
+                <span>All Mail</span>
               </div>
               {emails.length > 0 && folder === "INBOX" && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800">
                   {emails.length}
                 </span>
               )}
@@ -478,8 +622,20 @@ export default function DashboardInboxPage() {
                   : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               }`}
             >
-              <Send size={15} className={folder === "sent" ? "text-indigo-600" : "text-gray-400"} />
+              <Send size={15} className={folder === "sent" ? "text-black" : "text-gray-400"} />
               <span>Sent</span>
+            </button>
+
+            <button
+              onClick={() => setFolder("received")}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                folder === "received"
+                  ? "bg-white text-gray-900 shadow-sm font-semibold"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <Mail size={15} className={folder === "received" ? "text-black" : "text-gray-400"} />
+              <span>Received</span>
             </button>
 
             <button
@@ -490,28 +646,19 @@ export default function DashboardInboxPage() {
                   : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               }`}
             >
-              <Star size={15} className={folder === "starred" ? "text-amber-500" : "text-gray-400"} />
+              <Star size={15} className={folder === "starred" ? "text-amber-500 fill-amber-500" : "text-gray-400"} />
               <span>Starred</span>
-            </button>
-
-            <button
-              onClick={() => setFolder("trash")}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
-                folder === "trash"
-                  ? "bg-white text-gray-900 shadow-sm font-semibold"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              }`}
-            >
-              <Trash2 size={15} className={folder === "trash" ? "text-red-500" : "text-gray-400"} />
-              <span>Trash</span>
             </button>
           </div>
 
-          {/* Account info pill */}
-          <div className="p-2.5 bg-white border border-gray-200/80 rounded-xl text-xs">
-            <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Active Mailbox</div>
-            <div className="font-semibold text-gray-900 truncate mt-0.5">
-              {accounts.find((a) => a.id === selectedAccountId)?.emailAddress || "Team Mailbox"}
+          {/* Active Sender Identity Pill */}
+          <div className="p-3 bg-white border border-gray-200/90 rounded-2xl text-xs shadow-xs space-y-1">
+            <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Sending As</div>
+            <div className="font-bold text-gray-900 truncate">
+              {selectedIdentity.fromName}
+            </div>
+            <div className="text-[11px] font-mono text-gray-500 truncate select-all">
+              {selectedIdentity.email}
             </div>
           </div>
         </div>
@@ -519,15 +666,15 @@ export default function DashboardInboxPage() {
         {/* Center Thread List Column */}
         <div className="w-80 md:w-96 border-r border-gray-200/80 flex flex-col bg-white shrink-0 min-h-0">
           {/* Search Header */}
-          <div className="p-3 border-b border-gray-100 bg-gray-50/30">
+          <div className="p-3 border-b border-gray-100 bg-gray-50/40">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search mail..."
+                placeholder="Search subject, recipient, email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input text-xs pl-8 py-1.5 w-full bg-white"
+                className="input text-xs pl-8 py-1.5 w-full bg-white rounded-xl"
               />
             </div>
           </div>
@@ -536,84 +683,127 @@ export default function DashboardInboxPage() {
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
             {loading ? (
               <div className="p-8 text-center text-xs text-gray-400">
-                <RefreshCw size={16} className="animate-spin mx-auto mb-2 text-indigo-500" />
-                Loading conversations...
+                <RefreshCw size={16} className="animate-spin mx-auto mb-2 text-black" />
+                Loading emails for {selectedIdentity.fromName}...
               </div>
             ) : filteredEmails.length === 0 ? (
-              <div className="p-8 text-center text-xs text-gray-400">
-                <InboxIcon size={24} className="mx-auto mb-2 text-gray-300" />
-                No messages in this folder.
+              <div className="p-8 text-center text-xs text-gray-400 space-y-2">
+                <InboxIcon size={28} className="mx-auto text-gray-300" />
+                <p className="font-medium text-gray-700">No emails in this view</p>
+                <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
+                  Emails sent from or addressed to <span className="font-mono text-gray-600">{selectedIdentity.email}</span> will appear here.
+                </p>
               </div>
             ) : (
               filteredEmails.map((item) => {
                 const isSelected = selectedEmailUid === item.uid;
                 return (
-                  <button
+                  <div
                     key={item.uid}
                     onClick={() => openEmail(item.uid)}
-                    className={`w-full text-left p-3.5 transition-colors block ${
+                    className={`w-full text-left p-3.5 transition-colors cursor-pointer relative group ${
                       isSelected
-                        ? "bg-indigo-50/60 border-l-4 border-indigo-600"
-                        : "hover:bg-gray-50/70"
+                        ? "bg-gray-100/70 border-l-4 border-black"
+                        : "hover:bg-gray-50"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1 mb-1">
                       <span className="font-bold text-xs text-gray-900 truncate flex-1">
-                        {item.fromName || item.from || item.to || "Unknown Sender"}
+                        {item.direction === "outbound"
+                          ? `To: ${item.to || "Recipient"}`
+                          : `From: ${item.fromName || item.from || "Sender"}`}
                       </span>
-                      <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                        {new Date(item.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={(e) => toggleStar(e, item.uid, !!item.isStarred)}
+                          className="text-gray-300 hover:text-amber-500 transition-colors"
+                        >
+                          <Star
+                            size={13}
+                            className={item.isStarred ? "text-amber-500 fill-amber-500" : ""}
+                          />
+                        </button>
+                        <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                          {new Date(item.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="font-semibold text-xs text-gray-800 truncate mb-0.5">
+                    <div className="font-semibold text-xs text-gray-800 truncate mb-1">
                       {item.subject || "(No subject)"}
                     </div>
 
-                    <div className="flex items-center gap-2 mt-1.5 text-[10px] text-gray-400">
-                      {item.openCount && item.openCount > 0 ? (
-                        <span className="text-blue-600 font-medium flex items-center gap-0.5">
-                          <Eye size={10} /> Opened
-                        </span>
-                      ) : null}
-                      {item.status && (
-                        <span className="px-1.5 py-0.2 rounded bg-gray-100 text-gray-600 font-semibold uppercase text-[9px]">
-                          {item.status}
-                        </span>
-                      )}
+                    <div className="flex items-center justify-between text-[10px] text-gray-400 mt-1">
+                      <div className="flex items-center gap-2">
+                        {item.status && (
+                          <span
+                            className={`px-1.5 py-0.5 rounded font-semibold uppercase text-[9px] ${
+                              item.status === "delivered"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : item.status === "queued"
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : item.status === "failed"
+                                ? "bg-red-50 text-red-700 border border-red-200"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        )}
+
+                        {item.openCount && item.openCount > 0 ? (
+                          <span className="text-blue-600 font-medium flex items-center gap-0.5">
+                            <Eye size={10} /> Opened
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(item.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
                     </div>
-                  </button>
+                  </div>
                 );
               })
             )}
           </div>
         </div>
 
-        {/* Right Detail / Reader Column */}
+        {/* Right Column: Email Reader & Reply */}
         <div className="flex-1 flex flex-col bg-white overflow-hidden min-h-0">
           {bodyLoading ? (
             <div className="flex-1 flex items-center justify-center">
-              <LogoLoader fullPage text="Loading message..." />
+              <LogoLoader fullPage text="Loading email..." />
             </div>
           ) : selectedEmail ? (
             <div className="flex-1 flex flex-col h-full overflow-hidden">
-              {/* Header */}
+              {/* Email Reader Header */}
               <div className="p-5 border-b border-gray-100 shrink-0 bg-white">
                 <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900 mb-1">
+                  <div className="space-y-1">
+                    <h2 className="text-lg font-bold text-gray-900">
                       {selectedEmail.subject || "(No Subject)"}
                     </h2>
                     <div className="text-xs text-gray-500 space-y-0.5">
                       <div>
-                        <strong>From:</strong> {selectedEmail.fromName ? `${selectedEmail.fromName} <${selectedEmail.from}>` : selectedEmail.from}
+                        <strong>From:</strong>{" "}
+                        <span className="text-gray-900 font-medium">
+                          {selectedEmail.fromName ? `${selectedEmail.fromName} <${selectedEmail.from}>` : selectedEmail.from}
+                        </span>
                       </div>
                       <div>
-                        <strong>To:</strong> {selectedEmail.to}
+                        <strong>To:</strong>{" "}
+                        <span className="text-gray-900 font-medium">{selectedEmail.to}</span>
                       </div>
+                      {selectedEmail.replyTo && (
+                        <div>
+                          <strong>Reply-To:</strong>{" "}
+                          <span className="text-gray-600 font-mono text-[11px]">{selectedEmail.replyTo}</span>
+                        </div>
+                      )}
                       <div className="text-[11px] text-gray-400">
                         {selectedEmail.date ? new Date(selectedEmail.date).toLocaleString() : ""}
                       </div>
@@ -625,31 +815,31 @@ export default function DashboardInboxPage() {
                     <button
                       onClick={generateAiSummary}
                       disabled={aiLoading}
-                      className="px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      className="px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold flex items-center gap-1.5 transition-colors"
                     >
                       <Sparkles size={13} /> {aiLoading ? "Thinking..." : "AI Summary"}
                     </button>
                     <button
                       onClick={generateAiReplies}
                       disabled={aiLoading}
-                      className="px-3 py-1.5 rounded-lg border border-purple-200 bg-purple-50/70 text-purple-700 hover:bg-purple-100 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      className="px-3 py-1.5 rounded-xl border border-purple-200 bg-purple-50/70 text-purple-700 hover:bg-purple-100 text-xs font-semibold flex items-center gap-1.5 transition-colors"
                     >
                       <Sparkles size={13} /> Smart Replies
                     </button>
                   </div>
                 </div>
 
-                {/* AI Summary Card */}
+                {/* AI Summary Banner */}
                 {aiSummary && (
-                  <div className="mt-3.5 p-3 rounded-xl bg-gradient-to-r from-indigo-50/80 to-purple-50/80 border border-indigo-100 text-xs text-indigo-950 animate-fade-in">
+                  <div className="mt-3.5 p-3 rounded-2xl bg-gradient-to-r from-indigo-50/80 to-purple-50/80 border border-indigo-100 text-xs text-indigo-950 animate-fade-in">
                     <div className="font-bold flex items-center gap-1.5 text-indigo-900 mb-1">
                       <Sparkles size={13} className="text-indigo-600" /> AI Conversation Summary
                     </div>
-                    <p className="leading-relaxed">{aiSummary}</p>
+                    <p className="leading-relaxed whitespace-pre-wrap">{aiSummary}</p>
                   </div>
                 )}
 
-                {/* AI Reply Pills */}
+                {/* AI Smart Replies Suggestions */}
                 {aiReplies.length > 0 && (
                   <div className="mt-3.5 space-y-1.5">
                     <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
@@ -676,33 +866,12 @@ export default function DashboardInboxPage() {
                   className="prose max-w-none text-sm text-gray-800 font-normal leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: selectedEmail.html || `<p>${selectedEmail.text || ""}</p>` }}
                 />
-
-                {/* Attachments */}
-                {selectedEmail.attachments && selectedEmail.attachments.length > 0 && (
-                  <div className="mt-6 pt-4 border-t border-gray-100">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                      Attachments ({selectedEmail.attachments.length})
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedEmail.attachments.map((att: any, idx: number) => (
-                        <div
-                          key={idx}
-                          className="px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs flex items-center gap-2"
-                        >
-                          <Paperclip size={13} className="text-gray-400" />
-                          <span className="font-medium text-gray-700">{att.filename}</span>
-                          <span className="text-[10px] text-gray-400">({Math.round((att.size || 0) / 1024)} KB)</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Reply Section */}
               <div className="p-4 border-t border-gray-100 bg-gray-50/70 shrink-0">
                 {replySuccess && (
-                  <div className="mb-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
+                  <div className="mb-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
                     <CheckCircle2 size={14} /> Reply sent successfully!
                   </div>
                 )}
@@ -715,8 +884,8 @@ export default function DashboardInboxPage() {
                     className="input w-full text-xs p-3 rounded-xl bg-white shadow-sm resize-none"
                   />
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-gray-400">
-                      Sent from {accounts.find((a) => a.id === selectedAccountId)?.emailAddress || "default sender"}
+                    <span className="text-[11px] text-gray-500">
+                      Sending as: <strong>{selectedIdentity.fromName}</strong> &lt;{selectedIdentity.email}&gt;
                     </span>
                     <button
                       onClick={handleSendReply}
@@ -732,130 +901,30 @@ export default function DashboardInboxPage() {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-400">
               <Mail size={36} className="text-gray-200 mb-3" />
-              <p className="text-sm font-semibold text-gray-700 mb-1">No conversation selected</p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">No email selected</p>
               <p className="text-xs text-gray-400 max-w-sm">
-                Choose an email from the list on the left to read, summarize with AI, and send quick replies.
+                Choose a conversation from the list to view its contents, generate AI summaries, and send replies.
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Connect Account Modal */}
-      {showConnectModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-gray-900">Connect Email Mailbox</h3>
-              <button onClick={() => setShowConnectModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="flex bg-gray-100 p-1 rounded-xl">
-              {(["gmail", "outlook", "custom"] as const).map((prov) => (
-                <button
-                  key={prov}
-                  type="button"
-                  onClick={() => setConnectProvider(prov)}
-                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg capitalize transition-all ${
-                    connectProvider === prov ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
-                  }`}
-                >
-                  {prov}
-                </button>
-              ))}
-            </div>
-
-            {connectError && (
-              <div className="p-3 rounded-xl bg-red-50 text-red-700 text-xs border border-red-200">
-                {connectError}
-              </div>
-            )}
-
-            <form onSubmit={handleConnectAccount} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Email Address</label>
-                <input
-                  type="email"
-                  placeholder="you@company.com"
-                  value={connectEmail}
-                  onChange={(e) => setConnectEmail(e.target.value)}
-                  required
-                  className="input w-full text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  {connectProvider === "gmail" ? "Gmail App Password (16 chars)" : "Password / App Password"}
-                </label>
-                <input
-                  type="password"
-                  placeholder="••••••••••••••••"
-                  value={connectPassword}
-                  onChange={(e) => setConnectPassword(e.target.value)}
-                  required
-                  className="input w-full text-xs"
-                />
-                {connectProvider === "gmail" && (
-                  <p className="text-[11px] text-gray-400 mt-1">
-                    Generate an App Password at <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="text-indigo-600 underline">Google Account Security</a>.
-                  </p>
-                )}
-              </div>
-
-              {connectProvider === "custom" && (
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <div>
-                    <label className="block text-[11px] text-gray-600 mb-0.5">IMAP Host</label>
-                    <input
-                      type="text"
-                      value={connectImapHost}
-                      onChange={(e) => setConnectImapHost(e.target.value)}
-                      className="input w-full text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] text-gray-600 mb-0.5">SMTP Host</label>
-                    <input
-                      type="text"
-                      value={connectSmtpHost}
-                      onChange={(e) => setConnectSmtpHost(e.target.value)}
-                      className="input w-full text-xs"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowConnectModal(false)}
-                  className="btn-secondary px-3 py-2 text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={connecting}
-                  className="btn-primary px-4 py-2 text-xs font-semibold rounded-xl"
-                >
-                  {connecting ? "Testing Connection..." : "Connect Mailbox"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Quick Compose Modal */}
       {showComposeModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-gray-900">New Message</h3>
-              <button onClick={() => setShowComposeModal(false)} className="text-gray-400 hover:text-gray-600">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">New Message</h3>
+                <p className="text-xs text-gray-500">
+                  Sending from <span className="font-bold text-gray-800">{selectedIdentity.fromName}</span> ({selectedIdentity.email})
+                </p>
+              </div>
+              <button
+                onClick={() => setShowComposeModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -899,7 +968,7 @@ export default function DashboardInboxPage() {
                   value={composeBody}
                   onChange={(e) => setComposeBody(e.target.value)}
                   required
-                  className="input w-full text-xs font-mono resize-none"
+                  className="input w-full text-xs resize-none"
                 />
               </div>
 
@@ -916,7 +985,7 @@ export default function DashboardInboxPage() {
                   disabled={sendingCompose}
                   className="btn-primary flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl"
                 >
-                  <Send size={13} /> {sendingCompose ? "Sending..." : "Send Email"}
+                  <Send size={13} /> {sendingCompose ? "Sending..." : "Send Message"}
                 </button>
               </div>
             </form>
@@ -926,4 +995,3 @@ export default function DashboardInboxPage() {
     </div>
   );
 }
-

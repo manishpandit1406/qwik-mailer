@@ -1,13 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and, sql } from "drizzle-orm";
-import { db, connectedMailAccounts, emailTrackingLogs, emailClickLogs, emails } from "@qwikmailer/db";
+import { eq, and, or, inArray, sql } from "drizzle-orm";
+import { db, domainSenders, emailTrackingLogs, emailClickLogs, emails } from "@qwikmailer/db";
 import { authenticate } from "../middleware/auth.js";
-import { ImapFlow } from "imapflow";
-import * as nodemailer from "nodemailer";
-import { simpleParser } from "mailparser";
 import { GoogleGenAI } from "@google/genai";
 import { createEmailQueue, createRedisConnection } from "@qwikmailer/queue";
 import { resolveSenderDomain } from "./emails.js";
+import { getOwnerTeamIds, getTeamOwnerId } from "../utils/team-owner.js";
 import crypto from "crypto";
 
 const redis = createRedisConnection();
@@ -15,307 +13,217 @@ const emailQueue = createEmailQueue(redis);
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const imapClients = new Map<string, ImapFlow>();
-
-async function getImapClient(account: any): Promise<ImapFlow> {
-  const cacheKey = account.id;
-  let client = imapClients.get(cacheKey);
-
-  if (client && client.usable) {
-    return client;
-  }
-
-  // Cleanup old dead client if exists
-  if (client) {
-    try { await client.logout(); } catch (e) {}
-    imapClients.delete(cacheKey);
-  }
-
-  client = new ImapFlow({
-    host: account.imapHost,
-    port: account.imapPort || 993,
-    secure: true,
-    auth: {
-      user: account.emailAddress,
-      pass: account.appPassword
-    },
-    logger: false,
-    tls: { rejectUnauthorized: false }
-  });
-
-  await client.connect();
-  imapClients.set(cacheKey, client);
-  
-  client.on('close', () => imapClients.delete(cacheKey));
-  client.on('error', () => {
-    imapClients.delete(cacheKey);
-    try { client!.close(); } catch(e) {}
-  });
-
-  return client;
-}
-
 export async function inboxRoutes(app: FastifyInstance) {
-  // 1. Connect a new account
-  app.post("/connect", { preHandler: authenticate }, async (req, reply) => {
+  // 1. List Sender Identities for the active team (used as Inbox mailboxes)
+  app.get("/identities", { preHandler: authenticate }, async (req, reply) => {
     const teamId = req.teamId!;
-    const userId = (req.user as any).sub || (req.user as any).id;
-    const { provider, emailAddress, imapHost, imapPort, smtpHost, smtpPort, appPassword } = req.body as any;
-
-    if (!provider || !emailAddress || !appPassword) {
-      return reply.code(400).send({ error: "Missing required fields" });
-    }
+    if (!teamId) return reply.send({ identities: [] });
 
     try {
-      // Test IMAP connection
-      if (imapHost) {
-        const client = new ImapFlow({
-          host: imapHost,
-          port: imapPort || 993,
-          secure: true,
-          auth: {
-            user: emailAddress,
-            pass: appPassword
-          },
-          logger: false
-        });
-        await client.connect();
-        await client.logout();
-      }
+      const ownerId = await getTeamOwnerId(teamId);
+      const ownerTeamIds = await getOwnerTeamIds(teamId);
 
-      // Store in DB
-      const [account] = await db.insert(connectedMailAccounts).values({
-        teamId,
-        userId,
-        provider,
-        emailAddress,
-        imapHost,
-        imapPort: imapPort || 993,
-        smtpHost,
-        smtpPort: smtpPort || 465,
-        appPassword, // Note: In production this should be encrypted
-      }).returning();
+      const senders = await db.query.domainSenders.findMany({
+        where: or(
+          inArray((domainSenders as any).teamId, ownerTeamIds),
+          eq((domainSenders as any).userId, ownerId)
+        ),
+        orderBy: (s, { desc }) => [desc(s.createdAt)],
+        with: {
+          domain: true,
+        } as any,
+      });
 
-      return { success: true, account };
+      return reply.send({
+        identities: senders.map((s) => ({
+          id: s.id,
+          email: s.email,
+          fromName: s.fromName || s.nickname || "Sender Identity",
+          replyTo: s.replyTo || s.email,
+          nickname: s.nickname,
+          domain: (s as any).domain?.domain || "",
+          isVerified: (s as any).domain?.status === "verified",
+          createdAt: s.createdAt,
+        })),
+      });
     } catch (err: any) {
       req.log.error(err);
-      
-      let errorMessage = err.message;
-      if (errorMessage === "Command failed" || errorMessage.includes("Authentication")) {
-        errorMessage = "Authentication failed. Please ensure you are using a valid App Password (16 characters for Gmail) and IMAP is enabled in your settings.";
-      }
-      
-      return reply.code(500).send({ 
-        error: "Failed to connect account: " + errorMessage,
-        details: err.responseText || err.responseStatus 
-      });
+      return reply.code(500).send({ error: "Failed to fetch identities", identities: [] });
     }
   });
 
-  // 2. List connected accounts
-  app.get("/accounts", { preHandler: authenticate }, async (req, reply) => {
-    const teamId = req.teamId!;
-    const userId = (req.user as any).sub || (req.user as any).id;
-
-    const accounts = await db.select({
-      id: connectedMailAccounts.id,
-      provider: connectedMailAccounts.provider,
-      emailAddress: connectedMailAccounts.emailAddress,
-      isActive: connectedMailAccounts.isActive,
-    }).from(connectedMailAccounts)
-      .where(and(eq(connectedMailAccounts.teamId, teamId), eq(connectedMailAccounts.userId, userId)));
-
-    return { accounts };
-  });
-
-  // 3. Fetch emails for an account (or team email fallback)
+  // 2. Fetch emails for a specific sender identity (or team fallback)
   app.get("/emails", { preHandler: authenticate }, async (req, reply) => {
     const teamId = req.teamId!;
-    const userId = (req.user as any).sub || (req.user as any).id;
-    const { accountId, folder = "INBOX" } = req.query as { accountId?: string; folder?: string };
+    const { identityId, senderId, accountId, folder = "INBOX" } = req.query as {
+      identityId?: string;
+      senderId?: string;
+      accountId?: string;
+      folder?: string;
+    };
 
-    if (!accountId || accountId === "team") {
-      try {
-        const teamEmails = await db.execute(sql`
-          SELECT id as uid, subject, from_email as "from", from_name as "fromName",
-                 to_email as "to", created_at as date, status, html_body as html, text_body as text,
-                 open_count, click_count
-          FROM emails
-          WHERE team_id = ${teamId}
-          ORDER BY created_at DESC
-          LIMIT 50
-        `);
-        const rows = (teamEmails as any).rows || teamEmails;
-        return {
-          emails: (rows || []).map((r: any) => ({
-            uid: r.uid,
-            subject: r.subject || "No Subject",
-            from: r.from,
-            fromName: r.fromName,
-            to: r.to,
-            date: r.date,
-            flags: r.status === "delivered" ? ["\\Seen"] : [],
-            status: r.status,
-            openCount: r.open_count,
-            clickCount: r.click_count,
-          })),
-          isTeamInbox: true,
-        };
-      } catch (err: any) {
-        req.log.error(err);
-        return { emails: [] };
-      }
-    }
-
-    const [account] = await db.select().from(connectedMailAccounts).where(and(
-      eq(connectedMailAccounts.id, accountId),
-      eq(connectedMailAccounts.userId, userId)
-    ));
-
-    if (!account || !account.imapHost || !account.appPassword) {
-      return reply.code(404).send({ error: "Account not found or missing IMAP config" });
-    }
-
-    const client = await getImapClient(account);
+    const targetId = identityId || senderId || accountId;
 
     try {
-      const lock = await client.getMailboxLock(folder);
-      
-      const emails: any[] = [];
-      try {
-        const total = (client.mailbox as any)?.exists || 0;
-        if (total > 0) {
-          const start = Math.max(1, total - 19);
-          for await (let message of client.fetch(`${start}:*`, { envelope: true, flags: true }, { uid: true })) {
-              emails.push({
-                uid: message.uid,
-                subject: message.envelope?.subject,
-                from: message.envelope?.from?.[0]?.address,
-                fromName: message.envelope?.from?.[0]?.name,
-                to: message.envelope?.to ? message.envelope.to.map((t: any) => t.address).join(', ') : '',
-                date: message.envelope?.date,
-                flags: Array.from(message.flags || []),
-              });
-          }
+      let targetEmail = "";
+      if (targetId && targetId !== "team") {
+        const sender = await db.query.domainSenders.findFirst({
+          where: or(
+            eq(domainSenders.id, targetId),
+            eq(domainSenders.email, targetId)
+          ),
+        });
+        if (sender) {
+          targetEmail = sender.email.toLowerCase().trim();
         }
-      } finally {
-        lock.release();
       }
 
-      // Reverse to get newest first
-      return { emails: emails.reverse() };
+      let whereSql;
+      if (targetEmail) {
+        const altEmail = targetEmail.endsWith("@mail.qwikmailer.in")
+          ? targetEmail.replace(/@mail\.qwikmailer\.in$/i, "@qwikmailer.in")
+          : targetEmail.endsWith("@qwikmailer.in")
+          ? targetEmail.replace(/@qwikmailer\.in$/i, "@mail.qwikmailer.in")
+          : targetEmail;
+
+        if (folder.toLowerCase() === "sent") {
+          whereSql = sql`
+            team_id = ${teamId}
+            AND (
+              LOWER(from_email) = ${targetEmail} OR LOWER(from_email) = ${altEmail}
+            )
+          `;
+        } else if (folder.toLowerCase() === "received") {
+          whereSql = sql`
+            team_id = ${teamId}
+            AND (
+              LOWER(to_email) = ${targetEmail} OR LOWER(to_email) = ${altEmail}
+              OR LOWER(reply_to) = ${targetEmail} OR LOWER(reply_to) = ${altEmail}
+            )
+          `;
+        } else if (folder.toLowerCase() === "starred") {
+          whereSql = sql`
+            team_id = ${teamId}
+            AND (
+              LOWER(from_email) = ${targetEmail} OR LOWER(from_email) = ${altEmail}
+              OR LOWER(to_email) = ${targetEmail} OR LOWER(to_email) = ${altEmail}
+              OR LOWER(reply_to) = ${targetEmail} OR LOWER(reply_to) = ${altEmail}
+            )
+            AND metadata->>'starred' = 'true'
+          `;
+        } else {
+          // Default: all conversations for this identity
+          whereSql = sql`
+            team_id = ${teamId}
+            AND (
+              LOWER(from_email) = ${targetEmail} OR LOWER(from_email) = ${altEmail}
+              OR LOWER(to_email) = ${targetEmail} OR LOWER(to_email) = ${altEmail}
+              OR LOWER(reply_to) = ${targetEmail} OR LOWER(reply_to) = ${altEmail}
+            )
+          `;
+        }
+      } else {
+        if (folder.toLowerCase() === "sent") {
+          whereSql = sql`team_id = ${teamId} AND status IN ('delivered', 'sent', 'queued')`;
+        } else if (folder.toLowerCase() === "starred") {
+          whereSql = sql`team_id = ${teamId} AND metadata->>'starred' = 'true'`;
+        } else {
+          whereSql = sql`team_id = ${teamId}`;
+        }
+      }
+
+      const rowsResult = await db.execute(sql`
+        SELECT id as uid, subject, from_email as "from", from_name as "fromName",
+               to_email as "to", created_at as date, status, html_body as html, text_body as text,
+               open_count, click_count, reply_to as "replyTo", metadata
+        FROM emails
+        WHERE ${whereSql}
+        ORDER BY created_at DESC
+        LIMIT 100
+      `);
+
+      const rows = (rowsResult as any).rows || rowsResult || [];
+
+      return {
+        emails: rows.map((r: any) => ({
+          uid: r.uid,
+          subject: r.subject || "No Subject",
+          from: r.from,
+          fromName: r.fromName,
+          to: r.to,
+          replyTo: r.replyTo,
+          date: r.date,
+          flags: r.status === "delivered" ? ["\\Seen"] : [],
+          status: r.status,
+          openCount: r.open_count,
+          clickCount: r.click_count,
+          isStarred: r.metadata?.starred === "true",
+          direction:
+            targetEmail && (r.from?.toLowerCase() === targetEmail || r.from?.toLowerCase().includes("qwikmailer"))
+              ? "outbound"
+              : "inbound",
+        })),
+      };
     } catch (err: any) {
       req.log.error(err);
-      return reply.code(500).send({ error: "Failed to fetch emails" });
+      return reply.code(500).send({ error: "Failed to fetch emails", emails: [] });
     }
   });
 
-  // 4. Send an email (via connected mailbox or team domain sender)
+  // 3. Send an email using the selected Sender Identity
   app.post("/send", { preHandler: authenticate }, async (req, reply) => {
-    const userId = (req.user as any).sub || (req.user as any).id;
     const teamId = req.teamId!;
-    const { accountId, to, subject, text, html } = req.body as any;
+    const { identityId, senderId, accountId, to, subject, text, html } = req.body as any;
 
     if (!to || !subject) {
       return reply.code(400).send({ error: "Missing required fields (to, subject)" });
     }
 
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    let account: any = null;
-    if (accountId && isUuid.test(accountId)) {
-      const [acc] = await db.select().from(connectedMailAccounts).where(and(
-        eq(connectedMailAccounts.id, accountId),
-        eq(connectedMailAccounts.userId, userId)
-      ));
-      account = acc;
-    }
+    const sid = identityId || senderId || accountId;
+    let sender: any = null;
 
-    // If a personal mailbox is connected with SMTP credentials, send via its SMTP server
-    if (account && account.smtpHost && account.appPassword) {
-      const transporter = nodemailer.createTransport({
-        host: account.smtpHost,
-        port: account.smtpPort || 465,
-        secure: account.smtpPort === 465, // true for 465, false for other ports
-        auth: {
-          user: account.emailAddress,
-          pass: account.appPassword,
-        },
+    if (sid && sid !== "team") {
+      sender = await db.query.domainSenders.findFirst({
+        where: or(
+          eq(domainSenders.id, sid),
+          eq(domainSenders.email, sid)
+        ),
       });
-
-      try {
-        const isProd = process.env.NODE_ENV === 'production';
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || (isProd ? 'https://api.qwikmailer.in' : 'http://localhost:4000');
-        
-        const generatedMessageId = crypto.randomUUID();
-        const trackingUrl = `${baseUrl}/v1/inbox/track/${generatedMessageId}.png`;
-        const trackingPixel = `<img src="${trackingUrl}" width="1" height="1" style="display:none;" />`;
-        
-        let baseHtml = html;
-        if (!baseHtml && text) {
-          baseHtml = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;")
-            .replace(/\n/g, "<br>");
-            
-          baseHtml = baseHtml.replace(/(https?:\/\/[^\s<]+)/g, (url: string) => {
-            return `<a href="${url}">${url}</a>`;
-          });
-        }
-
-        // Rewrite links for click tracking
-        const clickTrackingUrlBase = `${baseUrl}/v1/inbox/click/${generatedMessageId}?url=`;
-        if (baseHtml) {
-          baseHtml = baseHtml.replace(/href=["'](https?:\/\/[^"']+)["']/gi, (match: string, url: string) => {
-            return `href="${clickTrackingUrlBase}${encodeURIComponent(url)}"`;
-          });
-        }
-
-        const finalHtml = baseHtml ? `${baseHtml}${trackingPixel}` : trackingPixel;
-
-        const info = await transporter.sendMail({
-          from: `"${account.emailAddress}" <${account.emailAddress}>`,
-          to,
-          subject,
-          text,
-          html: finalHtml,
-          messageId: `${generatedMessageId}@qwikmailer.in`,
-        });
-
-        return { success: true, messageId: info.messageId };
-      } catch (err: any) {
-        req.log.error(err);
-        return reply.code(500).send({ error: err.message || "Failed to send email via mailbox" });
-      }
     }
 
-    // Otherwise send via team's verified sender domain using Qwik Mailer queue
-    try {
-      let senderDetails;
+    if (!sender) {
       try {
-        senderDetails = await resolveSenderDomain(teamId);
+        const resolved = await resolveSenderDomain(teamId);
+        sender = {
+          id: "",
+          email: resolved.fromEmail,
+          fromName: resolved.fromName,
+          replyTo: resolved.replyTo,
+        };
       } catch (err: any) {
         return reply.code(400).send({
           error: "No verified sender identity found. Please create one in Sender Identities.",
         });
       }
+    }
 
-      const { fromEmail, fromName, replyTo } = senderDetails;
-      const batchId = crypto.randomUUID();
+    const fromEmail = sender.email;
+    const fromName = sender.fromName || sender.nickname;
+    const replyTo = sender.replyTo || sender.email;
+    const batchId = crypto.randomUUID();
 
-      let finalHtml = html;
-      if (!finalHtml && text) {
-        finalHtml = text
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#039;")
-          .replace(/\n/g, "<br>");
-      }
+    let finalHtml = html;
+    if (!finalHtml && text) {
+      finalHtml = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;")
+        .replace(/\n/g, "<br>");
+    }
 
+    try {
       const [emailRecord] = await db
         .insert(emails)
         .values({
@@ -328,7 +236,7 @@ export async function inboxRoutes(app: FastifyInstance) {
           subject,
           htmlBody: finalHtml || "",
           textBody: text || "",
-          metadata: { _source: "inbox" },
+          metadata: { _source: "inbox", identityId: sender.id || "" },
           status: "queued" as any,
         })
         .returning();
@@ -341,135 +249,58 @@ export async function inboxRoutes(app: FastifyInstance) {
     }
   });
 
-  // 5. Fetch a specific email's body
+  // 4. Fetch a specific email details
   app.get("/email", { preHandler: authenticate }, async (req, reply) => {
-    const userId = (req.user as any).sub || (req.user as any).id;
     const teamId = req.teamId!;
-    const { accountId, uid, folder = "INBOX" } = req.query as { accountId?: string; uid: string; folder?: string };
+    const { uid } = req.query as { uid: string };
 
     if (!uid) {
       return reply.code(400).send({ error: "Missing uid" });
     }
 
-    if (!accountId || accountId === "team") {
-      try {
-        const [emailRow] = await db.select().from(emails).where(and(eq(emails.id, uid), eq(emails.teamId, teamId)));
-        if (!emailRow) return reply.code(404).send({ error: "Email not found" });
-
-        const html = emailRow.htmlBody || (emailRow.textBody ? `<pre style="white-space: pre-wrap; font-family: inherit;">${emailRow.textBody}</pre>` : "<i>No content</i>");
-
-        return {
-          success: true,
-          email: {
-            uid: emailRow.id,
-            html,
-            text: emailRow.textBody,
-            to: emailRow.toEmail,
-            from: emailRow.fromEmail,
-            fromName: emailRow.fromName,
-            subject: emailRow.subject,
-            date: emailRow.createdAt,
-            attachments: [],
-            trackingLogs: [],
-            clickLogs: [],
-          },
-        };
-      } catch (err: any) {
-        req.log.error(err);
-        return reply.code(500).send({ error: "Failed to fetch email" });
-      }
-    }
-
-    const [account] = await db.select().from(connectedMailAccounts).where(and(
-      eq(connectedMailAccounts.id, accountId),
-      eq(connectedMailAccounts.userId, userId)
-    ));
-
-    if (!account || !account.imapHost || !account.appPassword) {
-      return reply.code(404).send({ error: "Account not found or missing IMAP config" });
-    }
-
-    const client = await getImapClient(account);
-
     try {
-      const lock = await client.getMailboxLock(folder);
-      
-      let parsedMessage = null;
-      try {
-        const message = await client.fetchOne(uid, { source: true }, { uid: true });
-        if (message && message.source) {
-          parsedMessage = await simpleParser(message.source);
-        }
-      } finally {
-        lock.release();
-      }
+      const [emailRow] = await db
+        .select()
+        .from(emails)
+        .where(and(eq(emails.id, uid), eq(emails.teamId, teamId)));
 
-      if (!parsedMessage) {
-        return reply.code(404).send({ error: "Email not found" });
-      }
+      if (!emailRow) return reply.code(404).send({ error: "Email not found" });
 
-      let trackingLogs: any[] = [];
-      let clickLogs: any[] = [];
-      
-      let msgId = parsedMessage.messageId ? parsedMessage.messageId.replace('@qwikmailer.in', '').replace(/<|>/g, '') : null;
-      
-      let finalHtml = parsedMessage.html || parsedMessage.textAsHtml;
-      let toField = parsedMessage.to ? (Array.isArray(parsedMessage.to) ? parsedMessage.to.map(t => t.text).join(', ') : parsedMessage.to.text) : '';
-      
-      // Try to extract from pixel if present
-      const rawHtml = finalHtml || '';
-      const pixelMatch = rawHtml.match(/\/track\/([a-z0-9-]+)\.png/);
-      if (pixelMatch) {
-        msgId = pixelMatch[1];
-      }
-      
-      req.log.info({
-        originalMessageId: parsedMessage.messageId,
-        rawHtmlLength: rawHtml.length,
-        pixelMatchFound: !!pixelMatch,
-        extractedMsgId: msgId
-      });
+      const trackingLogs = await db
+        .select()
+        .from(emailTrackingLogs)
+        .where(eq(emailTrackingLogs.messageId, emailRow.id));
 
-      if (msgId) {
-        trackingLogs = await db.select().from(emailTrackingLogs).where(eq(emailTrackingLogs.messageId, msgId));
-        clickLogs = await db.select().from(emailClickLogs).where(eq(emailClickLogs.messageId, msgId));
-        
-        // Strip tracking pixel so the sender viewing their own email doesn't trigger an open
-        if (finalHtml) {
-          const pixelRegex = new RegExp(`<img[^>]*src=["'][^"']*\\/track\\/${msgId}\\.png["'][^>]*>`, "gi");
-          finalHtml = finalHtml.replace(pixelRegex, "");
+      const clickLogs = await db
+        .select()
+        .from(emailClickLogs)
+        .where(eq(emailClickLogs.messageId, emailRow.id));
 
-          // Revert click URLs so the sender doesn't trigger a click log when testing links
-          const clickUrlPrefixRegex = new RegExp(`href=["'][^"']*\\/click\\/${msgId}\\?url=([^"']+)["']`, "gi");
-          finalHtml = finalHtml.replace(clickUrlPrefixRegex, (match, encodedUrl) => {
-            try {
-              return `href="${decodeURIComponent(encodedUrl)}"`;
-            } catch(e) {
-              return match;
-            }
-          });
-        }
-      }
+      let finalHtml =
+        emailRow.htmlBody ||
+        (emailRow.textBody
+          ? `<pre style="white-space: pre-wrap; font-family: inherit;">${emailRow.textBody}</pre>`
+          : "<i>No content</i>");
 
-      if (!finalHtml) {
-        finalHtml = parsedMessage.text ? `<pre style="white-space: pre-wrap; font-family: inherit;">${parsedMessage.text}</pre>` : "<i>No content</i>";
-      }
-
-      return { 
+      return {
         success: true,
         email: {
-          uid,
+          uid: emailRow.id,
           html: finalHtml,
-          text: parsedMessage.text,
-          to: toField,
-          attachments: parsedMessage.attachments?.map((a: any) => ({
-            filename: a.filename,
-            contentType: a.contentType,
-            size: a.size
-          })),
+          text: emailRow.textBody,
+          to: emailRow.toEmail,
+          from: emailRow.fromEmail,
+          fromName: emailRow.fromName,
+          replyTo: emailRow.replyTo,
+          subject: emailRow.subject,
+          status: emailRow.status,
+          date: emailRow.createdAt,
+          openCount: emailRow.openCount,
+          clickCount: emailRow.clickCount,
+          attachments: [],
           trackingLogs,
-          clickLogs
-        }
+          clickLogs,
+        },
       };
     } catch (err: any) {
       req.log.error(err);
@@ -477,52 +308,37 @@ export async function inboxRoutes(app: FastifyInstance) {
     }
   });
 
-  // 6. Download Attachment
-  app.get("/attachment", { preHandler: authenticate }, async (req, reply) => {
-    const userId = (req.user as any).sub || (req.user as any).id;
-    const { accountId, uid, folder = "INBOX", index } = req.query as { accountId: string; uid: string; folder?: string; index: string };
+  // 5. Toggle Star on Email
+  app.post("/star", { preHandler: authenticate }, async (req, reply) => {
+    const teamId = req.teamId!;
+    const { uid, starred } = req.body as { uid: string; starred: boolean };
 
-    if (!accountId || !uid || index === undefined) {
-      return reply.code(400).send({ error: "Missing accountId, uid, or index" });
-    }
-
-    const [account] = await db.select().from(connectedMailAccounts).where(and(
-      eq(connectedMailAccounts.id, accountId),
-      eq(connectedMailAccounts.userId, userId)
-    ));
-
-    if (!account || !account.imapHost || !account.appPassword) {
-      return reply.code(404).send({ error: "Account not found" });
-    }
-
-    const client = await getImapClient(account);
+    if (!uid) return reply.code(400).send({ error: "Missing uid" });
 
     try {
-      const lock = await client.getMailboxLock(folder);
-      let parsedMessage = null;
-      try {
-        const message = await client.fetchOne(uid, { source: true }, { uid: true });
-        if (message && message.source) {
-          parsedMessage = await simpleParser(message.source);
-        }
-      } finally {
-        lock.release();
-      }
+      const [emailRow] = await db
+        .select()
+        .from(emails)
+        .where(and(eq(emails.id, uid), eq(emails.teamId, teamId)));
 
-      if (!parsedMessage || !parsedMessage.attachments || !parsedMessage.attachments[parseInt(index)]) {
-        return reply.code(404).send({ error: "Attachment not found" });
-      }
+      if (!emailRow) return reply.code(404).send({ error: "Email not found" });
 
-      const attachment = parsedMessage.attachments[parseInt(index)];
-      reply.header("Content-Type", attachment.contentType);
-      reply.header("Content-Disposition", `attachment; filename="${attachment.filename || 'attachment'}"`);
-      return reply.send(attachment.content);
+      const currentMeta = (emailRow.metadata as any) || {};
+      const updatedMeta = { ...currentMeta, starred: starred ? "true" : "false" };
+
+      await db
+        .update(emails)
+        .set({ metadata: updatedMeta, updatedAt: new Date() })
+        .where(eq(emails.id, uid));
+
+      return { success: true };
     } catch (err: any) {
       req.log.error(err);
-      return reply.code(500).send({ error: "Failed to fetch attachment" });
+      return reply.code(500).send({ error: "Failed to star email" });
     }
   });
 
+  // 6. Tracking Endpoints
   app.get("/track/:messageId.png", async (req, reply) => {
     const { messageId } = req.params as { messageId: string };
     const ipAddress = req.ip || req.socket.remoteAddress || "0.0.0.0";
@@ -547,7 +363,6 @@ export async function inboxRoutes(app: FastifyInstance) {
     return reply.send(pixel);
   });
 
-  // 7. Link Click Tracking Endpoint
   app.get("/click/:messageId", async (req, reply) => {
     const { messageId } = req.params as { messageId: string };
     const { url } = req.query as { url: string };
@@ -572,42 +387,54 @@ export async function inboxRoutes(app: FastifyInstance) {
     return reply.redirect(url);
   });
 
-  // 7. QwikAI - Summarize Email
-  app.post("/ai/summarize", { preHandler: authenticate }, async (req, reply) => {
-    const { text } = req.body as { text: string };
-    if (!text) return reply.code(400).send({ error: "Missing text" });
+  // 7. QwikAI - Summarize Email (supports both /ai-summary and /ai/summarize)
+  const handleAiSummary = async (req: any, reply: any) => {
+    const { text, content } = req.body as { text?: string; content?: string };
+    const input = text || content;
+    if (!input) return reply.code(400).send({ error: "Missing content" });
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `Summarize the following email in exactly 3 bullet points. Be concise and professional:\n\n${text}`
+        model: "gemini-2.5-flash",
+        contents: `Summarize the following email in exactly 3 bullet points. Be concise and professional:\n\n${input}`,
       });
       return { success: true, summary: response.text };
     } catch (e: any) {
       req.log.error(e);
       return reply.code(500).send({ error: "Failed to generate summary" });
     }
-  });
+  };
 
-  // 8. QwikAI - Smart Reply
-  app.post("/ai/reply", { preHandler: authenticate }, async (req, reply) => {
-    const { text } = req.body as { text: string };
-    if (!text) return reply.code(400).send({ error: "Missing text" });
+  app.post("/ai-summary", { preHandler: authenticate }, handleAiSummary);
+  app.post("/ai/summarize", { preHandler: authenticate }, handleAiSummary);
+
+  // 8. QwikAI - Smart Reply (supports both /ai-reply and /ai/reply)
+  const handleAiReply = async (req: any, reply: any) => {
+    const { text, content } = req.body as { text?: string; content?: string };
+    const input = text || content;
+    if (!input) return reply.code(400).send({ error: "Missing content" });
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `You are an AI assistant helping a professional reply to an email. Generate 3 short, distinct, professional reply options to this email. Format them as a JSON array of strings.\n\nEmail:\n${text}`
+        model: "gemini-2.5-flash",
+        contents: `You are an AI assistant helping a professional reply to an email. Generate 3 short, distinct, professional reply options to this email. Format them as a JSON array of strings.\n\nEmail:\n${input}`,
       });
-      
-      const jsonText = response.text?.replace(/```json/g, '').replace(/```/g, '') || "[]";
+
+      const jsonText = response.text?.replace(/```json/g, "").replace(/```/g, "") || "[]";
       let replies = [];
-      try { replies = JSON.parse(jsonText); } catch (e) { replies = [response.text]; }
+      try {
+        replies = JSON.parse(jsonText);
+      } catch (e) {
+        replies = [response.text];
+      }
 
       return { success: true, replies };
     } catch (e: any) {
       req.log.error(e);
       return reply.code(500).send({ error: "Failed to generate replies" });
     }
-  });
+  };
+
+  app.post("/ai-reply", { preHandler: authenticate }, handleAiReply);
+  app.post("/ai/reply", { preHandler: authenticate }, handleAiReply);
 }
