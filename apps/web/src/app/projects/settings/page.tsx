@@ -16,7 +16,7 @@ import {
   Trash2,
   Upload,
   Camera,
-  Sparkles,
+  Bot,
 } from "lucide-react";
 import { ConnectedAppsSection } from "@/components/ConnectedAppsSection";
 import { LogoLoader } from "@/components/LogoLoader";
@@ -273,7 +273,7 @@ export default function SettingsPage() {
   }
   const tabs = [
     { id: "profile", label: "Profile", icon: <User size={15} /> },
-    { id: "integrations", label: "Connected AI", icon: <Sparkles size={15} /> },
+    { id: "integrations", label: "Connected AI", icon: <Bot size={15} /> },
     { id: "security", label: "Security", icon: <Shield size={15} /> },
     { id: "notifications", label: "Notifications", icon: <Bell size={15} /> },
   ] as const;
