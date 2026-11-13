@@ -53,7 +53,7 @@ const sendEmailSchema = z.object({
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
-async function resolveSenderDomain(teamId: string, requestedFrom?: string, requestedFromName?: string) {
+export async function resolveSenderDomain(teamId: string, requestedFrom?: string, requestedFromName?: string) {
   let fromEmail = "";
   let fromName = requestedFromName;
   let replyTo: string | undefined = undefined;

@@ -4,6 +4,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard,
+  Inbox,
+  Radio,
   SendHorizonal,
   FileSpreadsheet,
   Mail,
@@ -70,9 +72,14 @@ const navItems: NavItem[] = [
     icon: <LayoutDashboard size={16} />,
   },
   {
-    label: "Send Email",
-    href: "/dashboard/send",
-    icon: <SendHorizonal size={16} />,
+    label: "Inbox",
+    href: "/dashboard/inbox",
+    icon: <Inbox size={16} />,
+  },
+  {
+    label: "Broadcasts",
+    href: "/dashboard/broadcasts",
+    icon: <Radio size={16} />,
   },
   { label: "Email Logs", href: "/dashboard/logs", icon: <Mail size={16} /> },
   { label: "Test Inbox", href: "/dashboard/sandbox", icon: <FlaskConical size={16} /> },

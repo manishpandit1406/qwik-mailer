@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Send, Plus, X, Eye, Code2, RefreshCw, Upload, Mail as MailIcon, Users, Award } from "lucide-react";
+import { Send, Plus, X, Eye, Code2, RefreshCw, Upload, Mail as MailIcon, Users, Award, Radio } from "lucide-react";
 import { Select } from "@/components/Select";
 import * as XLSX from "xlsx";
 import { BulkUploadWizard } from "@/components/BulkUploadWizard";
@@ -315,7 +315,7 @@ export default function SendEmailPage() {
           Compose Email
         </h2>
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          Send a single transactional email, or a bulk campaign to your audience.
+          Send a single transactional email, or a broadcast campaign to your audience.
         </p>
       </div>
 
@@ -329,7 +329,7 @@ export default function SendEmailPage() {
           onClick={() => setSendMode("bulk_upload")}
           className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-lg transition-all text-gray-500 hover:text-gray-700`}
         >
-          <Users size={16} /> Bulk Campaign
+          <Radio size={16} /> Broadcast
         </button>
       </div>
       {result && (

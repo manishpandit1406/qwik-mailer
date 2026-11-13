@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and } from "drizzle-orm";
-import { db, connectedMailAccounts, emailTrackingLogs, emailClickLogs } from "@qwikmailer/db";
+import { eq, and, sql } from "drizzle-orm";
+import { db, connectedMailAccounts, emailTrackingLogs, emailClickLogs, emails } from "@qwikmailer/db";
 import { authenticate } from "../middleware/auth.js";
 import { ImapFlow } from "imapflow";
 import * as nodemailer from "nodemailer";
@@ -122,14 +122,43 @@ export async function inboxRoutes(app: FastifyInstance) {
     return { accounts };
   });
 
-  // 3. Fetch emails for an account
+  // 3. Fetch emails for an account (or team email fallback)
   app.get("/emails", { preHandler: authenticate }, async (req, reply) => {
     const teamId = req.teamId!;
     const userId = (req.user as any).sub || (req.user as any).id;
-    const { accountId, folder = "INBOX" } = req.query as { accountId: string; folder?: string };
+    const { accountId, folder = "INBOX" } = req.query as { accountId?: string; folder?: string };
 
-    if (!accountId) {
-      return reply.code(400).send({ error: "Missing accountId" });
+    if (!accountId || accountId === "team") {
+      try {
+        const teamEmails = await db.execute(sql`
+          SELECT id as uid, subject, from_email as "from", from_name as "fromName",
+                 to_email as "to", created_at as date, status, html_body as html, text_body as text,
+                 open_count, click_count
+          FROM emails
+          WHERE team_id = ${teamId}
+          ORDER BY created_at DESC
+          LIMIT 50
+        `);
+        const rows = (teamEmails as any).rows || teamEmails;
+        return {
+          emails: (rows || []).map((r: any) => ({
+            uid: r.uid,
+            subject: r.subject || "No Subject",
+            from: r.from,
+            fromName: r.fromName,
+            to: r.to,
+            date: r.date,
+            flags: r.status === "delivered" ? ["\\Seen"] : [],
+            status: r.status,
+            openCount: r.open_count,
+            clickCount: r.click_count,
+          })),
+          isTeamInbox: true,
+        };
+      } catch (err: any) {
+        req.log.error(err);
+        return { emails: [] };
+      }
     }
 
     const [account] = await db.select().from(connectedMailAccounts).where(and(
@@ -256,10 +285,40 @@ export async function inboxRoutes(app: FastifyInstance) {
   // 5. Fetch a specific email's body
   app.get("/email", { preHandler: authenticate }, async (req, reply) => {
     const userId = (req.user as any).sub || (req.user as any).id;
-    const { accountId, uid, folder = "INBOX" } = req.query as { accountId: string; uid: string; folder?: string };
+    const teamId = req.teamId!;
+    const { accountId, uid, folder = "INBOX" } = req.query as { accountId?: string; uid: string; folder?: string };
 
-    if (!accountId || !uid) {
-      return reply.code(400).send({ error: "Missing accountId or uid" });
+    if (!uid) {
+      return reply.code(400).send({ error: "Missing uid" });
+    }
+
+    if (!accountId || accountId === "team") {
+      try {
+        const [emailRow] = await db.select().from(emails).where(and(eq(emails.id, uid), eq(emails.teamId, teamId)));
+        if (!emailRow) return reply.code(404).send({ error: "Email not found" });
+
+        const html = emailRow.htmlBody || (emailRow.textBody ? `<pre style="white-space: pre-wrap; font-family: inherit;">${emailRow.textBody}</pre>` : "<i>No content</i>");
+
+        return {
+          success: true,
+          email: {
+            uid: emailRow.id,
+            html,
+            text: emailRow.textBody,
+            to: emailRow.toEmail,
+            from: emailRow.fromEmail,
+            fromName: emailRow.fromName,
+            subject: emailRow.subject,
+            date: emailRow.createdAt,
+            attachments: [],
+            trackingLogs: [],
+            clickLogs: [],
+          },
+        };
+      } catch (err: any) {
+        req.log.error(err);
+        return reply.code(500).send({ error: "Failed to fetch email" });
+      }
     }
 
     const [account] = await db.select().from(connectedMailAccounts).where(and(

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, FileSpreadsheet, Send, CheckCircle2, XCircle, AlertTriangle, Users, Eye, ChevronRight, Download, Info, X, Mail as MailIcon, Award } from "lucide-react";
+import { Upload, FileSpreadsheet, Send, CheckCircle2, XCircle, AlertTriangle, Users, Eye, ChevronRight, Download, Info, X, Mail as MailIcon, Award, Radio } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Select } from "@/components/Select";
 import { MultiSelect } from "@/components/MultiSelect";
@@ -238,12 +238,12 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
       {/* Header and Toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>Compose Email</h2>
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Send a single transactional email, or a bulk campaign to your audience.</p>
+          <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>Compose Broadcast</h2>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Send a single transactional email, or a broadcast campaign to your audience.</p>
         </div>
 
         {step !== "audience" && step !== "done" && (
-          <button onClick={() => { if (confirm("Cancel current campaign?")) reset(); }} className="btn-secondary whitespace-nowrap px-4 py-2 text-sm flex items-center gap-2">
+          <button onClick={() => { if (confirm("Cancel current broadcast?")) reset(); }} className="btn-secondary whitespace-nowrap px-4 py-2 text-sm flex items-center gap-2">
             <X size={14} /> Cancel
           </button>
         )}
@@ -259,7 +259,7 @@ export function BulkUploadWizard({ onSwitchToSingle }: { onSwitchToSingle?: () =
         <button
           className="flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-lg transition-all bg-white text-gray-900 shadow-sm"
         >
-          <Users size={16} /> Bulk Campaign
+          <Radio size={16} className="text-indigo-600" /> Broadcast
         </button>
       </div>
 
