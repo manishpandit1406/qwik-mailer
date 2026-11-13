@@ -441,4 +441,67 @@ export async function oauthRoutes(app: FastifyInstance) {
 
     return reply.send({ success: true, message: "Connected app revoked successfully" });
   });
+
+  app.patch("/v1/oauth/connected-apps/:tokenId", { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
+    reply.header("Access-Control-Allow-Origin", "*");
+    const userId = (req.user as any)?.sub || (req.user as any)?.id;
+    const { tokenId } = req.params as { tokenId: string };
+    const body = (req.body || {}) as { scope?: string | string[]; teamId?: string };
+
+    if (!userId) return reply.code(401).send({ success: false, error: "Unauthorized" });
+
+    let scopeStr = "";
+    if (Array.isArray(body.scope)) {
+      scopeStr = body.scope.filter(Boolean).join(" ").trim();
+    } else if (typeof body.scope === "string") {
+      scopeStr = body.scope.trim();
+    }
+
+    if (!scopeStr) {
+      return reply.code(400).send({ success: false, error: "At least one permission scope is required" });
+    }
+
+    const existing = await db.execute(sql`
+      SELECT token, client_id, team_id, scope 
+      FROM oauth_tokens 
+      WHERE (token = ${tokenId} OR client_id = ${tokenId}) AND user_id = ${userId}
+      LIMIT 1
+    `);
+
+    if (!existing.length) {
+      return reply.code(404).send({ success: false, error: "Connected application not found" });
+    }
+
+    const tokenRow = existing[0] as any;
+    let targetTeamId = tokenRow.team_id;
+
+    if (body.teamId && body.teamId !== targetTeamId) {
+      const teamCheck = await db.execute(sql`
+        SELECT id FROM teams WHERE id = ${body.teamId}
+      `);
+      if (teamCheck.length > 0) {
+        targetTeamId = body.teamId;
+      }
+    }
+
+    await db.execute(sql`
+      UPDATE oauth_tokens
+      SET scope = ${scopeStr},
+          team_id = ${targetTeamId}
+      WHERE token = ${tokenRow.token} AND user_id = ${userId}
+    `);
+
+    const teamRes = await db.execute(sql`
+      SELECT name FROM teams WHERE id = ${targetTeamId}
+    `);
+    const teamName = teamRes.length ? (teamRes[0] as any).name : "Default Project";
+
+    return reply.send({
+      success: true,
+      message: "Permissions updated successfully",
+      scope: scopeStr,
+      teamId: targetTeamId,
+      teamName,
+    });
+  });
 }

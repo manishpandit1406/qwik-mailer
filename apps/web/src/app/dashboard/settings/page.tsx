@@ -1,9 +1,36 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Settings, Save, Trash2, AlertTriangle, RefreshCw, X, Check, Sparkles, Shield, Unplug } from "lucide-react";
+import { Settings, Save, Trash2, AlertTriangle, RefreshCw, X, Check, Sparkles, Shield, Unplug, SlidersHorizontal, Building2 } from "lucide-react";
 import { LogoLoader } from "@/components/LogoLoader";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+const AVAILABLE_PERMISSIONS = [
+  {
+    id: "forms_write",
+    scope: "forms:write",
+    label: "Create & Edit Forms",
+    desc: "Generate new forms with AI and edit questions, fields & styling",
+  },
+  {
+    id: "forms_read",
+    scope: "forms:read",
+    label: "Read Forms & Schemas",
+    desc: "View form structure, public links, and list existing forms",
+  },
+  {
+    id: "submissions_read",
+    scope: "submissions:read",
+    label: "View Submissions & Responses",
+    desc: "Fetch live respondent answers and submission counts",
+  },
+  {
+    id: "forms_delete",
+    scope: "forms:delete",
+    label: "Delete Forms",
+    desc: "Permanently delete forms and associated responses",
+  },
+];
 
 function OpenAILogo({ className = "w-5 h-5" }: { className?: string }) {
   return (
@@ -51,6 +78,17 @@ export default function ProjectSettingsPage() {
   const [connectedApps, setConnectedApps] = useState<any[]>([]);
   const [loadingApps, setLoadingApps] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+
+  // Available Teams for selection
+  const [availableTeams, setAvailableTeams] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Edit Connected App Permissions State
+  const [editingApp, setEditingApp] = useState<any | null>(null);
+  const [editScopes, setEditScopes] = useState<string[]>([]);
+  const [editTeamId, setEditTeamId] = useState<string>("");
+  const [editPreset, setEditPreset] = useState<"full" | "read_write" | "read_only" | "custom">("custom");
+  const [savingPermissions, setSavingPermissions] = useState(false);
+  const [editModalError, setEditModalError] = useState("");
 
   useEffect(() => {
     fetchActiveTeam();
@@ -116,6 +154,91 @@ export default function ProjectSettingsPage() {
     }
   }
 
+  function getPresetFromScopes(scopes: string[]): "full" | "read_write" | "read_only" | "custom" {
+    const s = new Set(scopes);
+    if (s.has("forms:read") && s.has("forms:write") && s.has("submissions:read") && s.has("forms:delete")) return "full";
+    if (s.has("forms:read") && s.has("forms:write") && s.has("submissions:read") && !s.has("forms:delete")) return "read_write";
+    if (s.has("forms:read") && s.has("submissions:read") && !s.has("forms:write") && !s.has("forms:delete")) return "read_only";
+    return "custom";
+  }
+
+  function openEditModal(app: any) {
+    const rawScopes = (app.scope || "").split(/\s+/).filter(Boolean);
+    setEditingApp(app);
+    setEditScopes(rawScopes);
+    setEditTeamId(app.teamId || activeTeam?.id || (availableTeams[0]?.id ?? ""));
+    setEditPreset(getPresetFromScopes(rawScopes));
+    setEditModalError("");
+  }
+
+  function handleEditPresetChange(preset: "full" | "read_write" | "read_only") {
+    setEditPreset(preset);
+    if (preset === "full") {
+      setEditScopes(["forms:read", "forms:write", "submissions:read", "forms:delete"]);
+    } else if (preset === "read_write") {
+      setEditScopes(["forms:read", "forms:write", "submissions:read"]);
+    } else if (preset === "read_only") {
+      setEditScopes(["forms:read", "submissions:read"]);
+    }
+  }
+
+  function toggleEditScope(scope: string) {
+    let next: string[];
+    if (editScopes.includes(scope)) {
+      next = editScopes.filter((s) => s !== scope);
+    } else {
+      next = [...editScopes, scope];
+    }
+    setEditScopes(next);
+    setEditPreset(getPresetFromScopes(next));
+  }
+
+  async function handleSavePermissions() {
+    if (!editingApp) return;
+    if (editScopes.length === 0) {
+      setEditModalError("Please select at least one permission scope.");
+      return;
+    }
+    setSavingPermissions(true);
+    setEditModalError("");
+    try {
+      const res = await fetch(`${API}/v1/oauth/connected-apps/${encodeURIComponent(editingApp.id)}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          scope: editScopes.join(" "),
+          teamId: editTeamId || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setConnectedApps((prev) =>
+          prev.map((a) =>
+            a.id === editingApp.id
+              ? {
+                  ...a,
+                  scope: json.scope || editScopes.join(" "),
+                  teamId: json.teamId || editTeamId,
+                  teamName: json.teamName || a.teamName,
+                }
+              : a
+          )
+        );
+        setSuccess(`Permissions updated successfully for ${editingApp.clientName}.`);
+        setEditingApp(null);
+      } else {
+        setEditModalError(json.error || "Failed to update permissions.");
+      }
+    } catch {
+      setEditModalError("Network error while updating permissions.");
+    } finally {
+      setSavingPermissions(false);
+    }
+  }
+
   async function fetchActiveTeam() {
     setLoading(true);
     try {
@@ -136,6 +259,7 @@ export default function ProjectSettingsPage() {
             (m: any) => !(json.data.owned || []).some((o: any) => o.id === m.id)
           ),
         ];
+        setAvailableTeams(allTeams);
         const current = allTeams.find((t: any) => t.id === activeTeamId);
         if (current) {
           setActiveTeam(current);
@@ -352,33 +476,58 @@ export default function ProjectSettingsPage() {
                               Active
                             </span>
                           </div>
-                          <p className="text-xs text-gray-500 mt-0.5 truncate">
-                            Project: <span className="font-medium text-gray-700">{app.teamName}</span> • Permissions:{" "}
-                            <span className="text-gray-600">{app.scope || "forms:read forms:write"}</span>
-                          </p>
-                          <p className="text-[11px] text-gray-400 mt-0.5">
-                            Connected {formatConnectedDate(app.createdAt)}
-                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500">
+                            <span>Project: <strong className="font-medium text-gray-700">{app.teamName}</strong></span>
+                            <span>•</span>
+                            <span className="text-[11px] text-gray-400">Connected {formatConnectedDate(app.createdAt)}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                            {(app.scope || "forms:read forms:write").split(/\s+/).filter(Boolean).map((sc: string) => {
+                              const isDelete = sc === "forms:delete";
+                              return (
+                                <span
+                                  key={sc}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${
+                                    isDelete
+                                      ? "bg-red-50 text-red-600 border border-red-200"
+                                      : "bg-slate-100 text-slate-700 border border-slate-200"
+                                  }`}
+                                >
+                                  {sc}
+                                </span>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => handleRevokeApp(app.id)}
-                        disabled={revokingId === app.id}
-                        className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition shrink-0 flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {revokingId === app.id ? (
-                          <>
-                            <RefreshCw size={12} className="animate-spin" />
-                            Revoking...
-                          </>
-                        ) : (
-                          <>
-                            <Unplug size={12} />
-                            Disconnect
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => openEditModal(app)}
+                          className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs"
+                        >
+                          <SlidersHorizontal size={13} className="text-gray-500" />
+                          Edit Permissions
+                        </button>
+
+                        <button
+                          onClick={() => handleRevokeApp(app.id)}
+                          disabled={revokingId === app.id}
+                          className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {revokingId === app.id ? (
+                            <>
+                              <RefreshCw size={12} className="animate-spin" />
+                              Revoking...
+                            </>
+                          ) : (
+                            <>
+                              <Unplug size={12} />
+                              Disconnect
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -469,6 +618,200 @@ export default function ProjectSettingsPage() {
                   {deleting ? <RefreshCw size={18} className="animate-spin" /> : "Confirm Delete"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Connected App Permissions Modal */}
+      {editingApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 animate-fade-up">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 p-2 flex items-center justify-center shadow-xs">
+                  {editingApp.clientName?.toLowerCase().includes("chatgpt") || editingApp.clientId?.toLowerCase().includes("chatgpt") ? (
+                    <OpenAILogo className="w-6 h-6 text-[#10a37f]" />
+                  ) : editingApp.clientName?.toLowerCase().includes("claude") || editingApp.clientId?.toLowerCase().includes("claude") ? (
+                    <ClaudeLogo className="w-6 h-6 text-[#D97757]" />
+                  ) : (
+                    <Sparkles size={18} className="text-indigo-600" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">
+                    Edit Permissions
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Configure access permissions for <span className="font-semibold text-gray-700">{editingApp.clientName}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingApp(null)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+              {editModalError && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  <span>{editModalError}</span>
+                </div>
+              )}
+
+              {/* Project / Team Selection */}
+              {availableTeams.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                    <Building2 size={13} className="text-gray-400" />
+                    Authorized Project
+                  </label>
+                  <select
+                    className="w-full text-xs font-medium text-gray-900 bg-white border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    value={editTeamId}
+                    onChange={(e) => setEditTeamId(e.target.value)}
+                  >
+                    {availableTeams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    The AI assistant will only have access to forms inside this project.
+                  </p>
+                </div>
+              )}
+
+              {/* Quick Presets */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-2">
+                  Access Presets
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleEditPresetChange("full")}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition text-center ${
+                      editPreset === "full"
+                        ? "bg-indigo-50/80 border-indigo-500 text-indigo-700 shadow-2xs"
+                        : "bg-gray-50/60 border-gray-200 text-gray-600 hover:bg-gray-100/70"
+                    }`}
+                  >
+                    Full Control
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEditPresetChange("read_write")}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition text-center ${
+                      editPreset === "read_write"
+                        ? "bg-indigo-50/80 border-indigo-500 text-indigo-700 shadow-2xs"
+                        : "bg-gray-50/60 border-gray-200 text-gray-600 hover:bg-gray-100/70"
+                    }`}
+                  >
+                    Read & Write
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEditPresetChange("read_only")}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition text-center ${
+                      editPreset === "read_only"
+                        ? "bg-indigo-50/80 border-indigo-500 text-indigo-700 shadow-2xs"
+                        : "bg-gray-50/60 border-gray-200 text-gray-600 hover:bg-gray-100/70"
+                    }`}
+                  >
+                    Read Only
+                  </button>
+                </div>
+              </div>
+
+              {/* Scopes Checklist */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-2">
+                  Granular Permissions
+                </label>
+                <div className="space-y-2">
+                  {AVAILABLE_PERMISSIONS.map((perm) => {
+                    const checked = editScopes.includes(perm.scope);
+                    const isDelete = perm.scope === "forms:delete";
+                    return (
+                      <div
+                        key={perm.id}
+                        onClick={() => toggleEditScope(perm.scope)}
+                        className={`p-3 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
+                          checked
+                            ? isDelete
+                              ? "bg-red-50/40 border-red-300"
+                              : "bg-indigo-50/30 border-indigo-300"
+                            : "bg-white border-gray-200 hover:bg-gray-50/50"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded mt-0.5 border flex items-center justify-center shrink-0 transition ${
+                            checked
+                              ? isDelete
+                                ? "bg-red-600 border-red-600 text-white"
+                                : "bg-indigo-600 border-indigo-600 text-white"
+                              : "border-gray-300 bg-white"
+                          }`}
+                        >
+                          {checked && <Check size={12} strokeWidth={3} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-900">{perm.label}</span>
+                            <code className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-mono">
+                              {perm.scope}
+                            </code>
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
+                            {perm.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 leading-relaxed">
+                Changes take effect instantly. Any next request made by {editingApp.clientName} will adhere to these updated permissions.
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingApp(null)}
+                disabled={savingPermissions}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePermissions}
+                disabled={savingPermissions || editScopes.length === 0}
+                className="btn-primary px-4 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 disabled:opacity-50"
+              >
+                {savingPermissions ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check size={13} />
+                    Save Permissions
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
