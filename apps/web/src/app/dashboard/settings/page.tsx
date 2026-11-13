@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Settings, Save, Trash2, AlertTriangle, RefreshCw, X, Check, Sparkles, Shield, Unplug, SlidersHorizontal, Building2, ShieldCheck, ChevronDown } from "lucide-react";
+import { 
+  Settings, Save, Trash2, AlertTriangle, RefreshCw, X, Check, Sparkles, Shield, Unplug, 
+  SlidersHorizontal, Building2, ShieldCheck, ChevronDown, PenLine, FileText, Inbox 
+} from "lucide-react";
 import { LogoLoader } from "@/components/LogoLoader";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -11,24 +14,29 @@ const AVAILABLE_PERMISSIONS = [
     scope: "forms:write",
     label: "Create & Edit Forms",
     desc: "Generate new forms with AI and edit questions, fields & styling",
+    icon: PenLine,
   },
   {
     id: "forms_read",
     scope: "forms:read",
     label: "Read Forms & Schemas",
     desc: "View form structure, public links, and list existing forms",
+    icon: FileText,
   },
   {
     id: "submissions_read",
     scope: "submissions:read",
     label: "View Submissions & Responses",
     desc: "Fetch live respondent answers and submission counts",
+    icon: Inbox,
   },
   {
     id: "forms_delete",
     scope: "forms:delete",
     label: "Delete Forms",
     desc: "Permanently delete forms and associated responses",
+    icon: Trash2,
+    isDanger: true,
   },
 ];
 
@@ -38,6 +46,45 @@ const SCOPE_META: Record<string, { label: string; isDanger?: boolean }> = {
   "submissions:read": { label: "View Responses" },
   "forms:delete": { label: "Delete Forms", isDanger: true },
 };
+
+function GoogleLogo({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className}>
+      <path
+        fill="#4285F4"
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+      />
+    </svg>
+  );
+}
+
+function renderAppLogo(nameOrId: string, className = "w-6 h-6") {
+  const s = (nameOrId || "").toLowerCase();
+  if (s.includes("chatgpt") || s.includes("openai")) return <OpenAILogo className={className} />;
+  if (s.includes("claude") || s.includes("anthropic")) return <ClaudeLogo className={className} />;
+  if (s.includes("google") || s.includes("gemini")) return <GoogleLogo className={className} />;
+  return <Sparkles className={`${className} text-indigo-600`} />;
+}
+
+function getAppLogoContainerStyle(nameOrId: string) {
+  const s = (nameOrId || "").toLowerCase();
+  if (s.includes("chatgpt") || s.includes("openai")) return "bg-emerald-50/70 border-emerald-200/60 text-[#10a37f]";
+  if (s.includes("claude") || s.includes("anthropic")) return "bg-amber-50/70 border-amber-200/60 text-[#D97757]";
+  if (s.includes("google") || s.includes("gemini")) return "bg-blue-50/70 border-blue-200/60";
+  return "bg-indigo-50/70 border-indigo-200/60 text-indigo-600";
+}
 
 function OpenAILogo({ className = "w-5 h-5" }: { className?: string }) {
   return (
@@ -163,9 +210,14 @@ export default function ProjectSettingsPage() {
 
   function getPresetFromScopes(scopes: string[]): "full" | "read_write" | "read_only" | "custom" {
     const s = new Set(scopes);
-    if (s.has("forms:read") && s.has("forms:write") && s.has("submissions:read") && s.has("forms:delete")) return "full";
-    if (s.has("forms:read") && s.has("forms:write") && s.has("submissions:read") && !s.has("forms:delete")) return "read_write";
-    if (s.has("forms:read") && s.has("submissions:read") && !s.has("forms:write") && !s.has("forms:delete")) return "read_only";
+    const hasWrite = s.has("forms:write");
+    const hasRead = s.has("forms:read");
+    const hasSubmissions = s.has("submissions:read");
+    const hasDelete = s.has("forms:delete");
+
+    if (hasRead && hasWrite && hasSubmissions && hasDelete) return "full";
+    if (hasRead && hasWrite && !hasDelete) return "read_write";
+    if (hasRead && !hasWrite && !hasDelete) return "read_only";
     return "custom";
   }
 
@@ -477,21 +529,11 @@ export default function ProjectSettingsPage() {
                         <div className="flex items-start gap-3.5 min-w-0">
                           {/* Logo container with brand tint */}
                           <div
-                            className={`w-11 h-11 rounded-xl p-2.5 flex items-center justify-center shrink-0 border shadow-2xs ${
-                              isChatGPT
-                                ? "bg-emerald-50/70 border-emerald-200/60 text-[#10a37f]"
-                                : isClaude
-                                ? "bg-amber-50/70 border-amber-200/60 text-[#D97757]"
-                                : "bg-indigo-50/70 border-indigo-200/60 text-indigo-600"
-                            }`}
+                            className={`w-11 h-11 rounded-xl p-2.5 flex items-center justify-center shrink-0 border shadow-2xs ${getAppLogoContainerStyle(
+                              app.clientName || app.clientId
+                            )}`}
                           >
-                            {isChatGPT ? (
-                              <OpenAILogo className="w-6 h-6" />
-                            ) : isClaude ? (
-                              <ClaudeLogo className="w-6 h-6" />
-                            ) : (
-                              <Sparkles size={20} />
-                            )}
+                            {renderAppLogo(app.clientName || app.clientId, "w-6 h-6")}
                           </div>
 
                           <div className="min-w-0 flex-1">
@@ -665,26 +707,16 @@ export default function ProjectSettingsPage() {
       {/* Edit Connected App Permissions Modal */}
       {editingApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 sm:p-6 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-lg w-full flex flex-col max-h-[88vh] shadow-2xl border border-slate-200/80 overflow-hidden animate-fade-up">
+          <div className="bg-white rounded-2xl max-w-lg w-full flex flex-col max-h-[90vh] shadow-2xl border border-slate-200/90 overflow-hidden animate-fade-up">
             {/* Header (Sticky / Shrink-0) */}
-            <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+            <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-10 h-10 rounded-xl p-2 flex items-center justify-center shrink-0 border shadow-2xs ${
-                    editingApp.clientName?.toLowerCase().includes("chatgpt") || editingApp.clientId?.toLowerCase().includes("chatgpt")
-                      ? "bg-emerald-50/70 border-emerald-200/60 text-[#10a37f]"
-                      : editingApp.clientName?.toLowerCase().includes("claude") || editingApp.clientId?.toLowerCase().includes("claude")
-                      ? "bg-amber-50/70 border-amber-200/60 text-[#D97757]"
-                      : "bg-indigo-50/70 border-indigo-200/60 text-indigo-600"
-                  }`}
+                  className={`w-10 h-10 rounded-xl p-2 flex items-center justify-center shrink-0 border shadow-2xs ${getAppLogoContainerStyle(
+                    editingApp.clientName || editingApp.clientId
+                  )}`}
                 >
-                  {editingApp.clientName?.toLowerCase().includes("chatgpt") || editingApp.clientId?.toLowerCase().includes("chatgpt") ? (
-                    <OpenAILogo className="w-6 h-6" />
-                  ) : editingApp.clientName?.toLowerCase().includes("claude") || editingApp.clientId?.toLowerCase().includes("claude") ? (
-                    <ClaudeLogo className="w-6 h-6" />
-                  ) : (
-                    <Sparkles size={18} />
-                  )}
+                  {renderAppLogo(editingApp.clientName || editingApp.clientId, "w-6 h-6")}
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-base leading-tight">
@@ -704,8 +736,8 @@ export default function ProjectSettingsPage() {
               </button>
             </div>
 
-            {/* Modal Body (Scrollable) */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            {/* Modal Body (Scrollable with hidden scrollbar) */}
+            <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 sm:py-5 space-y-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {editModalError && (
                 <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
                   <AlertTriangle size={14} className="shrink-0 text-rose-500" />
@@ -713,16 +745,21 @@ export default function ProjectSettingsPage() {
                 </div>
               )}
 
-              {/* Authorized Project / Team Selection */}
+              {/* Authorized Project / Team Selection (Compact Inline Card) */}
               {availableTeams.length > 0 && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                    <Building2 size={13} className="text-slate-400" />
-                    Authorized Project
-                  </label>
-                  <div className="relative">
+                <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <Building2 size={12} className="text-slate-400" />
+                      Authorized Project
+                    </label>
+                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                      Forms access restricted strictly to this workspace
+                    </p>
+                  </div>
+                  <div className="relative shrink-0 min-w-[130px] max-w-[200px]">
                     <select
-                      className="w-full text-xs font-medium text-slate-900 bg-slate-50/60 hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all appearance-none cursor-pointer"
+                      className="w-full text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none cursor-pointer pr-7 shadow-2xs"
                       value={editTeamId}
                       onChange={(e) => setEditTeamId(e.target.value)}
                     >
@@ -732,19 +769,16 @@ export default function ProjectSettingsPage() {
                         </option>
                       ))}
                     </select>
-                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                      <ChevronDown size={14} />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronDown size={13} />
                     </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    The AI assistant will only have access to forms inside this project.
-                  </p>
                 </div>
               )}
 
               {/* Access Presets (Segmented Pill Tab) */}
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-semibold text-slate-700">
                     Access Preset
                   </label>
@@ -754,14 +788,14 @@ export default function ProjectSettingsPage() {
                     </span>
                   )}
                 </div>
-                <div className="grid grid-cols-3 p-1 rounded-xl bg-slate-100/80 border border-slate-200/60 gap-1">
+                <div className="grid grid-cols-3 p-1 rounded-xl bg-slate-100/90 border border-slate-200/60 gap-1">
                   <button
                     type="button"
                     onClick={() => handleEditPresetChange("full")}
-                    className={`py-1.5 px-3 rounded-lg text-xs transition-all text-center ${
+                    className={`py-1.5 px-2 rounded-lg text-xs transition-all text-center font-medium ${
                       editPreset === "full"
                         ? "bg-white text-slate-900 shadow-2xs font-semibold"
-                        : "text-slate-600 hover:text-slate-900 font-medium"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     Full Control
@@ -769,10 +803,10 @@ export default function ProjectSettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleEditPresetChange("read_write")}
-                    className={`py-1.5 px-3 rounded-lg text-xs transition-all text-center ${
+                    className={`py-1.5 px-2 rounded-lg text-xs transition-all text-center font-medium ${
                       editPreset === "read_write"
                         ? "bg-white text-slate-900 shadow-2xs font-semibold"
-                        : "text-slate-600 hover:text-slate-900 font-medium"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     Read & Write
@@ -780,10 +814,10 @@ export default function ProjectSettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleEditPresetChange("read_only")}
-                    className={`py-1.5 px-3 rounded-lg text-xs transition-all text-center ${
+                    className={`py-1.5 px-2 rounded-lg text-xs transition-all text-center font-medium ${
                       editPreset === "read_only"
                         ? "bg-white text-slate-900 shadow-2xs font-semibold"
-                        : "text-slate-600 hover:text-slate-900 font-medium"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     Read Only
@@ -791,7 +825,7 @@ export default function ProjectSettingsPage() {
                 </div>
               </div>
 
-              {/* Granular Permissions Checklist */}
+              {/* Granular Permissions Checklist with Toggle Switches */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-2">
                   Granular Permissions
@@ -799,42 +833,61 @@ export default function ProjectSettingsPage() {
                 <div className="space-y-2">
                   {AVAILABLE_PERMISSIONS.map((perm) => {
                     const checked = editScopes.includes(perm.scope);
-                    const isDelete = perm.scope === "forms:delete";
+                    const isDelete = Boolean(perm.isDanger);
                     return (
                       <div
                         key={perm.id}
                         onClick={() => toggleEditScope(perm.scope)}
-                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
+                        className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 select-none ${
                           checked
                             ? isDelete
-                              ? "bg-rose-50/50 border-rose-200 shadow-2xs"
-                              : "bg-indigo-50/40 border-indigo-200 shadow-2xs"
-                            : "bg-white border-slate-200/80 hover:bg-slate-50/50 hover:border-slate-300"
+                              ? "bg-rose-50/50 border-rose-200/90 shadow-2xs"
+                              : "bg-slate-50/80 border-slate-300/80 shadow-2xs"
+                            : "bg-white border-slate-200/70 hover:bg-slate-50/50 hover:border-slate-300"
                         }`}
                       >
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors mt-0.5 ${
+                              checked
+                                ? isDelete
+                                  ? "bg-rose-100 text-rose-600"
+                                  : "bg-indigo-50 text-indigo-600"
+                                : "bg-slate-100 text-slate-400"
+                            }`}
+                          >
+                            <perm.icon size={18} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs sm:text-sm font-semibold text-slate-900">{perm.label}</span>
+                              {isDelete && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700">
+                                  Destructive
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-snug font-normal">
+                              {perm.desc}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Modern iOS / Linear Toggle Switch */}
                         <div
-                          className={`w-4.5 h-4.5 rounded-md mt-0.5 border flex items-center justify-center shrink-0 transition-all ${
+                          className={`w-11 h-6 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 ${
                             checked
                               ? isDelete
-                                ? "bg-rose-600 border-rose-600 text-white"
-                                : "bg-indigo-600 border-indigo-600 text-white"
-                              : "border-slate-300 bg-white"
+                                ? "bg-rose-600"
+                                : "bg-slate-900"
+                              : "bg-slate-200"
                           }`}
                         >
-                          {checked && <Check size={12} strokeWidth={3} />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-slate-900">{perm.label}</span>
-                            {isDelete && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-rose-100 text-rose-700">
-                                Destructive
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed font-normal">
-                            {perm.desc}
-                          </p>
+                          <div
+                            className={`bg-white w-5 h-5 rounded-full shadow-xs transform transition-transform duration-200 ease-in-out ${
+                              checked ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
                         </div>
                       </div>
                     );
@@ -843,19 +896,19 @@ export default function ProjectSettingsPage() {
               </div>
 
               {/* Notice Banner */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-[11px] text-slate-500 leading-relaxed flex items-center gap-2.5">
-                <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
-                <span>Permission changes take effect immediately across all active AI conversations.</span>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 text-[11px] text-slate-500 leading-snug flex items-center gap-2">
+                <ShieldCheck size={15} className="text-emerald-600 shrink-0" />
+                <span>Permission updates apply immediately across all active AI conversations.</span>
               </div>
             </div>
 
             {/* Footer (Sticky / Shrink-0) */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex items-center justify-end gap-2.5 shrink-0">
+            <div className="px-5 sm:px-6 py-3.5 border-t border-slate-100 bg-slate-50/60 flex items-center justify-end gap-2.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setEditingApp(null)}
                 disabled={savingPermissions}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 border border-slate-200/60 bg-white transition-all shadow-2xs"
               >
                 Cancel
               </button>
@@ -863,7 +916,7 @@ export default function ProjectSettingsPage() {
                 type="button"
                 onClick={handleSavePermissions}
                 disabled={savingPermissions || editScopes.length === 0}
-                className="btn-primary px-4 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                className="btn-primary px-4.5 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
               >
                 {savingPermissions ? (
                   <>
