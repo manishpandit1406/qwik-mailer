@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Settings, Save, Trash2, AlertTriangle, RefreshCw, X, Check, Sparkles, Shield, Unplug, SlidersHorizontal, Building2 } from "lucide-react";
+import { Settings, Save, Trash2, AlertTriangle, RefreshCw, X, Check, Sparkles, Shield, Unplug, SlidersHorizontal, Building2, ShieldCheck, ChevronDown } from "lucide-react";
 import { LogoLoader } from "@/components/LogoLoader";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -31,6 +31,13 @@ const AVAILABLE_PERMISSIONS = [
     desc: "Permanently delete forms and associated responses",
   },
 ];
+
+const SCOPE_META: Record<string, { label: string; isDanger?: boolean }> = {
+  "forms:write": { label: "Create & Edit" },
+  "forms:read": { label: "Read Forms" },
+  "submissions:read": { label: "View Responses" },
+  "forms:delete": { label: "Delete Forms", isDanger: true },
+};
 
 function OpenAILogo({ className = "w-5 h-5" }: { className?: string }) {
   return (
@@ -456,80 +463,113 @@ export default function ProjectSettingsPage() {
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
-                  {connectedApps.map((app) => (
-                    <div key={app.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 p-2 flex items-center justify-center shadow-xs shrink-0">
-                          {app.clientName?.toLowerCase().includes("chatgpt") || app.clientId?.toLowerCase().includes("chatgpt") ? (
-                            <OpenAILogo className="w-6 h-6 text-[#10a37f]" />
-                          ) : app.clientName?.toLowerCase().includes("claude") || app.clientId?.toLowerCase().includes("claude") ? (
-                            <ClaudeLogo className="w-6 h-6 text-[#D97757]" />
-                          ) : (
-                            <Sparkles size={18} className="text-indigo-600" />
-                          )}
+                <div className="space-y-3">
+                  {connectedApps.map((app) => {
+                    const isChatGPT = app.clientName?.toLowerCase().includes("chatgpt") || app.clientId?.toLowerCase().includes("chatgpt");
+                    const isClaude = app.clientName?.toLowerCase().includes("claude") || app.clientId?.toLowerCase().includes("claude");
+                    const scopes = (app.scope || "forms:read forms:write").split(/\s+/).filter(Boolean);
+
+                    return (
+                      <div
+                        key={app.id}
+                        className="p-4 sm:p-5 rounded-2xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all shadow-2xs hover:shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      >
+                        <div className="flex items-start gap-3.5 min-w-0">
+                          {/* Logo container with brand tint */}
+                          <div
+                            className={`w-11 h-11 rounded-xl p-2.5 flex items-center justify-center shrink-0 border shadow-2xs ${
+                              isChatGPT
+                                ? "bg-emerald-50/70 border-emerald-200/60 text-[#10a37f]"
+                                : isClaude
+                                ? "bg-amber-50/70 border-amber-200/60 text-[#D97757]"
+                                : "bg-indigo-50/70 border-indigo-200/60 text-indigo-600"
+                            }`}
+                          >
+                            {isChatGPT ? (
+                              <OpenAILogo className="w-6 h-6" />
+                            ) : isClaude ? (
+                              <ClaudeLogo className="w-6 h-6" />
+                            ) : (
+                              <Sparkles size={20} />
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            {/* App Name and Status */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-sm font-semibold text-slate-900 tracking-tight">
+                                {app.clientName}
+                              </h4>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Active
+                              </span>
+                              <span className="text-slate-300 hidden sm:inline">•</span>
+                              <span className="inline-flex items-center gap-1 text-xs text-slate-500 font-medium">
+                                <Building2 size={12} className="text-slate-400" />
+                                <span className="text-slate-700">{app.teamName}</span>
+                              </span>
+                            </div>
+
+                            {/* Human-readable permission badges */}
+                            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                              {scopes.map((sc: string) => {
+                                const meta = SCOPE_META[sc] || { label: sc };
+                                return (
+                                  <span
+                                    key={sc}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors ${
+                                      meta.isDanger
+                                        ? "bg-rose-50 text-rose-600 border border-rose-200/60"
+                                        : "bg-slate-100/80 text-slate-700 border border-slate-200/70"
+                                    }`}
+                                  >
+                                    <Check size={11} className={meta.isDanger ? "text-rose-500" : "text-emerald-600"} strokeWidth={2.5} />
+                                    {meta.label}
+                                  </span>
+                                );
+                              })}
+                            </div>
+
+                            {/* Timestamp */}
+                            <p className="text-[11px] text-slate-400 mt-1.5 font-normal">
+                              Connected on {formatConnectedDate(app.createdAt)}
+                            </p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-semibold text-gray-900 truncate">{app.clientName}</h4>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Active
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500">
-                            <span>Project: <strong className="font-medium text-gray-700">{app.teamName}</strong></span>
-                            <span>•</span>
-                            <span className="text-[11px] text-gray-400">Connected {formatConnectedDate(app.createdAt)}</span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                            {(app.scope || "forms:read forms:write").split(/\s+/).filter(Boolean).map((sc: string) => {
-                              const isDelete = sc === "forms:delete";
-                              return (
-                                <span
-                                  key={sc}
-                                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${
-                                    isDelete
-                                      ? "bg-red-50 text-red-600 border border-red-200"
-                                      : "bg-slate-100 text-slate-700 border border-slate-200"
-                                  }`}
-                                >
-                                  {sc}
-                                </span>
-                              );
-                            })}
-                          </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto justify-end">
+                          <button
+                            onClick={() => openEditModal(app)}
+                            className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-2xs hover:shadow-xs active:scale-95"
+                          >
+                            <SlidersHorizontal size={13} className="text-slate-500" />
+                            Edit Permissions
+                          </button>
+
+                          <button
+                            onClick={() => handleRevokeApp(app.id)}
+                            disabled={revokingId === app.id}
+                            className="px-3 py-1.5 rounded-xl border border-transparent hover:border-rose-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50/80 text-xs font-medium transition-all flex items-center gap-1.5 disabled:opacity-50 active:scale-95"
+                            title="Disconnect application"
+                          >
+                            {revokingId === app.id ? (
+                              <>
+                                <RefreshCw size={12} className="animate-spin text-rose-500" />
+                                <span className="text-rose-600">Disconnecting...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Unplug size={13} />
+                                Disconnect
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => openEditModal(app)}
-                          className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs"
-                        >
-                          <SlidersHorizontal size={13} className="text-gray-500" />
-                          Edit Permissions
-                        </button>
-
-                        <button
-                          onClick={() => handleRevokeApp(app.id)}
-                          disabled={revokingId === app.id}
-                          className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50"
-                        >
-                          {revokingId === app.id ? (
-                            <>
-                              <RefreshCw size={12} className="animate-spin" />
-                              Revoking...
-                            </>
-                          ) : (
-                            <>
-                              <Unplug size={12} />
-                              Disconnect
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -624,83 +664,104 @@ export default function ProjectSettingsPage() {
       )}
       {/* Edit Connected App Permissions Modal */}
       {editingApp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 animate-fade-up">
-            {/* Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 sm:p-6 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full flex flex-col max-h-[88vh] shadow-2xl border border-slate-200/80 overflow-hidden animate-fade-up">
+            {/* Header (Sticky / Shrink-0) */}
+            <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 p-2 flex items-center justify-center shadow-xs">
+                <div
+                  className={`w-10 h-10 rounded-xl p-2 flex items-center justify-center shrink-0 border shadow-2xs ${
+                    editingApp.clientName?.toLowerCase().includes("chatgpt") || editingApp.clientId?.toLowerCase().includes("chatgpt")
+                      ? "bg-emerald-50/70 border-emerald-200/60 text-[#10a37f]"
+                      : editingApp.clientName?.toLowerCase().includes("claude") || editingApp.clientId?.toLowerCase().includes("claude")
+                      ? "bg-amber-50/70 border-amber-200/60 text-[#D97757]"
+                      : "bg-indigo-50/70 border-indigo-200/60 text-indigo-600"
+                  }`}
+                >
                   {editingApp.clientName?.toLowerCase().includes("chatgpt") || editingApp.clientId?.toLowerCase().includes("chatgpt") ? (
-                    <OpenAILogo className="w-6 h-6 text-[#10a37f]" />
+                    <OpenAILogo className="w-6 h-6" />
                   ) : editingApp.clientName?.toLowerCase().includes("claude") || editingApp.clientId?.toLowerCase().includes("claude") ? (
-                    <ClaudeLogo className="w-6 h-6 text-[#D97757]" />
+                    <ClaudeLogo className="w-6 h-6" />
                   ) : (
-                    <Sparkles size={18} className="text-indigo-600" />
+                    <Sparkles size={18} />
                   )}
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 text-base">
+                  <h3 className="font-bold text-slate-900 text-base leading-tight">
                     Edit Permissions
                   </h3>
-                  <p className="text-xs text-gray-500">
-                    Configure access permissions for <span className="font-semibold text-gray-700">{editingApp.clientName}</span>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Configure access permissions for <span className="font-semibold text-slate-700">{editingApp.clientName}</span>
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setEditingApp(null)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                title="Close"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+            {/* Modal Body (Scrollable) */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               {editModalError && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2">
-                  <AlertTriangle size={14} className="shrink-0" />
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                  <AlertTriangle size={14} className="shrink-0 text-rose-500" />
                   <span>{editModalError}</span>
                 </div>
               )}
 
-              {/* Project / Team Selection */}
+              {/* Authorized Project / Team Selection */}
               {availableTeams.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
-                    <Building2 size={13} className="text-gray-400" />
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <Building2 size={13} className="text-slate-400" />
                     Authorized Project
                   </label>
-                  <select
-                    className="w-full text-xs font-medium text-gray-900 bg-white border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    value={editTeamId}
-                    onChange={(e) => setEditTeamId(e.target.value)}
-                  >
-                    {availableTeams.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] text-gray-400 mt-1">
+                  <div className="relative">
+                    <select
+                      className="w-full text-xs font-medium text-slate-900 bg-slate-50/60 hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all appearance-none cursor-pointer"
+                      value={editTeamId}
+                      onChange={(e) => setEditTeamId(e.target.value)}
+                    >
+                      {availableTeams.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronDown size={14} />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
                     The AI assistant will only have access to forms inside this project.
                   </p>
                 </div>
               )}
 
-              {/* Quick Presets */}
+              {/* Access Presets (Segmented Pill Tab) */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-2">
-                  Access Presets
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Access Preset
+                  </label>
+                  {editPreset === "custom" && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                      Custom Scopes
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 p-1 rounded-xl bg-slate-100/80 border border-slate-200/60 gap-1">
                   <button
                     type="button"
                     onClick={() => handleEditPresetChange("full")}
-                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition text-center ${
+                    className={`py-1.5 px-3 rounded-lg text-xs transition-all text-center ${
                       editPreset === "full"
-                        ? "bg-indigo-50/80 border-indigo-500 text-indigo-700 shadow-2xs"
-                        : "bg-gray-50/60 border-gray-200 text-gray-600 hover:bg-gray-100/70"
+                        ? "bg-white text-slate-900 shadow-2xs font-semibold"
+                        : "text-slate-600 hover:text-slate-900 font-medium"
                     }`}
                   >
                     Full Control
@@ -708,10 +769,10 @@ export default function ProjectSettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleEditPresetChange("read_write")}
-                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition text-center ${
+                    className={`py-1.5 px-3 rounded-lg text-xs transition-all text-center ${
                       editPreset === "read_write"
-                        ? "bg-indigo-50/80 border-indigo-500 text-indigo-700 shadow-2xs"
-                        : "bg-gray-50/60 border-gray-200 text-gray-600 hover:bg-gray-100/70"
+                        ? "bg-white text-slate-900 shadow-2xs font-semibold"
+                        : "text-slate-600 hover:text-slate-900 font-medium"
                     }`}
                   >
                     Read & Write
@@ -719,10 +780,10 @@ export default function ProjectSettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleEditPresetChange("read_only")}
-                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition text-center ${
+                    className={`py-1.5 px-3 rounded-lg text-xs transition-all text-center ${
                       editPreset === "read_only"
-                        ? "bg-indigo-50/80 border-indigo-500 text-indigo-700 shadow-2xs"
-                        : "bg-gray-50/60 border-gray-200 text-gray-600 hover:bg-gray-100/70"
+                        ? "bg-white text-slate-900 shadow-2xs font-semibold"
+                        : "text-slate-600 hover:text-slate-900 font-medium"
                     }`}
                   >
                     Read Only
@@ -730,9 +791,9 @@ export default function ProjectSettingsPage() {
                 </div>
               </div>
 
-              {/* Scopes Checklist */}
+              {/* Granular Permissions Checklist */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-2">
+                <label className="block text-xs font-semibold text-slate-700 mb-2">
                   Granular Permissions
                 </label>
                 <div className="space-y-2">
@@ -743,33 +804,35 @@ export default function ProjectSettingsPage() {
                       <div
                         key={perm.id}
                         onClick={() => toggleEditScope(perm.scope)}
-                        className={`p-3 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
                           checked
                             ? isDelete
-                              ? "bg-red-50/40 border-red-300"
-                              : "bg-indigo-50/30 border-indigo-300"
-                            : "bg-white border-gray-200 hover:bg-gray-50/50"
+                              ? "bg-rose-50/50 border-rose-200 shadow-2xs"
+                              : "bg-indigo-50/40 border-indigo-200 shadow-2xs"
+                            : "bg-white border-slate-200/80 hover:bg-slate-50/50 hover:border-slate-300"
                         }`}
                       >
                         <div
-                          className={`w-4 h-4 rounded mt-0.5 border flex items-center justify-center shrink-0 transition ${
+                          className={`w-4.5 h-4.5 rounded-md mt-0.5 border flex items-center justify-center shrink-0 transition-all ${
                             checked
                               ? isDelete
-                                ? "bg-red-600 border-red-600 text-white"
+                                ? "bg-rose-600 border-rose-600 text-white"
                                 : "bg-indigo-600 border-indigo-600 text-white"
-                              : "border-gray-300 bg-white"
+                              : "border-slate-300 bg-white"
                           }`}
                         >
                           {checked && <Check size={12} strokeWidth={3} />}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-gray-900">{perm.label}</span>
-                            <code className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-mono">
-                              {perm.scope}
-                            </code>
+                            <span className="text-xs font-semibold text-slate-900">{perm.label}</span>
+                            {isDelete && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-rose-100 text-rose-700">
+                                Destructive
+                              </span>
+                            )}
                           </div>
-                          <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
+                          <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed font-normal">
                             {perm.desc}
                           </p>
                         </div>
@@ -779,18 +842,20 @@ export default function ProjectSettingsPage() {
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 leading-relaxed">
-                Changes take effect instantly. Any next request made by {editingApp.clientName} will adhere to these updated permissions.
+              {/* Notice Banner */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-[11px] text-slate-500 leading-relaxed flex items-center gap-2.5">
+                <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
+                <span>Permission changes take effect immediately across all active AI conversations.</span>
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-3">
+            {/* Footer (Sticky / Shrink-0) */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex items-center justify-end gap-2.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setEditingApp(null)}
                 disabled={savingPermissions}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100 transition"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors"
               >
                 Cancel
               </button>
@@ -798,12 +863,12 @@ export default function ProjectSettingsPage() {
                 type="button"
                 onClick={handleSavePermissions}
                 disabled={savingPermissions || editScopes.length === 0}
-                className="btn-primary px-4 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 disabled:opacity-50"
+                className="btn-primary px-4 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
               >
                 {savingPermissions ? (
                   <>
                     <RefreshCw size={13} className="animate-spin" />
-                    Saving...
+                    Saving Changes...
                   </>
                 ) : (
                   <>
