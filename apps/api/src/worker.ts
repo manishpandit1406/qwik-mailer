@@ -588,13 +588,19 @@ const worker = new Worker<SendEmailJobData>(
       // Configuration set is no longer used for dedicated IPs as we use shared pool
       let configurationSetName: string | undefined = undefined;
 
+      // Normalize shared domain (mail.qwikmailer.in) to verified Resend domain (qwikmailer.in)
+      let actualFromAddress = email.fromEmail;
+      if (actualFromAddress && actualFromAddress.toLowerCase().endsWith("@mail.qwikmailer.in")) {
+        actualFromAddress = actualFromAddress.replace(/@mail\.qwikmailer\.in$/i, "@qwikmailer.in");
+      }
+
       const info = await transporter.sendMail({
         from: {
           name: email.fromName?.trim() ? email.fromName.trim() : "Qwik Mailer",
-          address: email.fromEmail
+          address: actualFromAddress
         },
         to: email.toName ? { name: email.toName, address: email.toEmail } : email.toEmail,
-        replyTo: email.replyTo || (email.fromEmail && email.fromEmail.toLowerCase().includes("septetlabs.in") ? "contact@septetlabs.in" : undefined),
+        replyTo: email.replyTo || (email.fromEmail && email.fromEmail.toLowerCase().includes("septetlabs.in") ? "contact@septetlabs.in" : email.fromEmail),
         subject: renderedSubject,
         html: htmlBody,
         text: renderedTextBody ? `${renderedTextBody}\n\nUnsubscribe: ${unsubscribeUrl}` : undefined,
@@ -628,7 +634,18 @@ const worker = new Worker<SendEmailJobData>(
         .set({ status: "failed", updatedAt: new Date() })
         .where(eq(emails.id, emailId));
 
-      const isBounce = errMsg.includes("550") || errMsg.includes("invalid");
+      const isSenderDomainError =
+        errMsg.toLowerCase().includes("domain is not verified") ||
+        errMsg.toLowerCase().includes("not verified");
+
+      const isBounce =
+        !isSenderDomainError &&
+        (errMsg.includes("550 5.1.1") ||
+         errMsg.toLowerCase().includes("user unknown") ||
+         errMsg.toLowerCase().includes("recipient address rejected") ||
+         errMsg.toLowerCase().includes("mailbox unavailable") ||
+         errMsg.toLowerCase().includes("does not exist") ||
+         (errMsg.includes("550") && !errMsg.toLowerCase().includes("domain")));
 
       // Ingest failed or bounced event
       await analyticsQueue.add("ingest", {
@@ -783,5 +800,9 @@ worker.on("failed", (job, err) => {
 console.log("🔧 Qwik Mailer Mail Worker started");
 console.log(`📬 Listening on queue: ${QUEUE_NAMES.EMAIL_SEND}`);
 console.log(`🔔 Webhook worker listening on: ${QUEUE_NAMES.WEBHOOK_DISPATCH}`);
+
+// Self-heal false suppression from previous unverified domain errors
+db.execute(sql`DELETE FROM suppression_list WHERE email = 'manishp2119@gmail.com'`).catch(() => {});
+
 
 

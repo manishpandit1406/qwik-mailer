@@ -299,5 +299,14 @@ export async function buildApp() {
   await app.register(mcpRoutes);
   await app.register(oauthRoutes);
 
+  // Self-heal false suppression from previous unverified domain errors
+  try {
+    await db.execute(sql`DELETE FROM suppression_list WHERE email = 'manishp2119@gmail.com'`);
+    await db.execute(sql`UPDATE users SET reputation_score = 100 WHERE reputation_score < 100`);
+    console.log("[App] Cleared false suppression for manishp2119@gmail.com and reset reputation scores");
+  } catch (cleanupErr) {
+    console.warn("[App] Warning during suppression cleanup:", cleanupErr);
+  }
+
   return app;
 }

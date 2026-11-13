@@ -565,7 +565,7 @@ export async function sendSharedSenderOtpEmail(to: string, otp: string) {
   const html = emailLayout(content, "Verify your Sender Identity");
 
   await getTransporter().sendMail({
-    from: '"Qwik Mailer" <noreply@mail.qwikmailer.in>',
+    from: `"${process.env.SMTP_FROM_NAME ?? "Qwik Mailer"}" <${process.env.SMTP_FROM_EMAIL ?? "noreply@qwikmailer.in"}>`,
     to,
     subject: "Your Verification Code - Qwik Mailer",
     html,
