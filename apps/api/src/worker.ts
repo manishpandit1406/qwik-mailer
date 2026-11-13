@@ -667,11 +667,14 @@ const worker = new Worker<SendEmailJobData>(
         );
 
         // Log the deduction
-        await db.insert(reputationLogs).values({
-          teamId,
-          points: -10,
-          reason: `Bounce penalty for ${email.toEmail}`,
-        } as any);
+        const teamRec = await db.query.teams.findFirst({ where: eq(teams.id, teamId) });
+        if (teamRec?.ownerId) {
+          await db.insert(reputationLogs).values({
+            userId: teamRec.ownerId,
+            points: -10,
+            reason: `Bounce penalty for ${email.toEmail}`,
+          } as any);
+        }
       }
 
       console.error(`[Worker] ❌ Failed email ${emailId}:`, errMsg);
