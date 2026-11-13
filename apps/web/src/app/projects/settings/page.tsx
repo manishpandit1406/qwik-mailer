@@ -20,6 +20,20 @@ import {
 import { LogoLoader } from "@/components/LogoLoader";
 import { startRegistration } from "@simplewebauthn/browser";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+function normalizeAvatar(raw?: string | null): string {
+  if (!raw) return "";
+  const str = String(raw).trim();
+  if (!str) return "";
+  if (str.includes("/v1/uploads/file?key=")) return str;
+  const match = str.match(/(avatars\/[^?&#]+)/);
+  if (match) {
+    const api = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
+    return `${api}/v1/uploads/file?key=${encodeURIComponent(match[1])}`;
+  }
+  return str;
+}
+
 function getToken() {
   return typeof window !== "undefined"
     ? (localStorage.getItem("mf_access_token") ?? "")
@@ -57,6 +71,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const plansScrollRef = useRef<HTMLDivElement>(null);
 
@@ -603,10 +618,11 @@ export default function SettingsPage() {
                   {/* Profile Picture Card */}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-5 p-5 rounded-2xl border border-gray-200 bg-gradient-to-r from-gray-50/80 via-white to-gray-50/50 shadow-sm">
                     <div className="relative group shrink-0">
-                      {profile.avatarUrl ? (
+                      {profile.avatarUrl && !avatarError ? (
                         <img
-                          src={profile.avatarUrl}
+                          src={normalizeAvatar(profile.avatarUrl)}
                           alt={profile.name}
+                          onError={() => setAvatarError(true)}
                           className="w-20 h-20 rounded-2xl object-cover shadow-sm border-2 border-white ring-1 ring-gray-200"
                         />
                       ) : (

@@ -5,6 +5,8 @@ import { db, users } from "@qwikmailer/db";
 import { authenticate } from "../middleware/auth.js";
 import { uploadBufferToS3, getPresignedGetUrl } from "../services/s3.service.js";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const ALLOWED_TYPES: Record<string, string[]> = {
@@ -70,9 +72,10 @@ export async function uploadRoutes(app: FastifyInstance) {
       const key = `avatars/${user.sub}-${Date.now()}.${ext}`;
 
       try {
-        const url = await uploadBufferToS3({ key, buffer, contentType });
-        await db.update(users).set({ avatarUrl: url, updatedAt: new Date() }).where(eq(users.id, user.sub));
-        return reply.send({ success: true, url, key });
+        await uploadBufferToS3({ key, buffer, contentType });
+        const permanentUrl = `${API_URL}/v1/uploads/file?key=${encodeURIComponent(key)}`;
+        await db.update(users).set({ avatarUrl: permanentUrl, updatedAt: new Date() }).where(eq(users.id, user.sub));
+        return reply.send({ success: true, url: permanentUrl, key });
       } catch (err) {
         req.log.error(err, "S3 upload failed for avatar");
         return reply.status(500).send({ success: false, error: "Failed to upload profile picture. Please try again." });

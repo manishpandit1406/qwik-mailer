@@ -19,6 +19,20 @@ import { authenticate } from "../middleware/auth.js";
 import { getUserLimits } from "../utils/quota.js";
 import { PLAN_LIMITS } from "../config/plans.js";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
+
+export function normalizeAvatarUrl(raw?: string | null): string | null {
+  if (!raw) return null;
+  const str = String(raw).trim();
+  if (!str) return null;
+  if (str.includes("/v1/uploads/file?key=")) return str;
+  const match = str.match(/(avatars\/[^?&#]+)/);
+  if (match) {
+    return `${API_URL}/v1/uploads/file?key=${encodeURIComponent(match[1])}`;
+  }
+  return str;
+}
+
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const registerSchema = z.object({
@@ -229,7 +243,7 @@ export async function authRoutes(app: FastifyInstance) {
           email: user.email,
           plan: user.plan,
           role: user.role,
-          avatarUrl: user.avatarUrl,
+          avatarUrl: normalizeAvatarUrl(user.avatarUrl),
           reputationScore: user.reputationScore,
           onboardingCompleted: user.onboardingCompleted,
         },
@@ -371,7 +385,7 @@ export async function authRoutes(app: FastifyInstance) {
         email: user.email,
         plan: user.plan,
         role: user.role,
-        avatarUrl: user.avatarUrl,
+        avatarUrl: normalizeAvatarUrl(user.avatarUrl),
         notificationPreferences: (user as any).notificationPreferences ?? {},
         companyName: user.companyName,
         websiteUrl: user.websiteUrl,

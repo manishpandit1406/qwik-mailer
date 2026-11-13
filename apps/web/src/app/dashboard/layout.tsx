@@ -43,6 +43,19 @@ import { Select } from "@/components/Select";
 import { useRole } from "@/lib/useRole";
 import { SandboxProvider } from "@/lib/sandboxContext";
 
+function normalizeAvatar(raw?: string | null): string {
+  if (!raw) return "";
+  const str = String(raw).trim();
+  if (!str) return "";
+  if (str.includes("/v1/uploads/file?key=")) return str;
+  const match = str.match(/(avatars\/[^?&#]+)/);
+  if (match) {
+    const api = process.env.NEXT_PUBLIC_API_URL || "https://api.qwikmailer.in";
+    return `${api}/v1/uploads/file?key=${encodeURIComponent(match[1])}`;
+  }
+  return str;
+}
+
 interface NavItem {
   label: string;
   href: string;
@@ -395,15 +408,22 @@ export default function DashboardLayout({
           <Link href="/projects/settings" className="flex items-center gap-2 pl-4 border-l border-gray-200 hover:opacity-85 transition-opacity">
             {user.avatarUrl ? (
               <img
-                src={user.avatarUrl}
+                src={normalizeAvatar(user.avatarUrl)}
                 alt={user.name}
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = "flex";
+                }}
                 className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-200"
               />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white flex items-center justify-center text-sm font-bold shadow-sm">
-                {userInitial}
-              </div>
-            )}
+            ) : null}
+            <div
+              style={{ display: user.avatarUrl ? "none" : "flex" }}
+              className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-800 to-black text-white items-center justify-center text-sm font-bold shadow-sm"
+            >
+              {userInitial}
+            </div>
             <span className="text-sm font-medium text-gray-700 hidden sm:block">
               {user.name}
             </span>
