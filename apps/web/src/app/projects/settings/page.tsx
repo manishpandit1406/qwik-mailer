@@ -16,7 +16,9 @@ import {
   Trash2,
   Upload,
   Camera,
+  Sparkles,
 } from "lucide-react";
+import { ConnectedAppsSection } from "@/components/ConnectedAppsSection";
 import { LogoLoader } from "@/components/LogoLoader";
 import { startRegistration } from "@simplewebauthn/browser";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -41,7 +43,7 @@ function getToken() {
 }
 export default function SettingsPage() {
   const [tab, setTab] = useState<
-    "profile" | "security" | "notifications"
+    "profile" | "integrations" | "security" | "notifications"
   >("profile");
   const [profile, setProfile] = useState({
     name: "",
@@ -271,6 +273,7 @@ export default function SettingsPage() {
   }
   const tabs = [
     { id: "profile", label: "Profile", icon: <User size={15} /> },
+    { id: "integrations", label: "Connected AI", icon: <Sparkles size={15} /> },
     { id: "security", label: "Security", icon: <Shield size={15} /> },
     { id: "notifications", label: "Notifications", icon: <Bell size={15} /> },
   ] as const;
@@ -828,6 +831,9 @@ export default function SettingsPage() {
                 </>
               )}
             </div>
+          )}
+          {tab === "integrations" && (
+            <ConnectedAppsSection variant="plain" />
           )}
           {tab === "security" && (
             <div className="space-y-5">

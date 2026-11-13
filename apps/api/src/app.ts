@@ -139,6 +139,7 @@ export async function buildApp() {
         expires_at timestamp NOT NULL,
         created_at timestamp DEFAULT now()
       );
+      ALTER TABLE oauth_tokens ADD COLUMN IF NOT EXISTS team_ids uuid[] DEFAULT ARRAY[]::uuid[];
       CREATE INDEX IF NOT EXISTS oauth_tokens_token_idx ON oauth_tokens (token);
       CREATE INDEX IF NOT EXISTS oauth_tokens_refresh_token_idx ON oauth_tokens (refresh_token);
     `);

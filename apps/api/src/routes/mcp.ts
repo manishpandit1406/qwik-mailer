@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and, desc, count, sql } from "drizzle-orm";
+import { eq, and, desc, count, sql, inArray } from "drizzle-orm";
 import { db, forms, formSubmissions, teams, teamMembers } from "@qwikmailer/db";
 import { validateApiKey } from "../services/api-key.service.js";
 
@@ -154,6 +154,7 @@ const TOOLS = [
 
 interface AuthContext {
   teamId: string;
+  teamIds: string[];
   scopes: string[];
 }
 
@@ -185,6 +186,7 @@ async function resolveAuth(req: any, app: FastifyInstance): Promise<AuthContext 
       if (user?.teamId) {
         return {
           teamId: user.teamId,
+          teamIds: [user.teamId],
           scopes: ALL_SCOPES,
         };
       }
@@ -200,14 +202,17 @@ async function resolveAuth(req: any, app: FastifyInstance): Promise<AuthContext 
   if (bearerToken) {
     try {
       const oauthRes = await db.execute(sql`
-        SELECT team_id, scope FROM oauth_tokens WHERE token = ${bearerToken} AND expires_at > now()
+        SELECT team_id, team_ids, scope FROM oauth_tokens WHERE token = ${bearerToken} AND expires_at > now()
       `);
       if (oauthRes.length && (oauthRes[0] as any)?.team_id) {
         const row = oauthRes[0] as any;
         const rawScope = String(row.scope || "").trim();
         const scopes = rawScope ? rawScope.split(/\s+/).filter(Boolean) : [];
+        const rawTeamIds = Array.isArray(row.team_ids) ? row.team_ids : [];
+        const teamIds = Array.from(new Set([row.team_id, ...rawTeamIds])).filter(Boolean);
         return {
           teamId: row.team_id as string,
+          teamIds,
           scopes,
         };
       }
@@ -235,6 +240,7 @@ async function resolveAuth(req: any, app: FastifyInstance): Promise<AuthContext 
         if (member?.teamId) {
           return {
             teamId: member.teamId,
+            teamIds: [member.teamId],
             scopes: ALL_SCOPES,
           };
         }
@@ -358,7 +364,8 @@ export async function mcpRoutes(app: FastifyInstance) {
         }
 
         const { name, arguments: args = {} } = params || {};
-        const teamId = auth.teamId;
+        const teamIds = auth.teamIds && auth.teamIds.length > 0 ? auth.teamIds : [auth.teamId];
+        const teamId = (args.teamId && teamIds.includes(args.teamId)) ? args.teamId : auth.teamId;
 
         // Check granular permission / scope
         const requiredScope = TOOL_SCOPE_MAP[name];
@@ -483,7 +490,7 @@ export async function mcpRoutes(app: FastifyInstance) {
             };
           } else if (name === "list_forms") {
             const userForms = await db.query.forms.findMany({
-              where: eq(forms.teamId, teamId),
+              where: inArray(forms.teamId, teamIds),
               orderBy: [desc(forms.createdAt)],
             });
             toolResult = {
@@ -503,14 +510,14 @@ export async function mcpRoutes(app: FastifyInstance) {
             };
           } else if (name === "get_form") {
             const form = await db.query.forms.findFirst({
-              where: and(eq(forms.id, args.id), eq(forms.teamId, teamId)),
+              where: and(eq(forms.id, args.id), inArray(forms.teamId, teamIds)),
             });
             if (!form) throw new Error("Form not found");
             toolResult = form;
           } else if (name === "get_form_submissions") {
             const limit = Math.min(100, Math.max(1, args.limit || 50));
             const submissions = await db.query.formSubmissions.findMany({
-              where: and(eq(formSubmissions.formId, args.id), eq(formSubmissions.teamId, teamId)),
+              where: and(eq(formSubmissions.formId, args.id), inArray(formSubmissions.teamId, teamIds)),
               orderBy: [desc(formSubmissions.createdAt)],
               limit,
             });
@@ -521,7 +528,7 @@ export async function mcpRoutes(app: FastifyInstance) {
           } else if (name === "delete_form") {
             const [deleted] = await db
               .delete(forms)
-              .where(and(eq(forms.id, args.id), eq(forms.teamId, teamId)))
+              .where(and(eq(forms.id, args.id), inArray(forms.teamId, teamIds)))
               .returning();
             if (!deleted) throw new Error("Form not found");
             toolResult = { message: "Form deleted successfully" };

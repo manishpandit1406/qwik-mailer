@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -57,7 +57,9 @@ function cleanPhoneForWhatsApp(val: any): string | null {
   return null;
 }
 
-export default function FormSubmissionsPage({ basePath = "/dashboard/forms" }: { basePath?: string }) {
+export default function FormSubmissionsPage() {
+  const pathname = usePathname();
+  const basePath = pathname?.startsWith("/forms-dashboard") ? "/forms-dashboard" : "/dashboard/forms";
   const params = useParams();
   const router = useRouter();
   const formId = (params?.id as string) || "";

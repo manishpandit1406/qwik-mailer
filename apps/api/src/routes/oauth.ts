@@ -386,8 +386,9 @@ export async function oauthRoutes(app: FastifyInstance) {
         t.scope,
         t.created_at,
         t.expires_at,
+        t.team_id,
+        t.team_ids,
         tm.name as team_name,
-        tm.id as team_id,
         c.client_name
       FROM oauth_tokens t
       LEFT JOIN oauth_clients c ON c.client_id = t.client_id
@@ -395,6 +396,17 @@ export async function oauthRoutes(app: FastifyInstance) {
       WHERE t.user_id = ${userId} AND t.expires_at > now()
       ORDER BY t.created_at DESC
     `);
+
+    // Fetch user teams map for multiple projects display
+    const userTeamsRes = await db.execute(sql`
+      SELECT id, name FROM teams WHERE owner_id = ${userId}
+      UNION
+      SELECT t.id, t.name FROM team_members m JOIN teams t ON t.id = m.team_id WHERE m.user_id = ${userId}
+    `);
+    const teamMap = new Map<string, string>();
+    for (const t of userTeamsRes) {
+      teamMap.set((t as any).id, (t as any).name);
+    }
 
     const toIsoUtc = (val: any) => {
       if (!val) return new Date().toISOString();
@@ -412,12 +424,26 @@ export async function oauthRoutes(app: FastifyInstance) {
         else displayName = "AI Connector";
       }
 
+      const rawTeamIds: string[] = Array.isArray(row.team_ids) && row.team_ids.length > 0
+        ? row.team_ids
+        : row.team_id ? [row.team_id] : [];
+      const teamIds = Array.from(new Set(rawTeamIds)).filter(Boolean);
+
+      const teamNames = teamIds.map((id) => teamMap.get(id) || row.team_name || "Project");
+      let teamNameSummary = "";
+      if (teamNames.length === 0) teamNameSummary = row.team_name || "Default Project";
+      else if (teamNames.length === 1) teamNameSummary = teamNames[0];
+      else if (teamNames.length === 2) teamNameSummary = `${teamNames[0]}, ${teamNames[1]}`;
+      else teamNameSummary = `${teamNames.length} Projects (${teamNames[0]}, ${teamNames[1]}, +${teamNames.length - 2})`;
+
       return {
         id: row.token,
         clientName: displayName,
         clientId: row.client_id,
-        teamName: row.team_name || "Default Project",
+        teamName: teamNameSummary,
+        teamNames,
         teamId: row.team_id,
+        teamIds,
         scope: row.scope || "forms:read forms:write",
         createdAt: toIsoUtc(row.created_at),
         expiresAt: toIsoUtc(row.expires_at),
@@ -446,7 +472,7 @@ export async function oauthRoutes(app: FastifyInstance) {
     reply.header("Access-Control-Allow-Origin", "*");
     const userId = (req.user as any)?.sub || (req.user as any)?.id;
     const { tokenId } = req.params as { tokenId: string };
-    const body = (req.body || {}) as { scope?: string | string[]; teamId?: string };
+    const body = (req.body || {}) as { scope?: string | string[]; teamId?: string; teamIds?: string[] };
 
     if (!userId) return reply.code(401).send({ success: false, error: "Unauthorized" });
 
@@ -462,7 +488,7 @@ export async function oauthRoutes(app: FastifyInstance) {
     }
 
     const existing = await db.execute(sql`
-      SELECT token, client_id, team_id, scope 
+      SELECT token, client_id, team_id, team_ids, scope 
       FROM oauth_tokens 
       WHERE (token = ${tokenId} OR client_id = ${tokenId}) AND user_id = ${userId}
       LIMIT 1
@@ -473,35 +499,52 @@ export async function oauthRoutes(app: FastifyInstance) {
     }
 
     const tokenRow = existing[0] as any;
-    let targetTeamId = tokenRow.team_id;
-
-    if (body.teamId && body.teamId !== targetTeamId) {
-      const teamCheck = await db.execute(sql`
-        SELECT id FROM teams WHERE id = ${body.teamId}
-      `);
-      if (teamCheck.length > 0) {
-        targetTeamId = body.teamId;
-      }
+    
+    // Multiple projects determination
+    let targetTeamIds: string[] = [];
+    if (Array.isArray(body.teamIds) && body.teamIds.length > 0) {
+      targetTeamIds = body.teamIds.filter(Boolean);
+    } else if (body.teamId) {
+      targetTeamIds = [body.teamId];
+    } else if (Array.isArray(tokenRow.team_ids) && tokenRow.team_ids.length > 0) {
+      targetTeamIds = tokenRow.team_ids;
+    } else if (tokenRow.team_id) {
+      targetTeamIds = [tokenRow.team_id];
     }
+
+    if (targetTeamIds.length === 0) {
+      return reply.code(400).send({ success: false, error: "At least one project must be authorized" });
+    }
+
+    const primaryTeamId = targetTeamIds[0];
+    const pgTeamIdsLiteral = `{${targetTeamIds.map((id) => `"${id}"`).join(",")}}`;
 
     await db.execute(sql`
       UPDATE oauth_tokens
       SET scope = ${scopeStr},
-          team_id = ${targetTeamId}
+          team_id = ${primaryTeamId},
+          team_ids = ${pgTeamIdsLiteral}::uuid[]
       WHERE token = ${tokenRow.token} AND user_id = ${userId}
     `);
 
-    const teamRes = await db.execute(sql`
-      SELECT name FROM teams WHERE id = ${targetTeamId}
+    const teamsRes = await db.execute(sql`
+      SELECT id, name FROM teams WHERE id = ANY(${pgTeamIdsLiteral}::uuid[])
     `);
-    const teamName = teamRes.length ? (teamRes[0] as any).name : "Default Project";
+    const teamNames = (teamsRes as any[]).map((t) => t.name);
+    let teamNameSummary = "";
+    if (teamNames.length === 0) teamNameSummary = "Project";
+    else if (teamNames.length === 1) teamNameSummary = teamNames[0];
+    else if (teamNames.length === 2) teamNameSummary = `${teamNames[0]}, ${teamNames[1]}`;
+    else teamNameSummary = `${teamNames.length} Projects (${teamNames[0]}, ${teamNames[1]}, +${teamNames.length - 2})`;
 
     return reply.send({
       success: true,
       message: "Permissions updated successfully",
       scope: scopeStr,
-      teamId: targetTeamId,
-      teamName,
+      teamId: primaryTeamId,
+      teamIds: targetTeamIds,
+      teamName: teamNameSummary,
+      teamNames,
     });
   });
 }
