@@ -38,7 +38,6 @@ import { validationRoutes } from "./routes/validation.js";
 import { billingRoutes } from "./routes/billing.js";
 import { inboxRoutes } from "./routes/inbox.js";
 import { uploadRoutes } from "./routes/uploads.js";
-import { chatgptRoutes } from "./routes/chatgpt.js";
 import { mcpRoutes } from "./routes/mcp.js";
 import { oauthRoutes } from "./routes/oauth.js";
 import { errorHandler } from "./middleware/error-handler.js";
@@ -294,7 +293,6 @@ export async function buildApp() {
   await app.register(billingRoutes, { prefix: "/v1/billing" });
   await app.register(inboxRoutes, { prefix: "/v1/inbox" });
   await app.register(uploadRoutes, { prefix: "/v1/uploads" });
-  await app.register(chatgptRoutes);
   await app.register(mcpRoutes);
   await app.register(oauthRoutes);
 
